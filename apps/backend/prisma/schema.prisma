@@ -1,7 +1,9 @@
+//tao thu vien code
 generator client {
   provider = "prisma-client-js"
 }
 
+//Khai báo csdl
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -16,6 +18,8 @@ enum Role {
   BUYER
 }
 
+//@id khoa chinh
+//@default(uuid()) tao id ngau nhien
 model User {
   id        String   @id @default(uuid())
   email     String   @unique
@@ -26,41 +30,41 @@ model User {
   updatedAt DateTime @updatedAt
 
   // Quan hệ (Relations)
-  products       Product[]       @relation("SellerProducts")
-  livestreams    Livestream[]    @relation("SellerLivestreams")
-  kbEntries      KbEntry[]       @relation("SellerKb")
-  orders         Order[]         @relation("BuyerOrders")
-  messagesSent   DirectMessage[] @relation("MessageSender")
-  messagesRecv   DirectMessage[] @relation("MessageReceiver")
+  products     Product[]       @relation("SellerProducts")
+  livestreams  Livestream[]    @relation("SellerLivestreams")
+  kbEntries    KbEntry[]       @relation("SellerKb")
+  orders       Order[]         @relation("BuyerOrders")
+  messagesSent DirectMessage[] @relation("MessageSender")
+  messagesRecv DirectMessage[] @relation("MessageReceiver")
 }
 
 // -------------------------------------
 // 2. SẢN PHẨM & KHO (DEV 2)
 // -------------------------------------
 model Product {
-  id          String   @id @default(uuid())
-  sku         String   @unique
-  name        String
-  price       Float
-  stock       Int      @default(0)
-  imageUrl    String?
-  sellerId    String
-  createdAt   DateTime @default(now())
+  id        String   @id @default(uuid())
+  sku       String   @unique
+  name      String
+  price     Float
+  stock     Int      @default(0)
+  imageUrl  String?
+  sellerId  String
+  createdAt DateTime @default(now())
 
-  seller      User        @relation("SellerProducts", fields: [sellerId], references: [id])
-  orderItems  OrderItem[]
+  seller     User        @relation("SellerProducts", fields: [sellerId], references: [id])
+  orderItems OrderItem[]
 }
 
 // -------------------------------------
 // 3. AI KNOWLEDGE BASE (DEV 1 QUẢN LÝ)
 // -------------------------------------
 model KbEntry {
-  id        String   @id @default(uuid())
-  keyword   String
-  answer    String   @db.Text
-  sellerId  String
-  
-  seller    User     @relation("SellerKb", fields: [sellerId], references: [id])
+  id       String @id @default(uuid())
+  keyword  String
+  answer   String @db.Text
+  sellerId String
+
+  seller User @relation("SellerKb", fields: [sellerId], references: [id])
 }
 
 // -------------------------------------
@@ -80,8 +84,8 @@ model Livestream {
   startedAt DateTime?
   endedAt   DateTime?
 
-  seller    User       @relation("SellerLivestreams", fields: [sellerId], references: [id])
-  orders    Order[]
+  seller User    @relation("SellerLivestreams", fields: [sellerId], references: [id])
+  orders Order[]
 }
 
 enum OrderStatus {
@@ -98,20 +102,20 @@ model Order {
   livestreamId String
   createdAt    DateTime    @default(now())
 
-  buyer        User        @relation("BuyerOrders", fields: [buyerId], references: [id])
-  livestream   Livestream  @relation(fields: [livestreamId], references: [id])
-  items        OrderItem[]
+  buyer      User        @relation("BuyerOrders", fields: [buyerId], references: [id])
+  livestream Livestream  @relation(fields: [livestreamId], references: [id])
+  items      OrderItem[]
 }
 
 model OrderItem {
-  id        String  @id @default(uuid())
+  id        String @id @default(uuid())
   orderId   String
   productId String
-  quantity  Int     @default(1)
+  quantity  Int    @default(1)
   unitPrice Float
 
-  order     Order   @relation(fields: [orderId], references: [id])
-  product   Product @relation(fields: [productId], references: [id])
+  order   Order   @relation(fields: [orderId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
 }
 
 // -------------------------------------
@@ -119,13 +123,13 @@ model OrderItem {
 // -------------------------------------
 model DirectMessage {
   id         String   @id @default(uuid())
-  senderId   String   // Thường là hệ thống (System) hoặc Seller
-  receiverId String   // Là Buyer
+  senderId   String // Thường là hệ thống (System) hoặc Seller
+  receiverId String // Là Buyer
   content    String   @db.Text
-  qrUrl      String?  // Link ảnh mã QR VietQR (nếu có)
+  qrUrl      String? // Link ảnh mã QR VietQR (nếu có)
   isRead     Boolean  @default(false)
   createdAt  DateTime @default(now())
 
-  sender     User     @relation("MessageSender", fields: [senderId], references: [id])
-  receiver   User     @relation("MessageReceiver", fields: [receiverId], references: [id])
+  sender   User @relation("MessageSender", fields: [senderId], references: [id])
+  receiver User @relation("MessageReceiver", fields: [receiverId], references: [id])
 }
