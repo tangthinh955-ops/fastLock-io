@@ -10,5 +10,14 @@
     "dev:frontend": "npm run dev -w apps/frontend",
     "build:backend": "npm run build -w apps/backend",
     "build:frontend": "npm run build -w apps/frontend"
+  },
+  "dependencies": {
+    "@nestjs/jwt": "^11.0.2",
+    "@nestjs/passport": "^11.0.5",
+    "passport": "^0.7.0",
+    "passport-jwt": "^4.0.1"
+  },
+  "devDependencies": {
+    "@types/passport-jwt": "^4.0.1"
   }
 }

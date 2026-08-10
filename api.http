@@ -1,0 +1,19 @@
+### 1. Đăng nhập với tài khoản SELLER (Chủ shop)
+POST http://localhost:3001/auth/login
+Content-Type: application/json
+
+{
+  "email": "seller@liveorder.com",
+  "password": "123456"
+}
+
+###
+
+### 2. Đăng nhập với tài khoản BUYER (Khách mua hàng)
+POST http://localhost:3001/auth/login
+Content-Type: application/json
+
+{
+  "email": "buyer@liveorder.com",
+  "password": "123456"
+}
