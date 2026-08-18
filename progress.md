@@ -19,7 +19,7 @@
 | **Phase 0** | Prisma Schema & Seed (User, Product, Order, Livestream...) | Dev 1 | ✅ Hoàn thành |
 | **Phase 0** | App Router (`App.tsx`) & Layout cơ bản | Dev 1 | ✅ Hoàn thành |
 | **Phase 1** | **Backend Module Product (CRUD & Stock)** | **Dev 2 (Kỳ)** | ✅ Hoàn thành |
-| **Phase 1** | **Frontend UI `/seller/dashboard` (Quản lý sản phẩm)** | **Dev 2 (Kỳ)** | 🔄 Đang thực hiện |
+| **Phase 1** | **Frontend UI `/seller/dashboard` (Quản lý sản phẩm)** | **Dev 2 (Kỳ)** | ✅ Hoàn thành |
 | **Phase 1** | Thuật toán Aho-Corasick Parser & Order Atomic Stock | Dev 2 (Kỳ) | ⏳ Chưa bắt đầu |
 | **Phase 1** | Module Livestream Socket Gateway & Live Studio UI | Dev 2 (Kỳ) | ⏳ Chưa bắt đầu |
 | **Phase 1** | Direct Message & VietQR API | Dev 1 | ⏳ Chưa bắt đầu |
