@@ -6,10 +6,11 @@
 * **Repository:** `fastLock-io`
 * **Nhánh Git hiện tại:** `Ky`
 * **Vai trò:** **Kỳ (Dev 2)** - Phụ trách Luồng Sản phẩm, Thuật toán Aho-Corasick/Parser, Trừ kho Order, Socket Livestream & Live Studio WebCam UI.
+* **📖 HƯỚNG DẪN RIÊNG CHO KỲ:** Chi tiết sơ đồ lộ trình, giải thích code, lệnh test ngay & quy trình Git xem tại [`KY_GUIDE.md`](file:///d:/project/Th%C6%B0%20mu%CC%A3c%20m%C6%A1%CC%81i/fastLock-io/KY_GUIDE.md).
 
 ---
 
-## 📊 BẢNG TỔNG HỢP TIẾN ĐỘ
+## 📊 BẢNG TỔNG HỢP TIẾN ĐỘ DỰ ÁN
 
 | Giai đoạn | Tính năng / Công việc | Người phụ trách | Trạng thái |
 | :--- | :--- | :---: | :---: |
@@ -40,6 +41,7 @@
    - Đã kiểm tra build: `npm run build:backend` thành công 100%.
 
 2. **Frontend React (`apps/frontend/src/`):** 🔄 **Đang thực hiện**
-   - Tạo trang `/seller/dashboard` tại `apps/frontend/src/pages/seller/Dashboard.tsx`.
+   - Tạo trang `/seller/dashboard` tại `apps/frontend/src/pages/seller/SellerDashboard.tsx`.
    - Tạo các component sản phẩm tại `apps/frontend/src/components/product/ProductList.tsx` và `ProductModal.tsx`.
    - Tích hợp gọi API Backend CRUD sản phẩm.
+
