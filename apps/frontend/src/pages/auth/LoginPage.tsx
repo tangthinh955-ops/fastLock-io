@@ -66,7 +66,7 @@ export const LoginPage: React.FC = () => {
             variant="outlined"
             margin="normal"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
             required
           />
           <TextField
@@ -76,7 +76,7 @@ export const LoginPage: React.FC = () => {
             variant="outlined"
             margin="normal"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
             required
           />
           <Button

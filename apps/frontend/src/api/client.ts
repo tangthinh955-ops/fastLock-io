@@ -9,7 +9,7 @@ const apiClient = axios.create({
 });
 
 // Tự động đính kèm Token vào Header nếu đã đăng nhập
-apiClient.interceptors.request.use((config) => {
+apiClient.interceptors.request.use((config: any) => {
   const token = localStorage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -19,8 +19,8 @@ apiClient.interceptors.request.use((config) => {
 
 // Xử lý khi Token hết hạn (Lỗi 401)
 apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
+  (response: any) => response,
+  (error: any) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
@@ -29,5 +29,6 @@ apiClient.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
 
 export default apiClient;
