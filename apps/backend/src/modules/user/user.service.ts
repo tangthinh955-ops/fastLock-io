@@ -11,4 +11,18 @@ export class UserService {
       where: { email },
     });
   }
+
+  // Hàm lấy danh sách toàn bộ người dùng (Dành cho Admin)
+  async findAll() {
+    return this.prisma.user.findMany({
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
 }

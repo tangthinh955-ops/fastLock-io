@@ -17,3 +17,43 @@ Content-Type: application/json
   "email": "buyer@liveorder.com",
   "password": "123456"
 }
+
+### 
+
+### 3. Đăng nhập với tài khoản ADMIN
+# @name adminLogin
+POST http://localhost:3001/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@liveorder.com",
+  "password": "123456"
+}
+
+### 
+
+### 4. Admin lấy danh sách người dùng (Cần chạy Đăng nhập ADMIN trước để lấy Token)
+# Hãy copy access_token từ kết quả phía trên và paste vào chỗ "Bearer ..." bên dưới
+GET http://localhost:3001/users
+Authorization: Bearer <eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0Y2I3ODg2MS0wNzg5LTQyYjEtOTNlNi1mMmM2NzkwODljOGMiLCJlbWFpbCI6ImFkbWluQGxpdmVvcmRlci5jb20iLCJyb2xlIjoiQURNSU4iLCJpYXQiOjE3ODcxMTQxODMsImV4cCI6MTc4NzIwMDU4M30.g79VtsLzA7UiCZHTjAYOOy_QXeqC36-u0IIDLdYgD4A>
+
+###
+
+### 5. Gửi tin nhắn tạo mã VietQR (System / Seller gửi)
+# Hãy copy access_token của Seller (mục 1) và paste vào dưới đây
+POST http://localhost:3001/messages
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5NzM4MzljNC04NTQ3LTRkNmEtOTRjOS02ZWNiZWRjNWNkMjgiLCJlbWFpbCI6InNlbGxlckBsaXZlb3JkZXIuY29tIiwicm9sZSI6IlNFTExFUiIsImlhdCI6MTc4NzExNDI4MywiZXhwIjoxNzg3MjAwNjgzfQ.vNDWLbVl9tLqkXyBkFou-y_NuO2M_Dki0JS49504il4
+Content-Type: application/json
+
+{
+  "receiverId": "188397a6-a12f-4088-970a-2488f3aa2dae",
+  "amount": 250000,
+  "orderId": "ORDER_001"
+}
+
+###
+
+### 6. Khách hàng xem Hộp thư đến (Buyer)
+# Hãy copy access_token của Buyer (mục 2) và paste vào dưới đây
+GET http://localhost:3001/messages/my-inbox
+Authorization: Bearer <PASTE_TOKEN_CỦA_BUYER_VÀO_ĐÂY>
