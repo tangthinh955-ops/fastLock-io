@@ -1,22 +1,135 @@
-import React from 'react';
-import { Container, Typography, Paper, Box } from '@mui/material';
+import React, { useState, useRef, useEffect } from 'react';
+import { Container, Typography, Paper, Box, TextField, IconButton } from '@mui/material';
+import SendIcon from '@mui/icons-material/Send';
+import apiClient from '../../api/client';
+
+interface ChatMessage {
+  id: string;
+  sender: 'user' | 'shop';
+  text: string;
+}
 
 export const ViewerPage: React.FC = () => {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [inputText, setInputText] = useState('');
+  const [isAiTyping, setIsAiTyping] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  // Cuộn xuống dòng tin nhắn mới nhất
+  const scrollToBottom = () => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+  useEffect(() => { scrollToBottom(); }, [messages]);
+
+  const handleSendMessage = async () => {
+    if (!inputText.trim()) return;
+
+    const userMsg: ChatMessage = {
+      id: Date.now().toString(),
+      sender: 'user',
+      text: inputText,
+    };
+    
+    setMessages(prev => [...prev, userMsg]);
+    setInputText('');
+    setIsAiTyping(true);
+
+    try {
+      // Gọi API đến não AI (Tuần 3)
+      const res = await apiClient.post('/ai/chat', { message: userMsg.text });
+      
+      const aiMsg: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        sender: 'shop',
+        text: res.data.reply,
+      };
+      setMessages(prev => [...prev, aiMsg]);
+    } catch (error) {
+      console.error(error);
+      const errorMsg: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        sender: 'shop',
+        text: 'Dạ mạng bên em hơi lag, anh/chị chat lại giúp em nha!',
+      };
+      setMessages(prev => [...prev, errorMsg]);
+    } finally {
+      setIsAiTyping(false);
+    }
+  };
+
   return (
-    <Container maxWidth="md" sx={{ mt: 4 }}>
-      <Paper elevation={3} sx={{ p: 4, borderRadius: 2 }}>
-        <Typography variant="h4" color="primary" gutterBottom sx={{ fontWeight: 'bold' }}>
-          📺 BUYER LIVE VIEWER
+    <Container maxWidth="lg" sx={{ mt: 4, height: '80vh', display: 'flex' }}>
+      
+      {/* CỘT TRÁI: GIẢ LẬP VIDEO LIVESTREAM */}
+      <Box sx={{ flex: 2, bgcolor: '#000', borderRadius: 2, mr: 2, position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {/* Placeholder Video */}
+        <Typography variant="h5" color="white" sx={{ zIndex: 10 }}>
+          📺 [VIDEO LIVESTREAM BÁN HÀNG]
         </Typography>
-        <Typography variant="body1">
-          Giao diện Khách hàng (Buyer) xem Livestream + Khung Chat tự động tư vấn AI (Dev 1 phụ trách).
-        </Typography>
-        <Box sx={{ mt: 3, p: 2, bgcolor: '#e8f5e9', borderRadius: 1 }}>
-          <Typography variant="body2" color="success.main">
-            ⏳ Đang chờ code ở Phase 1...
-          </Typography>
+        <img 
+          src="https://images.unsplash.com/photo-1574634534894-89d7576c8259?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" 
+          alt="livestream" 
+          style={{ position: 'absolute', width: '100%', height: '100%', objectFit: 'cover', opacity: 0.5 }} 
+        />
+        <Box sx={{ position: 'absolute', top: 16, left: 16, bgcolor: 'red', color: 'white', px: 1.5, py: 0.5, borderRadius: 1, fontWeight: 'bold' }}>
+          LIVE
+        </Box>
+      </Box>
+
+      {/* CỘT PHẢI: KHUNG CHAT TÍCH HỢP AI */}
+      <Paper elevation={3} sx={{ flex: 1, borderRadius: 2, display: 'flex', flexDirection: 'column', bgcolor: '#f8f9fa' }}>
+        <Box sx={{ p: 2, borderBottom: '1px solid #e0e0e0', bgcolor: 'white', borderRadius: '8px 8px 0 0' }}>
+          <Typography variant="h6" sx={{ fontWeight: 'bold' }}>💬 Khung Chat Tự Động (AI)</Typography>
+        </Box>
+        
+        {/* Vùng hiển thị tin nhắn */}
+        <Box sx={{ flex: 1, p: 2, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {messages.length === 0 && (
+            <Typography variant="body2" color="text.secondary" align="center" sx={{ mt: 4 }}>
+              Hãy hỏi một câu về sản phẩm để xem AI phản hồi nhé!
+            </Typography>
+          )}
+
+          {messages.map((msg) => (
+            <Box key={msg.id} sx={{ display: 'flex', alignItems: 'flex-start', flexDirection: msg.sender === 'user' ? 'row-reverse' : 'row' }}>
+              <Avatar sx={{ bgcolor: msg.sender === 'user' ? '#1976d2' : '#ff5722', width: 32, height: 32, ml: msg.sender === 'user' ? 1 : 0, mr: msg.sender === 'shop' ? 1 : 0 }}>
+                {msg.sender === 'user' ? 'K' : 'S'}
+              </Avatar>
+              <Paper sx={{ p: 1.5, maxWidth: '75%', bgcolor: msg.sender === 'user' ? '#bbdefb' : 'white', borderRadius: 2 }}>
+                <Typography variant="body2" color="text.secondary" gutterBottom sx={{ fontWeight: 'bold' }}>
+                  {msg.sender === 'user' ? 'Khách hàng' : 'Nhân viên AI (Shop)'}
+                </Typography>
+                <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
+                  {msg.text}
+                </Typography>
+              </Paper>
+            </Box>
+          ))}
+          {isAiTyping && (
+            <Typography variant="caption" color="text.secondary" sx={{ ml: 6 }}>
+              Shop đang gõ câu trả lời...
+            </Typography>
+          )}
+          <div ref={chatEndRef} />
+        </Box>
+
+        {/* Khung nhập tin nhắn */}
+        <Box sx={{ p: 2, bgcolor: 'white', borderTop: '1px solid #e0e0e0', borderRadius: '0 0 8px 8px', display: 'flex', gap: 1 }}>
+          <TextField 
+            fullWidth 
+            size="small" 
+            placeholder="Gõ bình luận (VD: Áo này có size M không shop?)..." 
+            variant="outlined"
+            value={inputText}
+            onChange={(e) => setInputText(e.target.value)}
+            onKeyPress={(e) => { if (e.key === 'Enter') handleSendMessage(); }}
+          />
+          <IconButton color="primary" onClick={handleSendMessage} disabled={!inputText.trim() || isAiTyping}>
+            <SendIcon />
+          </IconButton>
         </Box>
       </Paper>
+
     </Container>
   );
 };
