@@ -57,3 +57,35 @@ Content-Type: application/json
 # Hãy copy access_token của Buyer (mục 2) và paste vào dưới đây
 GET http://localhost:3001/messages/my-inbox
 Authorization: Bearer <PASTE_TOKEN_CỦA_BUYER_VÀO_ĐÂY>
+
+###
+
+### 7. Test Trí Tuệ Nhân Tạo (AI Llama 3)
+# Hãy copy access_token của Seller (mục 1) và paste vào chỗ Bearer dưới đây
+POST http://localhost:3001/ai/chat
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5NzM4MzljNC04NTQ3LTRkNmEtOTRjOS02ZWNiZWRjNWNkMjgiLCJlbWFpbCI6InNlbGxlckBsaXZlb3JkZXIuY29tIiwicm9sZSI6IlNFTExFUiIsImlhdCI6MTc4NzE1MjEzNiwiZXhwIjoxNzg3MjM4NTM2fQ.K21HqZRcZg-gQ0IIIcZRYRJfnMl3dXVis-rjaKiiL7M
+Content-Type: application/json
+
+{
+  "message": "Shop ơi em cao 1m60 nặng 50kg thì mặc áo hoodie bên mình size gì vừa ạ?"
+}
+### 8. Test Đăng ký tài khoản mới
+POST http://localhost:3001/auth/register
+Content-Type: application/json
+
+{
+  "email": "newbuyer@gmail.com",
+  "password": "123456",
+  "name": "Khách Mới"
+}
+
+
+### 10. Test AI Llama trả lời tự động dựa trên quy tắc Địa chỉ vừa thêm
+POST http://localhost:3001/ai/chat
+# QUAN TRỌNG: Hãy copy token của Seller ở Mục 1 và thay vào chỗ Bearer nhé
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5NzM4MzljNC04NTQ3LTRkNmEtOTRjOS02ZWNiZWRjNWNkMjgiLCJlbWFpbCI6InNlbGxlckBsaXZlb3JkZXIuY29tIiwicm9sZSI6IlNFTExFUiIsImlhdCI6MTc4NzgxMzc3MSwiZXhwIjoxNzg3OTAwMTcxfQ.XtAy4hvYTHe2womDLesn4LzKQirEXrKC8KvFaQt6qFU
+Content-Type: application/json
+
+{
+  "message": "Ủa shop có cửa hàng ở ngoài không, cho mình xin địa chỉ qua thử đồ nha"
+}
