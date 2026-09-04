@@ -8,22 +8,26 @@ import { Role } from '@prisma/client';
 
 @Controller('ai')
 export class AiController {
-  constructor(private readonly aiService: AiService) {}
+  constructor(private readonly aiService: AiService) { }
 
   // Mở API test: Bắt buộc đăng nhập với quyền SELLER mới được dùng
   @Post('chat')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.SELLER)
+  @Roles(Role.SELLER, Role.BUYER) // Cả người bán và người mua đều được dùng
   async testChatAI(
     @Req() req: any,
-    @Body() body: { message: string }
+    @Body() body: { sellerId?: string; message: string }
   ) {
-    const sellerId = req.user.userId;
+    // Lỗ hổng cũ: const sellerId = req.user.userId;
+    // Cách sửa đúng: Nếu Buyer gọi, phải dùng ID của Seller do frontend truyền lên. 
+    // Nếu Seller tự test trên giao diện của họ mà không truyền, thì lấy chính ID của họ.
+    const sellerId = body.sellerId || req.user.userId;
+    
     const customerMessage = body.message;
 
     // Gọi hàm sinh câu trả lời từ não AI
     const reply = await this.aiService.generateReply(sellerId, customerMessage);
-    
+
     return {
       status: 'success',
       reply: reply,

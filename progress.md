@@ -23,8 +23,8 @@
 | **Phase 1** | Thuật toán Aho-Corasick Parser & Order Atomic Stock | Dev 2 (Kỳ) | ⏳ Chưa bắt đầu |
 | **Phase 1** | Module Livestream Socket Gateway & Live Studio UI | Dev 2 (Kỳ) | ⏳ Chưa bắt đầu |
 | **Phase 1** | Direct Message & VietQR API | Dev 1 | ✅ Hoàn thành |
-| **Phase 1** | Module AI (Groq SDK) & KbEntry | Dev 1 | 🔄 Đang thực hiện |
-| **Phase 1** | Viewer Live UI & Inbox UI | Dev 1 | ⏳ Chưa bắt đầu |
+| **Phase 1** | Module AI (Groq SDK) & KbEntry | Dev 1 | ✅ Hoàn thành |
+| **Phase 1** | Viewer Live UI & Inbox UI | Dev 1 | ✅ Hoàn thành |
 | **Phase 2** | Tích hợp Socket & AI (Full Pipeline E2E) | Cả hai | ⏳ Chưa bắt đầu |
 
 *Ký hiệu: ⏳ Chưa bắt đầu | 🔄 Đang thực hiện | ✅ Hoàn thành | ❌ Lỗi*

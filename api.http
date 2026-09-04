@@ -35,22 +35,21 @@ Content-Type: application/json
 ### 4. Admin lấy danh sách người dùng (Cần chạy Đăng nhập ADMIN trước để lấy Token)
 # Hãy copy access_token từ kết quả phía trên và paste vào chỗ "Bearer ..." bên dưới
 GET http://localhost:3001/users
-Authorization: Bearer <eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0Y2I3ODg2MS0wNzg5LTQyYjEtOTNlNi1mMmM2NzkwODljOGMiLCJlbWFpbCI6ImFkbWluQGxpdmVvcmRlci5jb20iLCJyb2xlIjoiQURNSU4iLCJpYXQiOjE3ODcxMTQxODMsImV4cCI6MTc4NzIwMDU4M30.g79VtsLzA7UiCZHTjAYOOy_QXeqC36-u0IIDLdYgD4A>
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxODgzOTdhNi1hMTJmLTQwODgtOTcwYS0yNDg4ZjNhYTJkYWUiLCJlbWFpbCI6ImJ1eWVyQGxpdmVvcmRlci5jb20iLCJyb2xlIjoiQlVZRVIiLCJpYXQiOjE3ODgxMTEwODAsImV4cCI6MTc4ODE5NzQ4MH0.3PjPtDXeYYDmW8cvsRc32-NQMJnUQaR3ch1bYsjuERw
 
 ###
 
 ### 5. Gửi tin nhắn tạo mã VietQR (System / Seller gửi)
 # Hãy copy access_token của Seller (mục 1) và paste vào dưới đây
 POST http://localhost:3001/messages
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5NzM4MzljNC04NTQ3LTRkNmEtOTRjOS02ZWNiZWRjNWNkMjgiLCJlbWFpbCI6InNlbGxlckBsaXZlb3JkZXIuY29tIiwicm9sZSI6IlNFTExFUiIsImlhdCI6MTc4NzExNDI4MywiZXhwIjoxNzg3MjAwNjgzfQ.vNDWLbVl9tLqkXyBkFou-y_NuO2M_Dki0JS49504il4
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5NzM4MzljNC04NTQ3LTRkNmEtOTRjOS02ZWNiZWRjNWNkMjgiLCJlbWFpbCI6InNlbGxlckBsaXZlb3JkZXIuY29tIiwicm9sZSI6IlNFTExFUiIsImlhdCI6MTc4ODExMjM1MSwiZXhwIjoxNzg4MTk4NzUxfQ.9qaZO-XSBPODg0wtgR3rAkt9kRX7NU1Pa86hwN_W4KU
 Content-Type: application/json
 
 {
   "receiverId": "188397a6-a12f-4088-970a-2488f3aa2dae",
-  "amount": 250000,
+  "amount": 1,
   "orderId": "ORDER_001"
 }
-
 ###
 
 ### 6. Khách hàng xem Hộp thư đến (Buyer)
