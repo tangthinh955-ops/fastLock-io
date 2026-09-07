@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Container, Typography, Paper, Box, TextField, IconButton } from '@mui/material';
+import { Container, Typography, Paper, Box, TextField, IconButton, Avatar } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import apiClient from '../../api/client';
 
@@ -10,10 +10,31 @@ interface ChatMessage {
 }
 
 export const ViewerPage: React.FC = () => {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  // 1. Khởi tạo state từ localStorage (Tránh mất tin nhắn khi F5)
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    const saved = localStorage.getItem('chat_history');
+    return saved ? JSON.parse(saved) : [];
+  });
   const [inputText, setInputText] = useState('');
   const [isAiTyping, setIsAiTyping] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  
+  // Dùng để hủy request API (Hủy kết nối) khi component bị unmount
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Lưu tin nhắn vào localStorage mỗi khi có tin nhắn mới
+  useEffect(() => {
+    localStorage.setItem('chat_history', JSON.stringify(messages));
+  }, [messages]);
+
+  // Cleanup effect: Khi người dùng chuyển trang (unmount), Hủy ngay API đang gọi
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   // Cuộn xuống dòng tin nhắn mới nhất
   const scrollToBottom = () => {
@@ -34,9 +55,24 @@ export const ViewerPage: React.FC = () => {
     setInputText('');
     setIsAiTyping(true);
 
+    // Hủy kết nối cũ (nếu khách spam gửi nhiều tin liên tục)
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
     try {
-      // Gọi API đến não AI (Tuần 3)
-      const res = await apiClient.post('/ai/chat', { message: userMsg.text });
+      // Bọc tín hiệu hủy (signal) vào API call
+      // Tạm thời hardcode lấy 1 sellerId (Trong thực tế Phase 2, ID này lấy từ URL Livestream)
+      // Khách hàng đang xem stream của ai thì ném ID người đó vào
+      const res = await apiClient.post(
+        '/ai/chat', 
+        { 
+          sellerId: 'ID_CỦA_CHỦ_SHOP_HIỆN_TẠI', // Chỗ này Phase 2 sẽ lấy từ URL param
+          message: userMsg.text 
+        },
+        { signal: abortControllerRef.current.signal }
+      );
       
       const aiMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
@@ -44,7 +80,13 @@ export const ViewerPage: React.FC = () => {
         text: res.data.reply,
       };
       setMessages(prev => [...prev, aiMsg]);
-    } catch (error) {
+    } catch (error: any) {
+      // Bắt lỗi Hủy kết nối (Bỏ qua, không gọi setMessages nữa)
+      if (error.name === 'CanceledError' || error.message === 'canceled') {
+        console.log('API đã bị ngắt kết nối do người dùng chuyển trang!');
+        return; 
+      }
+      
       console.error(error);
       const errorMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
