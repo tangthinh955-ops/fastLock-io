@@ -19,7 +19,10 @@ export class AiService {
    * @param sellerId ID của chủ shop (để lấy đúng bảng size/chính sách của shop đó)
    * @param customerMessage Câu hỏi của khách hàng trên Livestream
    */
-  async generateReply(sellerId: string, customerMessage: string): Promise<string> {
+  async generateReply(
+    sellerId: string,
+    customerMessage: string,
+  ): Promise<string> {
     try {
       // 1. Kéo toàn bộ "Sách giáo khoa" (Knowledge Base) của chủ shop này từ DB lên
       const knowledgeBases = await this.prisma.kbEntry.findMany({
@@ -30,10 +33,13 @@ export class AiService {
       let shopKnowledge = '';
       if (knowledgeBases.length > 0) {
         shopKnowledge = knowledgeBases
-          .map((kb) => `- Câu hỏi/Từ khóa: ${kb.keyword} => Trả lời: ${kb.answer}`)
+          .map(
+            (kb) => `- Câu hỏi/Từ khóa: ${kb.keyword} => Trả lời: ${kb.answer}`,
+          )
           .join('\n');
       } else {
-        shopKnowledge = 'Shop hiện tại chưa có thông tin quy định nào đặc biệt.';
+        shopKnowledge =
+          'Shop hiện tại chưa có thông tin quy định nào đặc biệt.';
       }
 
       // 3. Xây dựng System Prompt (Dạy AI cách xưng hô và làm việc)
@@ -57,12 +63,14 @@ export class AiService {
           { role: 'user', content: customerMessage },
         ],
         model: 'qwen/qwen3.6-27b', // Khôi phục lại Qwen theo ý bạn
-        temperature: 0.7, 
-        max_tokens: 2048,  // Vẫn nên để 2048 để AI suy nghĩ xong và in ra câu trả lời
+        temperature: 0.7,
+        max_tokens: 2048, // Vẫn nên để 2048 để AI suy nghĩ xong và in ra câu trả lời
       });
 
-      let rawReply = chatCompletion.choices[0]?.message?.content || 'Dạ shop bị lỗi mạng xíu, tình yêu nhắn lại giúp em nha!';
-      
+      const rawReply =
+        chatCompletion.choices[0]?.message?.content ||
+        'Dạ shop bị lỗi mạng xíu, tình yêu nhắn lại giúp em nha!';
+
       // Xóa bỏ thẻ <think>...</think> (Kể cả trường hợp thiếu thẻ đóng </think>)
       let cleanReply = rawReply.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
       if (cleanReply.includes('<think>')) {
@@ -71,7 +79,8 @@ export class AiService {
 
       // Nếu AI chỉ mải suy nghĩ mà không in ra kết quả (chuỗi rỗng)
       if (!cleanReply) {
-        cleanReply = "Dạ shop đang kiểm tra lại thông tin xíu, tình yêu đợi em tí nha!";
+        cleanReply =
+          'Dạ shop đang kiểm tra lại thông tin xíu, tình yêu đợi em tí nha!';
       }
 
       return cleanReply;

@@ -8,6 +8,8 @@ export class CreateKbEntryDto {
 
   @IsString()
   @IsNotEmpty({ message: 'Nội dung quy định (answer) không được để trống' })
-  @MaxLength(1000, { message: 'Nội dung quy định không được vượt quá 1000 ký tự' })
+  @MaxLength(1000, {
+    message: 'Nội dung quy định không được vượt quá 1000 ký tự',
+  })
   answer: string;
 }

@@ -12,7 +12,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       // Server sẽ CRASH ngay khi boot nếu thiếu biến này
       // Tốt hơn là để hệ thống chạy âm thầm với secret mặc định rồi bị hack
       throw new InternalServerErrorException(
-        'FATAL: JWT_SECRET chưa được cấu hình trong file .env! Server không thể khởi động.'
+        'FATAL: JWT_SECRET chưa được cấu hình trong file .env! Server không thể khởi động.',
       );
     }
 

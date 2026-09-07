@@ -19,7 +19,7 @@ export class UserController {
     // Ép kiểu sang Number và truyền default nếu user không gửi
     const pageNumber = page ? parseInt(page, 10) : 1;
     const limitNumber = limit ? parseInt(limit, 10) : 10;
-    
+
     return this.userService.findAll(pageNumber, limitNumber);
   }
 }

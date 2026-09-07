@@ -7,6 +7,6 @@ import { PrismaModule } from '../../core/prisma/prisma.module';
   imports: [PrismaModule],
   providers: [AiService],
   controllers: [AiController],
-  exports: [AiService] // Xuất ra để sau này Socket Gateway có thể dùng
+  exports: [AiService], // Xuất ra để sau này Socket Gateway có thể dùng
 })
 export class AiModule {}

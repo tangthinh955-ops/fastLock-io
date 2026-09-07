@@ -9,13 +9,14 @@ async function bootstrap() {
   // Bật ValidationPipe toàn cục — Tự động kiểm tra DTO trước khi vào Controller
   // whitelist: true → Tự xóa bỏ các field lạ client gửi lên (bảo mật)
   // forbidNonWhitelisted: true → Trả lỗi 400 nếu client gửi field không được khai báo
-  app.useGlobalPipes(new ValidationPipe({
-    whitelist: true,
-    forbidNonWhitelisted: true,
-    transform: true, // Tự động convert kiểu dữ liệu (VD: string → number)
-  }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true, // Tự động convert kiểu dữ liệu (VD: string → number)
+    }),
+  );
 
   await app.listen(3001);
 }
-bootstrap();
-
+void bootstrap();

@@ -5,7 +5,6 @@ const prisma = new PrismaClient();
 
 async function main() {
   console.log('Bắt đầu khởi tạo dữ liệu mẫu (Seeding)...');
-  
   // Mật khẩu chung cho dễ test
   const passwordHash = await bcrypt.hash('123456', 10);
 

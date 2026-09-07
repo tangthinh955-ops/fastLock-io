@@ -22,12 +22,40 @@
 | **Phase 1** | **Frontend UI `/seller/dashboard` (Quản lý sản phẩm)** | **Dev 2 (Kỳ)** | ✅ Hoàn thành |
 | **Phase 1** | Thuật toán Aho-Corasick Parser & Order Atomic Stock | Dev 2 (Kỳ) | ⏳ Chưa bắt đầu |
 | **Phase 1** | Module Livestream Socket Gateway & Live Studio UI | Dev 2 (Kỳ) | ⏳ Chưa bắt đầu |
-| **Phase 1** | Direct Message & VietQR API | Dev 1 | ✅ Hoàn thành |
-| **Phase 1** | Module AI (Groq SDK) & KbEntry | Dev 1 | ✅ Hoàn thành |
-| **Phase 1** | Viewer Live UI & Inbox UI | Dev 1 | ✅ Hoàn thành |
+| **Phase 1** | Direct Message hai chiều & VietQR API | Dev 1 | ✅ Hoàn thành |
+| **Phase 1** | Module AI (Groq SDK), KbEntry & tư vấn riêng trong Inbox | Dev 1 | ✅ Hoàn thành |
+| **Phase 1** | Viewer Live UI, Buyer Inbox & Seller Inbox | Dev 1 | ✅ Hoàn thành |
 | **Phase 2** | Tích hợp Socket & AI (Full Pipeline E2E) | Cả hai | ⏳ Chưa bắt đầu |
 
 *Ký hiệu: ⏳ Chưa bắt đầu | 🔄 Đang thực hiện | ✅ Hoàn thành | ❌ Lỗi*
+
+---
+
+## 📝 NHẬT KÝ DEV 1 (THỊNH)
+
+### 📌 DIRECT MESSAGE, AI & INBOX
+
+1. **Backend Direct Message:** ✅ **Hoàn thành**
+   - Buyer lấy danh sách shop và lịch sử hội thoại hai chiều theo từng Seller.
+   - Buyer gửi câu hỏi riêng; tin Buyer và phản hồi từ Groq AI đều được lưu vào bảng `DirectMessage`.
+   - Seller lấy danh sách Buyer đã từng trao đổi, xem lịch sử và gửi trả lời thủ công.
+   - API được giới hạn theo role `BUYER`/`SELLER`; danh tính người gửi lấy từ JWT.
+   - Lịch sử hỗ trợ phân trang bằng `limit` và `skip`, mặc định tải 5 tin mới nhất.
+
+2. **Frontend Inbox:** ✅ **Hoàn thành**
+   - `/inbox`: Buyer chọn shop, đọc lịch sử, gửi câu hỏi, nhận phản hồi AI và xem VietQR.
+   - `/seller/inbox`: Seller chọn khách hàng, kiểm tra lịch sử AI và trả lời thủ công.
+   - Hai màn hình tải thêm từng 5 tin cũ, giữ vị trí đang đọc và báo khi đến đầu cuộc trò chuyện.
+   - Viewer có nút **Tư vấn riêng với Shop**, truyền `sellerId` để Inbox mở đúng hội thoại.
+
+3. **Viewer Livestream:** 🔄 **Chờ tích hợp Dev 2**
+   - Đã tách AI khỏi khung bình luận livestream; AI chỉ tư vấn trong Inbox riêng.
+   - Bình luận Viewer hiện là mô phỏng phía frontend.
+   - Đồng bộ bình luận realtime bằng Socket.io phụ thuộc module `livestream` của Dev 2.
+
+4. **Giới hạn hiện tại:**
+   - Bảng `DirectMessage` chưa có trường phân biệt phản hồi do AI tạo với phản hồi Seller tự nhập.
+   - Inbox chưa cập nhật realtime; người nhận cần tải lại hội thoại để thấy tin thủ công mới.
 
 ---
 
