@@ -74,3 +74,4 @@ live-order-app/
    - **B3 Cài gói mới:** `npm install`.
    - **B4 Generate Prisma Client:** `cd apps/backend && npx prisma generate`.
    - **B5 Tạo nhánh tính năng:** `git checkout -b feat/<ten-tinh-nang>`.
+6. **Không tự ý chỉnh sửa/tạo file code:** AI tuyệt đối không được trực tiếp tạo hoặc sửa file code trong dự án (trừ khi được người dùng yêu cầu trực tiếp). AI chỉ đưa ra mã nguồn, vị trí file, giải thích và hướng dẫn để người dùng tự thao tác thủ công.

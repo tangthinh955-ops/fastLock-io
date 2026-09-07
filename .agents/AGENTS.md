@@ -9,3 +9,4 @@
    - **Bước 4 (Prisma Generate):** `cd apps/backend && npx prisma generate`
    - **Bước 5 (Feature Branch):** `git checkout -b feat/<ten-tinh-nang>`
 4. **Build sạch trước khi Push:** Bắt buộc đảm bảo `npm run build` không có lỗi TypeScript trước khi commit/push.
+5. **Không tự ý chỉnh sửa/tạo file code:** AI tuyệt đối không được trực tiếp tạo hoặc sửa file code trong dự án (trừ khi được người dùng yêu cầu trực tiếp). AI chỉ đưa ra mã nguồn, vị trí file, giải thích và hướng dẫn để người dùng tự thao tác thủ công.
