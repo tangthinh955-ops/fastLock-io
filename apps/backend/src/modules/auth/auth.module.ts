@@ -9,7 +9,7 @@ import { JwtStrategy } from './jwt.strategy';
 
 @Module({
   imports: [
-    UserModule,   // Mượn hàm tìm User của UserModule (dùng khi login)
+    UserModule, // Mượn hàm tìm User của UserModule (dùng khi login)
     PrismaModule, // Cần để tạo User mới trong DB (dùng khi register)
     PassportModule,
     JwtModule.register({
@@ -20,4 +20,4 @@ import { JwtStrategy } from './jwt.strategy';
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy],
 })
-export class AuthModule { }
+export class AuthModule {}

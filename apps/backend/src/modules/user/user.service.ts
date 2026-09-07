@@ -40,7 +40,7 @@ export class UserService {
         page,
         limit,
         totalPages: Math.ceil(total / limit),
-      }
+      },
     };
   }
 }

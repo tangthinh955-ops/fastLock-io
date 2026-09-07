@@ -1,102 +1,67 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Container, Typography, Paper, Box, TextField, IconButton, Avatar } from '@mui/material';
+import { Container, Typography, Paper, Box, TextField, IconButton, Avatar, Button } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
+import ForumOutlinedIcon from '@mui/icons-material/ForumOutlined';
+import { useNavigate } from 'react-router-dom';
 import apiClient from '../../api/client';
 
 interface ChatMessage {
   id: string;
-  sender: 'user' | 'shop';
   text: string;
 }
 
+interface Shop {
+  id: string;
+  name: string;
+}
+
 export const ViewerPage: React.FC = () => {
-  // 1. Khởi tạo state từ localStorage (Tránh mất tin nhắn khi F5)
+  const navigate = useNavigate();
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
-    const saved = localStorage.getItem('chat_history');
+    const saved = localStorage.getItem('livestream_chat_history');
     return saved ? JSON.parse(saved) : [];
   });
   const [inputText, setInputText] = useState('');
-  const [isAiTyping, setIsAiTyping] = useState(false);
+  const [currentShop, setCurrentShop] = useState<Shop | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
-  
-  // Dùng để hủy request API (Hủy kết nối) khi component bị unmount
-  const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Lưu tin nhắn vào localStorage mỗi khi có tin nhắn mới
   useEffect(() => {
-    localStorage.setItem('chat_history', JSON.stringify(messages));
+    localStorage.setItem('livestream_chat_history', JSON.stringify(messages));
   }, [messages]);
 
-  // Cleanup effect: Khi người dùng chuyển trang (unmount), Hủy ngay API đang gọi
   useEffect(() => {
-    return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
+    let active = true;
+
+    const fetchCurrentShop = async () => {
+      try {
+        const response = await apiClient.get<Shop[]>('/messages/shops');
+        if (active) setCurrentShop(response.data[0] ?? null);
+      } catch (error) {
+        console.error('Lỗi khi tải thông tin shop livestream:', error);
       }
+    };
+
+    fetchCurrentShop();
+    return () => {
+      active = false;
     };
   }, []);
 
-  // Cuộn xuống dòng tin nhắn mới nhất
-  const scrollToBottom = () => {
+  useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-  useEffect(() => { scrollToBottom(); }, [messages]);
+  }, [messages]);
 
-  const handleSendMessage = async () => {
-    if (!inputText.trim()) return;
+  const handleSendMessage = () => {
+    const text = inputText.trim();
+    if (!text) return;
 
     const userMsg: ChatMessage = {
       id: Date.now().toString(),
-      sender: 'user',
-      text: inputText,
+      text,
     };
-    
+
     setMessages(prev => [...prev, userMsg]);
     setInputText('');
-    setIsAiTyping(true);
-
-    // Hủy kết nối cũ (nếu khách spam gửi nhiều tin liên tục)
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-    abortControllerRef.current = new AbortController();
-
-    try {
-      // Bọc tín hiệu hủy (signal) vào API call
-      // Tạm thời hardcode lấy 1 sellerId (Trong thực tế Phase 2, ID này lấy từ URL Livestream)
-      // Khách hàng đang xem stream của ai thì ném ID người đó vào
-      const res = await apiClient.post(
-        '/ai/chat', 
-        { 
-          sellerId: 'ID_CỦA_CHỦ_SHOP_HIỆN_TẠI', // Chỗ này Phase 2 sẽ lấy từ URL param
-          message: userMsg.text 
-        },
-        { signal: abortControllerRef.current.signal }
-      );
-      
-      const aiMsg: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        sender: 'shop',
-        text: res.data.reply,
-      };
-      setMessages(prev => [...prev, aiMsg]);
-    } catch (error: any) {
-      // Bắt lỗi Hủy kết nối (Bỏ qua, không gọi setMessages nữa)
-      if (error.name === 'CanceledError' || error.message === 'canceled') {
-        console.log('API đã bị ngắt kết nối do người dùng chuyển trang!');
-        return; 
-      }
-      
-      console.error(error);
-      const errorMsg: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        sender: 'shop',
-        text: 'Dạ mạng bên em hơi lag, anh/chị chat lại giúp em nha!',
-      };
-      setMessages(prev => [...prev, errorMsg]);
-    } finally {
-      setIsAiTyping(false);
-    }
   };
 
   return (
@@ -118,28 +83,31 @@ export const ViewerPage: React.FC = () => {
         </Box>
       </Box>
 
-      {/* CỘT PHẢI: KHUNG CHAT TÍCH HỢP AI */}
+      {/* CỘT PHẢI: KHUNG BÌNH LUẬN LIVESTREAM */}
       <Paper elevation={3} sx={{ flex: 1, borderRadius: 2, display: 'flex', flexDirection: 'column', bgcolor: '#f8f9fa' }}>
         <Box sx={{ p: 2, borderBottom: '1px solid #e0e0e0', bgcolor: 'white', borderRadius: '8px 8px 0 0' }}>
-          <Typography variant="h6" sx={{ fontWeight: 'bold' }}>💬 Khung Chat Tự Động (AI)</Typography>
+          <Typography variant="h6" sx={{ fontWeight: 'bold' }}>💬 Bình luận trực tiếp</Typography>
+          <Typography variant="caption" color="text.secondary">
+            {currentShop ? `Livestream của ${currentShop.name}` : 'Đang tải thông tin shop...'}
+          </Typography>
         </Box>
         
         {/* Vùng hiển thị tin nhắn */}
         <Box sx={{ flex: 1, p: 2, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
           {messages.length === 0 && (
             <Typography variant="body2" color="text.secondary" align="center" sx={{ mt: 4 }}>
-              Hãy hỏi một câu về sản phẩm để xem AI phản hồi nhé!
+              Hãy gửi bình luận để trò chuyện trong livestream.
             </Typography>
           )}
 
           {messages.map((msg) => (
-            <Box key={msg.id} sx={{ display: 'flex', alignItems: 'flex-start', flexDirection: msg.sender === 'user' ? 'row-reverse' : 'row' }}>
-              <Avatar sx={{ bgcolor: msg.sender === 'user' ? '#1976d2' : '#ff5722', width: 32, height: 32, ml: msg.sender === 'user' ? 1 : 0, mr: msg.sender === 'shop' ? 1 : 0 }}>
-                {msg.sender === 'user' ? 'K' : 'S'}
+            <Box key={msg.id} sx={{ display: 'flex', alignItems: 'flex-start', flexDirection: 'row-reverse' }}>
+              <Avatar sx={{ bgcolor: '#1e3a5f', width: 32, height: 32, ml: 1 }}>
+                K
               </Avatar>
-              <Paper sx={{ p: 1.5, maxWidth: '75%', bgcolor: msg.sender === 'user' ? '#bbdefb' : 'white', borderRadius: 2 }}>
+              <Paper sx={{ p: 1.5, maxWidth: '75%', bgcolor: '#dbeafe', borderRadius: 2 }}>
                 <Typography variant="body2" color="text.secondary" gutterBottom sx={{ fontWeight: 'bold' }}>
-                  {msg.sender === 'user' ? 'Khách hàng' : 'Nhân viên AI (Shop)'}
+                  Khách hàng
                 </Typography>
                 <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
                   {msg.text}
@@ -147,12 +115,20 @@ export const ViewerPage: React.FC = () => {
               </Paper>
             </Box>
           ))}
-          {isAiTyping && (
-            <Typography variant="caption" color="text.secondary" sx={{ ml: 6 }}>
-              Shop đang gõ câu trả lời...
-            </Typography>
-          )}
           <div ref={chatEndRef} />
+        </Box>
+
+        <Box sx={{ px: 2, pt: 1.5, bgcolor: 'white' }}>
+          <Button
+            fullWidth
+            variant="outlined"
+            startIcon={<ForumOutlinedIcon />}
+            disabled={!currentShop}
+            onClick={() => navigate(`/inbox?sellerId=${currentShop?.id}`)}
+            sx={{ borderColor: '#1e3a5f', color: '#1e3a5f' }}
+          >
+            Tư vấn riêng với Shop
+          </Button>
         </Box>
 
         {/* Khung nhập tin nhắn */}
@@ -166,7 +142,7 @@ export const ViewerPage: React.FC = () => {
             onChange={(e) => setInputText(e.target.value)}
             onKeyPress={(e) => { if (e.key === 'Enter') handleSendMessage(); }}
           />
-          <IconButton color="primary" onClick={handleSendMessage} disabled={!inputText.trim() || isAiTyping}>
+          <IconButton color="primary" onClick={handleSendMessage} disabled={!inputText.trim()}>
             <SendIcon />
           </IconButton>
         </Box>

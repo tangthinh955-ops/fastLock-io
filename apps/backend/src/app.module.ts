@@ -19,9 +19,9 @@ import { AiModule } from './modules/ai/ai.module';
     // ttl: 60000ms = 60 giây | limit: 100 lần tối đa trong 60 giây
     ThrottlerModule.forRoot([
       {
-        name: 'global',   // Tên để dễ phân biệt khi log lỗi
-        ttl: 60000,       // Cửa sổ thời gian: 60 giây (tính bằng milliseconds)
-        limit: 100,       // Tối đa 100 request trong mỗi 60 giây
+        name: 'global', // Tên để dễ phân biệt khi log lỗi
+        ttl: 60000, // Cửa sổ thời gian: 60 giây (tính bằng milliseconds)
+        limit: 100, // Tối đa 100 request trong mỗi 60 giây
       },
     ]),
 
@@ -42,4 +42,3 @@ import { AiModule } from './modules/ai/ai.module';
   ],
 })
 export class AppModule {}
-
