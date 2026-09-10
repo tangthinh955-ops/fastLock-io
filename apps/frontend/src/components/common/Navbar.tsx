@@ -25,8 +25,8 @@ export const Navbar: React.FC = () => {
   return (
     <AppBar position="static" sx={{ background: '#1a1a2e' }}>
       <Toolbar>
-        <Typography 
-          variant="h6" 
+        <Typography
+          variant="h6"
           sx={{ flexGrow: 1, fontWeight: 'bold', letterSpacing: 1, cursor: 'pointer' }}
           onClick={() => navigate(user.role === 'ADMIN' ? '/admin/dashboard' : user.role === 'SELLER' ? '/seller/dashboard' : '/viewer')}
         >
@@ -35,9 +35,24 @@ export const Navbar: React.FC = () => {
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           {user.role === 'SELLER' && (
-            <Button color="inherit" onClick={() => navigate('/seller/ai-settings')} variant="text" size="small">
-              Cấu hình AI
-            </Button>
+            <>
+              <Button color="inherit" onClick={() => navigate('/seller/ai-settings')} variant="text" size="small">
+                Cấu hình AI
+              </Button>
+              <Button color="inherit" onClick={() => navigate('/seller/inbox')} variant="text" size="small">
+                💬 Tin nhắn khách hàng
+              </Button>
+            </>
+          )}
+          {user.role === 'BUYER' && (
+            <>
+              <Button color="inherit" onClick={() => navigate('/viewer')} variant="text" size="small">
+                🎬 Xem Live
+              </Button>
+              <Button color="inherit" onClick={() => navigate('/inbox')} variant="text" size="small">
+                📬 Hộp thư
+              </Button>
+            </>
           )}
           <Typography variant="body2">{user.name}</Typography>
           <Chip label={user.role} color={getRoleColor(user.role)} size="small" />

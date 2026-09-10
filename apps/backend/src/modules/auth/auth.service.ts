@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  ConflictException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UserService } from '../user/user.service';
 import { PrismaService } from '../../core/prisma/prisma.service';
@@ -11,7 +15,7 @@ export class AuthService {
     private userService: UserService,
     private jwtService: JwtService,
     private prisma: PrismaService, // Cần để tạo user mới khi đăng ký
-  ) { }
+  ) {}
 
   // ── ĐĂNG NHẬP ─────────────────────────────────────────────────
   async login(email: string, password: string) {
@@ -44,7 +48,7 @@ export class AuthService {
         role: user.role,
         // ✅ Lấy createdAt thực tế từ Database, không dùng Date.now()
         createdAt: user.createdAt,
-      }
+      },
     };
   }
 
@@ -75,7 +79,11 @@ export class AuthService {
     });
 
     // 4. Tự động đăng nhập luôn sau khi đăng ký (UX tốt hơn)
-    const payload = { sub: newUser.id, email: newUser.email, role: newUser.role };
+    const payload = {
+      sub: newUser.id,
+      email: newUser.email,
+      role: newUser.role,
+    };
     return {
       access_token: this.jwtService.sign(payload),
       user: {
@@ -84,7 +92,7 @@ export class AuthService {
         name: newUser.name,
         role: newUser.role,
         createdAt: newUser.createdAt,
-      }
+      },
     };
   }
 }

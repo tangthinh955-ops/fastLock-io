@@ -10,6 +10,7 @@ import { SellerDashboard } from './pages/seller/SellerDashboard';
 import { AiSettingsPage } from './pages/seller/AiSettingsPage';
 import { ViewerPage } from './pages/viewer/ViewerPage';
 import { InboxPage } from './pages/inbox/InboxPage';
+import { SellerInboxPage } from './pages/inbox/SellerInboxPage';
 
 export const App: React.FC = () => {
   return (
@@ -44,6 +45,14 @@ export const App: React.FC = () => {
             element={
               <ProtectedRoute allowedRoles={['SELLER']}>
                 <AiSettingsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/seller/inbox"
+            element={
+              <ProtectedRoute allowedRoles={['SELLER']}>
+                <SellerInboxPage />
               </ProtectedRoute>
             }
           />

@@ -5,9 +5,9 @@
 import { Role } from '@prisma/client';
 
 export interface JwtPayload {
-  sub: string;   // ID của user (subject — theo chuẩn JWT)
+  sub: string; // ID của user (subject — theo chuẩn JWT)
   email: string; // Email của user
-  role: Role;    // Vai trò: ADMIN | SELLER | BUYER (dùng enum của Prisma luôn cho nhất quán)
-  iat?: number;  // Issued At — Thời điểm token được tạo (Prisma tự thêm)
-  exp?: number;  // Expiration — Thời điểm token hết hạn (Prisma tự thêm)
+  role: Role; // Vai trò: ADMIN | SELLER | BUYER (dùng enum của Prisma luôn cho nhất quán)
+  iat?: number; // Issued At — Thời điểm token được tạo (Prisma tự thêm)
+  exp?: number; // Expiration — Thời điểm token hết hạn (Prisma tự thêm)
 }
