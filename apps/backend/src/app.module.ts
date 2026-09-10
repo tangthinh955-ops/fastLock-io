@@ -9,6 +9,7 @@ import { DirectMessageModule } from './modules/direct-message/direct-message.mod
 import { ProductModule } from './modules/product/product.module';
 import { AiModule } from './modules/ai/ai.module';
 import { ParserModule } from './modules/parser/parser.module';
+import { OrderModule } from './modules/order/order.module';
 
 
 @Module({
@@ -34,6 +35,7 @@ import { ParserModule } from './modules/parser/parser.module';
     ProductModule,
     AiModule,
     ParserModule,
+    OrderModule,
   ],
   controllers: [],
   providers: [

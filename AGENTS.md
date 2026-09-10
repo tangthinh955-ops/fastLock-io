@@ -75,3 +75,4 @@ live-order-app/
    - **B4 Generate Prisma Client:** `cd apps/backend && npx prisma generate`.
    - **B5 Tạo nhánh tính năng:** `git checkout -b feat/<ten-tinh-nang>`.
 6. **Không tự ý chỉnh sửa/tạo file code:** AI tuyệt đối không được trực tiếp tạo hoặc sửa file code trong dự án (trừ khi được người dùng yêu cầu trực tiếp). AI chỉ đưa ra mã nguồn, vị trí file, giải thích và hướng dẫn để người dùng tự thao tác thủ công.
+7. **Cập nhật file tiến độ (`progress.md`) ngay khi hoàn thành:** Ngay khi hoàn thành và kiểm tra chạy thành công bất kỳ một tính năng hoặc đầu việc nào, AI phải chủ động cập nhật trạng thái trong `progress.md` (và `KY_GUIDE.md`) sang `✅ Hoàn thành` kèm theo nhật ký chi tiết các công việc đã thực hiện.
