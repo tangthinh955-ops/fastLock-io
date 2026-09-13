@@ -64,6 +64,19 @@ live-order-app/
 ```
 
 ## 4. QUY TẮC CHO AI AGENT
+feat/order-atomic-stock
+1. **Không tự ý sửa file của người kia:** Chỉ viết/sửa code thuộc phạm vi phân công của từng người.
+2. **Code tối giản:** Không sinh ra các file test rác hay file config không cần thiết.
+3. **Build sạch trước khi Push:** Bắt buộc đảm bảo `npm run build` thành công không có lỗi TypeScript.
+4. **Tạo nhánh Git riêng cho từng tính năng:** Với mỗi phiên làm việc thực hiện các chức năng khác nhau, AI phải nhắc nhở và tạo/hướng dẫn tạo 1 nhánh Git riêng theo tên chức năng/công việc đó (Ví dụ: `feat/seller-dashboard-ui`, `feat/aho-corasick-parser`, `feat/order-atomic-stock`).
+5. **Hướng dẫn quy trình chuẩn bị đầu phiên (BẮT BUỘC):** Khi bắt đầu phiên làm việc mới, AI phải chủ động hướng dẫn và hỗ trợ người dùng thực hiện đủ 5 bước chuẩn bị:
+   - **B1 Check Git status:** `git status` (đảm bảo không có thay đổi dở dang).
+   - **B2 Pull code mới nhất:** `git pull origin main` (hỗ trợ fix merge conflict nếu có).
+   - **B3 Cài gói mới:** `npm install`.
+   - **B4 Generate Prisma Client:** `cd apps/backend && npx prisma generate`.
+   - **B5 Tạo nhánh tính năng:** `git checkout -b feat/<ten-tinh-nang>`.
+6. **Không tự ý chỉnh sửa/tạo file code:** AI tuyệt đối không được trực tiếp tạo hoặc sửa file code trong dự án (trừ khi được người dùng yêu cầu trực tiếp). AI chỉ đưa ra mã nguồn, vị trí file, giải thích và hướng dẫn để người dùng tự thao tác thủ công.
+7. **Cập nhật file tiến độ (`progress.md`) ngay khi hoàn thành:** Ngay khi hoàn thành và kiểm tra chạy thành công bất kỳ một tính năng hoặc đầu việc nào, AI phải chủ động cập nhật trạng thái trong `progress.md` (và `KY_GUIDE.md`) sang `✅ Hoàn thành` kèm theo nhật ký chi tiết các công việc đã thực hiện.
 
 ### 4.1. Phạm vi sở hữu code
 
@@ -229,3 +242,4 @@ Với thay đổi nhỏ, chỉ cần mô tả component bị tác động; khôn
 Component và hook được tách ra vẫn tuân theo quyền sở hữu của tính năng gốc. File phục vụ nhiều phạm vi sở hữu được xem là [CHUNG].
 
 Mục 4.7 không thay thế quy trình xin xác nhận ở mục 4.2–4.3. Nếu phát hiện nhu cầu refactor ngoài kế hoạch đã duyệt, chỉ đề xuất và chờ xác nhận trước khi thực hiện.
+

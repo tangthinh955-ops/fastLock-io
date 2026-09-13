@@ -143,5 +143,6 @@ vite.config.ts.timestamp-*
 .vite/
 # File cẩm nang cá nhân của Kỳ
 KY_GUIDE.md
+apps/frontend/public/visualizer.html
 # File cẩm nang cá nhân của Thịnh
 study_guide.md

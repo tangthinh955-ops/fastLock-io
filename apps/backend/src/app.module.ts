@@ -8,6 +8,9 @@ import { AuthModule } from './modules/auth/auth.module';
 import { DirectMessageModule } from './modules/direct-message/direct-message.module';
 import { ProductModule } from './modules/product/product.module';
 import { AiModule } from './modules/ai/ai.module';
+import { ParserModule } from './modules/parser/parser.module';
+import { OrderModule } from './modules/order/order.module';
+
 
 @Module({
   imports: [
@@ -31,6 +34,8 @@ import { AiModule } from './modules/ai/ai.module';
     DirectMessageModule,
     ProductModule,
     AiModule,
+    ParserModule,
+    OrderModule,
   ],
   controllers: [],
   providers: [
@@ -41,4 +46,6 @@ import { AiModule } from './modules/ai/ai.module';
     },
   ],
 })
-export class AppModule {}
+
+export class AppModule { }
+
