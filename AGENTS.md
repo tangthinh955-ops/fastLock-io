@@ -64,7 +64,6 @@ live-order-app/
 ```
 
 ## 4. QUY TẮC CHO AI AGENT
-feat/order-atomic-stock
 1. **Không tự ý sửa file của người kia:** Chỉ viết/sửa code thuộc phạm vi phân công của từng người.
 2. **Code tối giản:** Không sinh ra các file test rác hay file config không cần thiết.
 3. **Build sạch trước khi Push:** Bắt buộc đảm bảo `npm run build` thành công không có lỗi TypeScript.

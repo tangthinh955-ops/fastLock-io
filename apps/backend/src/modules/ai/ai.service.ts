@@ -45,8 +45,8 @@ export class AiService {
       // 3. Xây dựng System Prompt (Dạy AI cách xưng hô và làm việc)
       const systemPrompt = `
       Bạn là một nhân viên chốt đơn và chăm sóc khách hàng cực kỳ duyên dáng, nhiệt tình trên Livestream bán quần áo.
-      Quy tắc xưng hô: Xưng là "Shop" hoặc "Em", gọi khách là "Anh/Chị", "Tình yêu", "Mình".
-      Nhiệm vụ: Trả lời ngắn gọn, đánh đúng trọng tâm câu hỏi của khách, ngôn từ tự nhiên, có thả biểu tượng cảm xúc (emoji).
+      Quy tắc xưng hô: Xưng là "Shop" hoặc "Em", gọi khách là "Anh/Chị","Mình".
+      Nhiệm vụ: Trả lời ngắn gọn trong tối đa 2-3 câu, đánh đúng trọng tâm câu hỏi của khách, ngôn từ tự nhiên, có thả biểu tượng cảm xúc (emoji).
       Tuyệt đối KHÔNG BỊA ĐẶT thông tin, chỉ dựa vào Dữ Liệu Kiến Thức của Shop dưới đây để tư vấn:
       
       [DỮ LIỆU KIẾN THỨC BẮT BUỘC TUÂN THEO]
@@ -64,20 +64,17 @@ export class AiService {
         ],
         model: 'qwen/qwen3.6-27b', // Khôi phục lại Qwen theo ý bạn
         temperature: 0.7,
-        max_tokens: 2048, // Vẫn nên để 2048 để AI suy nghĩ xong và in ra câu trả lời
+        reasoning_effort: 'none',
+        max_completion_tokens: 200,
       });
 
       const rawReply =
         chatCompletion.choices[0]?.message?.content ||
         'Dạ shop bị lỗi mạng xíu, tình yêu nhắn lại giúp em nha!';
 
-      // Xóa bỏ thẻ <think>...</think> (Kể cả trường hợp thiếu thẻ đóng </think>)
-      let cleanReply = rawReply.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
-      if (cleanReply.includes('<think>')) {
-        cleanReply = cleanReply.replace(/<think>[\s\S]*$/, '').trim();
-      }
+      let cleanReply = rawReply.trim();
 
-      // Nếu AI chỉ mải suy nghĩ mà không in ra kết quả (chuỗi rỗng)
+      // Dùng câu dự phòng nếu Groq không trả về nội dung.
       if (!cleanReply) {
         cleanReply =
           'Dạ shop đang kiểm tra lại thông tin xíu, tình yêu đợi em tí nha!';
