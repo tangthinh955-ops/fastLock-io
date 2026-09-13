@@ -11,7 +11,6 @@ import { AiModule } from './modules/ai/ai.module';
 import { ParserModule } from './modules/parser/parser.module';
 import { OrderModule } from './modules/order/order.module';
 
-
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -46,6 +45,4 @@ import { OrderModule } from './modules/order/order.module';
     },
   ],
 })
-
-export class AppModule { }
-
+export class AppModule {}
