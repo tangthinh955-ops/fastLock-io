@@ -167,3 +167,65 @@ Trước khi kết luận task hoàn thành:
 - Nếu build fail do code [KỲ] hoặc [CHUNG], báo rõ lỗi và dừng thay vì tự sửa.
 
 Mục tiêu cuối cùng là đảm bảo thay đổi của [BẠN] không tạo thêm lỗi TypeScript/build.
+
+### 4.7. Tiêu chuẩn Kiến trúc Mã nguồn & Tính Module hóa
+
+**Mục tiêu:** Mã nguồn dễ đọc, dễ mở rộng, phân chia trách nhiệm rõ ràng và hạn chế cập nhật giao diện không cần thiết. Không chia file chỉ để giảm số dòng.
+
+#### 1. Phân chia trách nhiệm
+
+- **Page/Container:** Kết nối các hook, state và dữ liệu của trang; xử lý bố cục tổng thể và truyền dữ liệu/sự kiện cho component con. Được giữ các phần JSX đơn giản phục vụ bố cục.
+- **Custom Hook:** Đóng gói một trách nhiệm logic có liên quan, như tải hội thoại, quản lý socket hoặc giữ vị trí cuộn khi phân trang. Không gom mọi logic vào một hook lớn chỉ để làm Page ngắn hơn.
+- **Presentational Component:** Chủ yếu nhận dữ liệu qua props và phát sự kiện qua callback. Có thể giữ state giao diện cục bộ đơn giản, như mở menu hoặc bật/tắt phần nội dung.
+
+#### 2. Khi nào cần đánh giá việc phân tách
+
+Phải đánh giá cấu trúc khi gặp một trong các dấu hiệu:
+
+- Component có từ 3 `useEffect` trở lên.
+- Có logic phức tạp về socket, debounce, phân trang hoặc đồng bộ vị trí cuộn.
+- Một file vượt khoảng 300 dòng.
+- Một khối giao diện có trách nhiệm độc lập, props rõ ràng hoặc xuất hiện nhiều lần.
+
+Đây là tín hiệu đánh giá, không phải quy tắc tách máy móc theo số dòng.
+
+Logic phức tạp phải được cô lập theo trách nhiệm: dùng custom hook khi phụ thuộc vòng đời React; dùng hàm thuần khi chỉ biến đổi hoặc tính toán dữ liệu.
+
+Tách component khi việc đó cải thiện rõ khả năng đọc, tái sử dụng hoặc quản lý cập nhật giao diện. Không tách chỉ vì có thể đặt tên cho một khối JSX.
+
+#### 3. Tái sử dụng có căn cứ
+
+- Khi UI hoặc logic trùng lặp ở từ 2 nơi trở lên, phải đánh giá việc dùng chung.
+- Tách dùng chung khi các nơi có cùng ý nghĩa nghiệp vụ và hành vi tương đồng.
+- Không xây dựng abstraction chỉ dựa trên khả năng có thể tái sử dụng trong tương lai.
+- Với BUYER và SELLER, có thể dùng chung phần hiển thị như bong bóng tin nhắn hoặc thẻ VietQR; giữ riêng logic quyền hạn và hành động khi chúng khác nhau.
+- Không tạo component chung với quá nhiều cờ điều kiện để phục vụ các luồng khác biệt.
+
+#### 4. Hiệu năng và vòng đời
+
+- Đặt state ở phạm vi nhỏ nhất cần sử dụng và tránh lưu state có thể suy ra trực tiếp từ dữ liệu hiện có.
+- Giới hạn phạm vi lắng nghe socket hoặc dữ liệu vào nơi cần thiết.
+- Effect đăng ký listener, timer hoặc tác vụ bất đồng bộ phải xử lý cleanup và phản hồi lỗi thời khi phù hợp.
+- Tách component hoặc custom hook không được xem là bằng chứng đã tối ưu re-render.
+- Chỉ dùng `memo`, `useMemo`, `useCallback` khi có lý do cụ thể; không áp dụng hàng loạt theo thói quen.
+
+#### 5. Tránh chia nhỏ quá mức
+
+- Giữ các đoạn hiển thị ngắn, dễ hiểu và chỉ dùng cục bộ trong component hiện tại.
+- Độ dài dưới 20 dòng không cấm việc tách nếu phần đó thực sự được dùng chung hoặc có trách nhiệm độc lập.
+- Ưu tiên cấu trúc hiện có của dự án. Không thêm tầng trung gian hoặc dependency chỉ để phục vụ refactor.
+
+#### 6. Yêu cầu trong kế hoạch và phạm vi sở hữu
+
+Với tính năng giao diện mới hoặc refactor cấu trúc đáng kể, kế hoạch ở mục 4.2 phải có:
+
+- Component Tree dự kiến.
+- Trách nhiệm của Page, component con và các hook chính.
+- Nơi sở hữu state và luồng truyền dữ liệu/sự kiện.
+- Phần dùng chung, nếu đã có nhu cầu cụ thể.
+
+Với thay đổi nhỏ, chỉ cần mô tả component bị tác động; không bắt buộc dựng lại toàn bộ cây.
+
+Component và hook được tách ra vẫn tuân theo quyền sở hữu của tính năng gốc. File phục vụ nhiều phạm vi sở hữu được xem là [CHUNG].
+
+Mục 4.7 không thay thế quy trình xin xác nhận ở mục 4.2–4.3. Nếu phát hiện nhu cầu refactor ngoài kế hoạch đã duyệt, chỉ đề xuất và chờ xác nhận trước khi thực hiện.
