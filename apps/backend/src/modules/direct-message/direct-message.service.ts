@@ -11,17 +11,32 @@ export class DirectMessageService {
   ) {}
 
   // Chỉ trả thông tin cần thiết để hiển thị danh sách shop trong Inbox.
-  async getShops() {
-    return this.prisma.user.findMany({
+  async getShops(buyerId: string) {
+    const shops = await this.prisma.user.findMany({
       where: { role: Role.SELLER },
-      select: { id: true, name: true },
+      select: {
+        id: true,
+        name: true,
+        _count: {
+          select: {
+            messagesSent: {
+              where: { receiverId: buyerId, isRead: false },
+            },
+          },
+        },
+      },
       orderBy: [{ name: 'asc' }, { id: 'asc' }],
     });
+
+    return shops.map(({ _count, ...shop }) => ({
+      ...shop,
+      unreadCount: _count.messagesSent,
+    }));
   }
 
   // Lấy danh sách Buyer đã gửi hoặc nhận tin nhắn với Seller.
   async getSellerCustomers(sellerId: string) {
-    return this.prisma.user.findMany({
+    const buyers = await this.prisma.user.findMany({
       where: {
         role: Role.BUYER,
         OR: [
@@ -29,9 +44,24 @@ export class DirectMessageService {
           { messagesRecv: { some: { senderId: sellerId } } },
         ],
       },
-      select: { id: true, name: true },
+      select: {
+        id: true,
+        name: true,
+        _count: {
+          select: {
+            messagesSent: {
+              where: { receiverId: sellerId, isRead: false },
+            },
+          },
+        },
+      },
       orderBy: [{ name: 'asc' }, { id: 'asc' }],
     });
+
+    return buyers.map(({ _count, ...buyer }) => ({
+      ...buyer,
+      unreadCount: _count.messagesSent,
+    }));
   }
 
   // Seller lấy lịch sử hai chiều với đúng tài khoản Buyer được chọn (Mặc định 5 tin mới nhất).
@@ -68,6 +98,28 @@ export class DirectMessageService {
     });
 
     return messages.reverse();
+  }
+
+  async markSellerConversationRead(sellerId: string, buyerId: string) {
+    const buyer = await this.prisma.user.findFirst({
+      where: { id: buyerId, role: Role.BUYER },
+      select: { id: true },
+    });
+
+    if (!buyer) {
+      throw new NotFoundException('Khách hàng không tồn tại.');
+    }
+
+    const result = await this.prisma.directMessage.updateMany({
+      where: {
+        senderId: buyerId,
+        receiverId: sellerId,
+        isRead: false,
+      },
+      data: { isRead: true },
+    });
+
+    return { updatedCount: result.count };
   }
 
   // Seller chỉ được gửi trả lời cho Buyer đã có cuộc trò chuyện với shop này.
@@ -145,6 +197,28 @@ export class DirectMessageService {
     return messages.reverse();
   }
 
+  async markBuyerConversationRead(buyerId: string, sellerId: string) {
+    const seller = await this.prisma.user.findFirst({
+      where: { id: sellerId, role: Role.SELLER },
+      select: { id: true },
+    });
+
+    if (!seller) {
+      throw new NotFoundException('Shop không tồn tại.');
+    }
+
+    const result = await this.prisma.directMessage.updateMany({
+      where: {
+        senderId: sellerId,
+        receiverId: buyerId,
+        isRead: false,
+      },
+      data: { isRead: true },
+    });
+
+    return { updatedCount: result.count };
+  }
+
   // Lưu tin nhắn Buyer gửi đến đúng tài khoản Seller.
   async sendChatMessage(buyerId: string, sellerId: string, message: string) {
     const seller = await this.prisma.user.findFirst({
@@ -176,6 +250,7 @@ export class DirectMessageService {
         senderId: sellerId,
         receiverId: buyerId,
         content: reply,
+        isRead: true,
       },
       include: {
         sender: {
@@ -194,6 +269,15 @@ export class DirectMessageService {
     amount: number,
     orderId: string,
   ) {
+    const buyer = await this.prisma.user.findFirst({
+      where: { id: receiverId, role: Role.BUYER },
+      select: { id: true },
+    });
+
+    if (!buyer) {
+      throw new NotFoundException('Khách hàng nhận VietQR không tồn tại.');
+    }
+
     // Ngân hàng giả lập: Vietcombank, STK: 123456789
     const bank = 'BIDV';
     const account = '0334897940';
@@ -211,21 +295,6 @@ export class DirectMessageService {
         receiverId,
         content,
         qrUrl,
-      },
-    });
-  }
-
-  // 2. Lấy Hộp thư của 1 người dùng (Phân trang bằng limit + skip)
-  async getUserInbox(userId: string, limit: number = 10, skip: number = 0) {
-    return this.prisma.directMessage.findMany({
-      where: { receiverId: userId },
-      orderBy: { createdAt: 'desc' }, // Mới nhất xếp trên cùng
-      take: limit, // Số bản ghi cần lấy (VD: 10)
-      skip: skip, // Bỏ qua bao nhiêu bản ghi (VD: skip=10 => trang 2)
-      include: {
-        sender: {
-          select: { id: true, name: true, role: true },
-        },
       },
     });
   }
