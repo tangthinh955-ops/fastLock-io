@@ -1,6 +1,7 @@
 import {
   Controller,
   Post,
+  Patch,
   Get,
   Body,
   UseGuards,
@@ -16,6 +17,7 @@ import { Role } from '@prisma/client';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { SendChatMessageDto } from './dto/send-chat-message.dto';
 import { SendSellerMessageDto } from './dto/send-seller-message.dto';
+import { MessagePaginationDto } from './dto/message-pagination.dto';
 
 @Controller('messages')
 // Bật cả 2 Khiên: Kiểm tra Đăng nhập & Kiểm tra Phân quyền
@@ -26,8 +28,8 @@ export class DirectMessageController {
   // Danh sách shop để Buyer bắt đầu tư vấn, kể cả khi chưa có đơn hàng.
   @Get('shops')
   @Roles(Role.BUYER)
-  async getShops() {
-    return this.messageService.getShops();
+  async getShops(@Req() req: any) {
+    return this.messageService.getShops(req.user.userId);
   }
 
   // Danh sách Buyer đã từng trao đổi với Seller đang đăng nhập.
@@ -43,16 +45,26 @@ export class DirectMessageController {
   async getSellerConversation(
     @Req() req: any,
     @Param('buyerId') buyerId: string,
-    @Query('limit') limit?: string,
-    @Query('skip') skip?: string,
+    @Query() pagination: MessagePaginationDto,
   ) {
-    const parsedLimit = limit ? parseInt(limit, 10) : 5;
-    const parsedSkip = skip ? parseInt(skip, 10) : 0;
     return this.messageService.getSellerConversation(
       req.user.userId,
       buyerId,
-      parsedLimit,
-      parsedSkip,
+      pagination.limit,
+      pagination.skip,
+    );
+  }
+
+  // Seller đánh dấu các tin Buyer gửi trong cuộc trò chuyện là đã đọc.
+  @Patch('seller/conversations/:buyerId/read')
+  @Roles(Role.SELLER)
+  async markSellerConversationRead(
+    @Req() req: any,
+    @Param('buyerId') buyerId: string,
+  ) {
+    return this.messageService.markSellerConversationRead(
+      req.user.userId,
+      buyerId,
     );
   }
 
@@ -76,16 +88,26 @@ export class DirectMessageController {
   async getConversation(
     @Req() req: any,
     @Param('sellerId') sellerId: string,
-    @Query('limit') limit?: string,
-    @Query('skip') skip?: string,
+    @Query() pagination: MessagePaginationDto,
   ) {
-    const parsedLimit = limit ? parseInt(limit, 10) : 5;
-    const parsedSkip = skip ? parseInt(skip, 10) : 0;
     return this.messageService.getConversation(
       req.user.userId,
       sellerId,
-      parsedLimit,
-      parsedSkip,
+      pagination.limit,
+      pagination.skip,
+    );
+  }
+
+  // Buyer đánh dấu các tin Shop gửi trong cuộc trò chuyện là đã đọc.
+  @Patch('conversations/:sellerId/read')
+  @Roles(Role.BUYER)
+  async markBuyerConversationRead(
+    @Req() req: any,
+    @Param('sellerId') sellerId: string,
+  ) {
+    return this.messageService.markBuyerConversationRead(
+      req.user.userId,
+      sellerId,
     );
   }
 
@@ -116,19 +138,4 @@ export class DirectMessageController {
     );
   }
 
-  // API 2: Lấy Hộp thư đến của người đang đăng nhập (Có phân trang)
-  @Get('my-inbox')
-  async getMyInbox(
-    @Req() req: any,
-    @Query('limit') limit?: string,
-    @Query('skip') skip?: string,
-  ) {
-    const parsedLimit = limit ? parseInt(limit, 10) : 10;
-    const parsedSkip = skip ? parseInt(skip, 10) : 0;
-    return this.messageService.getUserInbox(
-      req.user.userId,
-      parsedLimit,
-      parsedSkip,
-    );
-  }
 }

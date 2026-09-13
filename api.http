@@ -1,28 +1,12 @@
-### 1. Đăng nhập với tài khoản SELLER (Chủ shop)
-POST http://localhost:3001/auth/login
-Content-Type: application/json
+@baseUrl = http://localhost:3001
+@adminToken = PASTE_ADMIN_TOKEN
+@sellerToken = PASTE_SELLER_TOKEN
+@buyerToken = PASTE_BUYER_TOKEN
+@sellerId = PASTE_SELLER_UUID
+@buyerId = PASTE_BUYER_UUID
 
-{
-  "email": "seller@liveorder.com",
-  "password": "123456"
-}
-
-###
-
-### 2. Đăng nhập với tài khoản BUYER (Khách mua hàng)
-POST http://localhost:3001/auth/login
-Content-Type: application/json
-
-{
-  "email": "buyer@liveorder.com",
-  "password": "123456"
-}
-
-### 
-
-### 3. Đăng nhập với tài khoản ADMIN
-# @name adminLogin
-POST http://localhost:3001/auth/login
+### 1. Đăng nhập ADMIN
+POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
@@ -30,61 +14,89 @@ Content-Type: application/json
   "password": "123456"
 }
 
-### 
-
-### 4. Admin lấy danh sách người dùng (Cần chạy Đăng nhập ADMIN trước để lấy Token)
-# Hãy copy access_token từ kết quả phía trên và paste vào chỗ "Bearer ..." bên dưới
-GET http://localhost:3001/users
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxODgzOTdhNi1hMTJmLTQwODgtOTcwYS0yNDg4ZjNhYTJkYWUiLCJlbWFpbCI6ImJ1eWVyQGxpdmVvcmRlci5jb20iLCJyb2xlIjoiQlVZRVIiLCJpYXQiOjE3ODgxMTEwODAsImV4cCI6MTc4ODE5NzQ4MH0.3PjPtDXeYYDmW8cvsRc32-NQMJnUQaR3ch1bYsjuERw
-
-###
-
-### 5. Gửi tin nhắn tạo mã VietQR (System / Seller gửi)
-# Hãy copy access_token của Seller (mục 1) và paste vào dưới đây
-POST http://localhost:3001/messages
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5NzM4MzljNC04NTQ3LTRkNmEtOTRjOS02ZWNiZWRjNWNkMjgiLCJlbWFpbCI6InNlbGxlckBsaXZlb3JkZXIuY29tIiwicm9sZSI6IlNFTExFUiIsImlhdCI6MTc4ODExMjM1MSwiZXhwIjoxNzg4MTk4NzUxfQ.9qaZO-XSBPODg0wtgR3rAkt9kRX7NU1Pa86hwN_W4KU
+### 2. Đăng nhập SELLER
+POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
-  "receiverId": "188397a6-a12f-4088-970a-2488f3aa2dae",
-  "amount": 1,
+  "email": "seller@liveorder.com",
+  "password": "123456"
+}
+
+### 3. Đăng nhập BUYER
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "buyer@liveorder.com",
+  "password": "123456"
+}
+
+### 4. ADMIN lấy danh sách người dùng
+GET {{baseUrl}}/users?page=1&limit=10
+Authorization: Bearer {{adminToken}}
+
+### 5. BUYER lấy danh sách shop
+GET {{baseUrl}}/messages/shops
+Authorization: Bearer {{buyerToken}}
+
+### 6. BUYER xem 5 tin mới nhất với một shop
+GET {{baseUrl}}/messages/conversations/{{sellerId}}?limit=5&skip=0
+Authorization: Bearer {{buyerToken}}
+
+### 7. BUYER tải 5 tin cũ tiếp theo
+GET {{baseUrl}}/messages/conversations/{{sellerId}}?limit=5&skip=5
+Authorization: Bearer {{buyerToken}}
+
+### 8. BUYER gửi câu hỏi riêng và nhận phản hồi AI
+POST {{baseUrl}}/messages/conversations
+Authorization: Bearer {{buyerToken}}
+Content-Type: application/json
+
+{
+  "sellerId": "{{sellerId}}",
+  "message": "Áo này có size phù hợp cho người cao 1m60 không shop?"
+}
+
+### 9. SELLER lấy danh sách khách đã trò chuyện
+GET {{baseUrl}}/messages/seller/customers
+Authorization: Bearer {{sellerToken}}
+
+### 10. SELLER xem 5 tin mới nhất với một Buyer
+GET {{baseUrl}}/messages/seller/conversations/{{buyerId}}?limit=5&skip=0
+Authorization: Bearer {{sellerToken}}
+
+### 11. SELLER trả lời Buyer thủ công
+POST {{baseUrl}}/messages/seller/conversations
+Authorization: Bearer {{sellerToken}}
+Content-Type: application/json
+
+{
+  "buyerId": "{{buyerId}}",
+  "message": "Shop đã kiểm tra lại và sẽ hỗ trợ bạn ngay nhé."
+}
+
+### 12. SELLER gửi thông báo VietQR cho Buyer
+POST {{baseUrl}}/messages
+Authorization: Bearer {{sellerToken}}
+Content-Type: application/json
+
+{
+  "receiverId": "{{buyerId}}",
+  "amount": 150000,
   "orderId": "ORDER_001"
 }
-###
 
-### 6. Khách hàng xem Hộp thư đến (Buyer)
-# Hãy copy access_token của Buyer (mục 2) và paste vào dưới đây
-GET http://localhost:3001/messages/my-inbox
-Authorization: Bearer <PASTE_TOKEN_CỦA_BUYER_VÀO_ĐÂY>
+### 13. SELLER lấy Knowledge Base
+GET {{baseUrl}}/ai/knowledge
+Authorization: Bearer {{sellerToken}}
 
-###
-
-### 7. Test Trí Tuệ Nhân Tạo (AI Llama 3)
-# Hãy copy access_token của Seller (mục 1) và paste vào chỗ Bearer dưới đây
-POST http://localhost:3001/ai/chat
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5NzM4MzljNC04NTQ3LTRkNmEtOTRjOS02ZWNiZWRjNWNkMjgiLCJlbWFpbCI6InNlbGxlckBsaXZlb3JkZXIuY29tIiwicm9sZSI6IlNFTExFUiIsImlhdCI6MTc4NzE1MjEzNiwiZXhwIjoxNzg3MjM4NTM2fQ.K21HqZRcZg-gQ0IIIcZRYRJfnMl3dXVis-rjaKiiL7M
+### 14. SELLER thêm Knowledge Base
+POST {{baseUrl}}/ai/knowledge
+Authorization: Bearer {{sellerToken}}
 Content-Type: application/json
 
 {
-  "message": "Shop ơi em cao 1m60 nặng 50kg thì mặc áo hoodie bên mình size gì vừa ạ?"
-}
-### 8. Test Đăng ký tài khoản mới
-POST http://localhost:3001/auth/register
-Content-Type: application/json
-
-{
-  "email": "newbuyer@gmail.com",
-  "password": "123456",
-  "name": "Khách Mới"
-}
-
-
-### 10. Test AI Llama trả lời tự động dựa trên quy tắc Địa chỉ vừa thêm
-POST http://localhost:3001/ai/chat
-# QUAN TRỌNG: Hãy copy token của Seller ở Mục 1 và thay vào chỗ Bearer nhé
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5NzM4MzljNC04NTQ3LTRkNmEtOTRjOS02ZWNiZWRjNWNkMjgiLCJlbWFpbCI6InNlbGxlckBsaXZlb3JkZXIuY29tIiwicm9sZSI6IlNFTExFUiIsImlhdCI6MTc4NzgxMzc3MSwiZXhwIjoxNzg3OTAwMTcxfQ.XtAy4hvYTHe2womDLesn4LzKQirEXrKC8KvFaQt6qFU
-Content-Type: application/json
-
-{
-  "message": "Ủa shop có cửa hàng ở ngoài không, cho mình xin địa chỉ qua thử đồ nha"
+  "keyword": "size áo",
+  "answer": "Khách cao 1m60 và nặng khoảng 50kg có thể tham khảo size M."
 }

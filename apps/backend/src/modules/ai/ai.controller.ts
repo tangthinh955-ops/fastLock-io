@@ -10,7 +10,6 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { AiService } from './ai.service';
-import { PrismaService } from '../../core/prisma/prisma.service';
 import { CreateKbEntryDto } from './dto/create-kb.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -19,42 +18,7 @@ import { Role } from '@prisma/client';
 
 @Controller('ai')
 export class AiController {
-  constructor(
-    private readonly aiService: AiService,
-    private readonly prisma: PrismaService,
-  ) {}
-
-  // Mở API test: Bắt buộc đăng nhập với quyền SELLER mới được dùng
-  @Post('chat')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.SELLER, Role.BUYER) // Cả người bán và người mua đều được dùng
-  async testChatAI(
-    @Req() req: any,
-    @Body() body: { sellerId?: string; message: string },
-  ) {
-    let sellerId = body.sellerId || req.user.userId;
-
-    // HACK CHO PHASE 1 (Dành cho Buyer test khi chưa có Livestream thật):
-    // Nếu ID truyền lên là cái chuỗi giả lập từ ViewerPage, ta tự động tìm ông Seller đầu tiên trong DB
-    if (sellerId === 'ID_CỦA_CHỦ_SHOP_HIỆN_TẠI') {
-      const defaultSeller = await this.prisma.user.findFirst({
-        where: { role: 'SELLER' },
-      });
-      if (defaultSeller) {
-        sellerId = defaultSeller.id;
-      }
-    }
-
-    const customerMessage = body.message;
-
-    // Gọi hàm sinh câu trả lời từ não AI
-    const reply = await this.aiService.generateReply(sellerId, customerMessage);
-
-    return {
-      status: 'success',
-      reply: reply,
-    };
-  }
+  constructor(private readonly aiService: AiService) {}
 
   // --- API QUẢN LÝ KNOWLEDGE BASE DÀNH CHO SELLER ---
 
