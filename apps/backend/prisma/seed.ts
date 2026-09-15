@@ -5,14 +5,14 @@ const prisma = new PrismaClient();
 
 async function main() {
   console.log('Bắt đầu khởi tạo dữ liệu mẫu (Seeding)...');
-  // Mật khẩu chung cho dễ test
   const passwordHash = await bcrypt.hash('123456', 10);
 
-  // 1. Tạo ADMIN
+  // 1. Tạo ADMIN với ID cố định 'admin-uuid-001'
   const admin = await prisma.user.upsert({
     where: { email: 'admin@liveorder.com' },
-    update: {},
+    update: { id: 'admin-uuid-001' },
     create: {
+      id: 'admin-uuid-001',
       email: 'admin@liveorder.com',
       password: passwordHash,
       name: 'System Admin',
@@ -20,11 +20,12 @@ async function main() {
     },
   });
 
-  // 2. Tạo SELLER
+  // 2. Tạo SELLER với ID cố định 'seller-uuid-001'
   const seller = await prisma.user.upsert({
     where: { email: 'seller@liveorder.com' },
-    update: {},
+    update: { id: 'seller-uuid-001' },
     create: {
+      id: 'seller-uuid-001',
       email: 'seller@liveorder.com',
       password: passwordHash,
       name: 'Chủ Shop (Streamer)',
@@ -32,11 +33,12 @@ async function main() {
     },
   });
 
-  // 3. Tạo BUYER
+  // 3. Tạo BUYER với ID cố định 'buyer-uuid-001'
   const buyer = await prisma.user.upsert({
     where: { email: 'buyer@liveorder.com' },
-    update: {},
+    update: { id: 'buyer-uuid-001' },
     create: {
+      id: 'buyer-uuid-001',
       email: 'buyer@liveorder.com',
       password: passwordHash,
       name: 'Khách hàng',
@@ -44,10 +46,10 @@ async function main() {
     },
   });
 
-  console.log('Seeding thành công! Các tài khoản:');
-  console.log('- Admin:', admin.email);
-  console.log('- Seller:', seller.email);
-  console.log('- Buyer:', buyer.email);
+  console.log('Seeding thành công! Các tài khoản cố định ID:');
+  console.log('- Admin:', admin.email, `(ID: ${admin.id})`);
+  console.log('- Seller:', seller.email, `(ID: ${seller.id})`);
+  console.log('- Buyer:', buyer.email, `(ID: ${buyer.id})`);
   console.log('=> Mật khẩu chung: 123456');
 }
 

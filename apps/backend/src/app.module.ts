@@ -10,6 +10,7 @@ import { ProductModule } from './modules/product/product.module';
 import { AiModule } from './modules/ai/ai.module';
 import { ParserModule } from './modules/parser/parser.module';
 import { OrderModule } from './modules/order/order.module';
+import { LivestreamModule } from './modules/livestream/livestream.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { OrderModule } from './modules/order/order.module';
     AiModule,
     ParserModule,
     OrderModule,
+    LivestreamModule,
   ],
   controllers: [],
   providers: [

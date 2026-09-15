@@ -7,6 +7,7 @@ import { Navbar } from './components/common/Navbar';
 import { LoginPage } from './pages/auth/LoginPage';
 import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { SellerDashboard } from './pages/seller/SellerDashboard';
+import { LiveStudio } from './pages/seller/LiveStudio';
 import { AiSettingsPage } from './pages/seller/AiSettingsPage';
 import { ViewerPage } from './pages/viewer/ViewerPage';
 import { InboxPage } from './pages/inbox/InboxPage';
@@ -37,6 +38,14 @@ export const App: React.FC = () => {
             element={
               <ProtectedRoute allowedRoles={['SELLER']}>
                 <SellerDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/seller/live-studio"
+            element={
+              <ProtectedRoute allowedRoles={['SELLER']}>
+                <LiveStudio />
               </ProtectedRoute>
             }
           />
