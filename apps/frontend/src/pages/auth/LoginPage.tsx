@@ -8,14 +8,18 @@ import {
   Box,
   Alert,
   Divider,
-  Stack
+  Stack,
+  IconButton,
+  InputAdornment,
 } from '@mui/material';
+import { Visibility, VisibilityOff } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 export const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -29,19 +33,20 @@ export const LoginPage: React.FC = () => {
 
     try {
       await login(email, password);
-      // Chuyển hướng sau khi đăng nhập dựa theo Role
       const savedUser = JSON.parse(localStorage.getItem('user') || '{}');
       if (savedUser.role === 'ADMIN') navigate('/admin/dashboard');
       else if (savedUser.role === 'SELLER') navigate('/seller/dashboard');
       else navigate('/viewer');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Đăng nhập thất bại. Kiểm tra lại thông tin!');
+      setError(
+        err.response?.data?.message ||
+        'Đăng nhập thất bại. Vui lòng kiểm tra thông tin và đảm bảo Backend đã chạy!'
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  // Hàm chọn nhanh tài khoản mẫu
   const handleQuickFill = (demoEmail: string) => {
     setEmail(demoEmail);
     setPassword('123456');
@@ -72,12 +77,27 @@ export const LoginPage: React.FC = () => {
           <TextField
             fullWidth
             label="Mật khẩu"
-            type="password"
+            type={showPassword ? 'text' : 'password'}
             variant="outlined"
             margin="normal"
             value={password}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
             required
+            slotProps={{
+              input: {
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      aria-label="toggle password visibility"
+                      onClick={() => setShowPassword(!showPassword)}
+                      edge="end"
+                    >
+                      {showPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              },
+            }}
           />
           <Button
             type="submit"
@@ -87,21 +107,21 @@ export const LoginPage: React.FC = () => {
             disabled={loading}
             sx={{ mt: 2, py: 1.2, fontWeight: 'bold' }}
           >
-            {loading ? 'Đang xác thực...' : 'Đăng Nhập'}
+            {loading ? 'Đang xác thực...' : 'ĐĂNG NHẬP'}
           </Button>
         </Box>
 
         <Divider sx={{ my: 3 }}>HOẶC TEST NHANH</Divider>
 
         <Stack spacing={1}>
-          <Button variant="outlined" color="error" size="small" onClick={() => handleQuickFill('admin@liveorder.com')}>
-            Vào vai: System ADMIN
-          </Button>
           <Button variant="outlined" color="warning" size="small" onClick={() => handleQuickFill('seller@liveorder.com')}>
-            Vào vai: Chủ Shop SELLER
+            Điền nhanh: CHỦ SHOP SELLER
           </Button>
           <Button variant="outlined" color="info" size="small" onClick={() => handleQuickFill('buyer@liveorder.com')}>
-            Vào vai: Khách hàng BUYER
+            Điền nhanh: KHÁCH HÀNG BUYER
+          </Button>
+          <Button variant="outlined" color="error" size="small" onClick={() => handleQuickFill('admin@liveorder.com')}>
+            Điền nhanh: SYSTEM ADMIN
           </Button>
         </Stack>
       </Paper>

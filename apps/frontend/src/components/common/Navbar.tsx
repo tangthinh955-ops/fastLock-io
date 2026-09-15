@@ -36,6 +36,12 @@ export const Navbar: React.FC = () => {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           {user.role === 'SELLER' && (
             <>
+              <Button color="inherit" onClick={() => navigate('/seller/dashboard')} variant="text" size="small">
+                📦 Quản lý SP
+              </Button>
+              <Button color="inherit" onClick={() => navigate('/seller/live-studio')} variant="text" size="small" sx={{ color: '#ff4081', fontWeight: 'bold' }}>
+                🎥 Live Studio
+              </Button>
               <Button color="inherit" onClick={() => navigate('/seller/ai-settings')} variant="text" size="small">
                 Cấu hình AI
               </Button>
