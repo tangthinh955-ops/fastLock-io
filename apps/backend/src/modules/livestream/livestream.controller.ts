@@ -1,19 +1,27 @@
 import { Controller, Post, Get, Patch, Body, Param } from '@nestjs/common';
 import { LivestreamService } from './livestream.service';
 import { CreateLivestreamDto } from './dto/create-livestream.dto';
+import { LivestreamGateway } from './livestream.gateway';
 
 @Controller('livestreams')
 export class LivestreamController {
-    constructor(private readonly livestreamService: LivestreamService) { }
+    constructor(
+        private readonly livestreamService: LivestreamService,
+        private readonly livestreamGateway: LivestreamGateway,
+    ) { }
 
     @Post()
     async createStream(@Body() dto: CreateLivestreamDto) {
-        return await this.livestreamService.createStream(dto);
+        const stream = await this.livestreamService.createStream(dto);
+        this.livestreamGateway.notifyStreamStarted(stream);
+        return stream;
     }
 
     @Patch(':id/end')
     async endStream(@Param('id') id: string) {
-        return await this.livestreamService.endStream(id);
+        const stream = await this.livestreamService.endStream(id);
+        this.livestreamGateway.notifyStreamEnded(id);
+        return stream;
     }
 
     @Get('active')

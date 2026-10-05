@@ -9,7 +9,9 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Injectable, Logger } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { LivestreamCommentProcessor, SendCommentDto } from './livestream-comment.processor';
+import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 
 @Injectable()
 @WebSocketGateway({
@@ -23,14 +25,58 @@ export class LivestreamGateway implements OnGatewayConnection, OnGatewayDisconne
 
     private readonly logger = new Logger(LivestreamGateway.name);
 
-    constructor(private readonly commentProcessor: LivestreamCommentProcessor) { }
+    constructor(
+        private readonly commentProcessor: LivestreamCommentProcessor,
+        private readonly jwtService: JwtService,
+    ) { }
 
     handleConnection(client: Socket) {
-        this.logger.log(`Client kết nối Socket: ${client.id}`);
+        try {
+            const token = client.handshake.auth?.token;
+            if (typeof token !== 'string' || !token) {
+                throw new Error('MISSING_TOKEN');
+            }
+
+            const payload = this.jwtService.verify<JwtPayload>(token);
+            client.data.user = {
+                userId: payload.sub,
+                email: payload.email,
+                role: payload.role,
+            };
+
+            this.logger.log(`Client ${client.id} kết nối Socket với role ${payload.role}`);
+        } catch {
+            this.logger.warn(`Từ chối Socket không có JWT hợp lệ: ${client.id}`);
+            client.emit('auth_error', {
+                message: 'Phiên đăng nhập không hợp lệ hoặc đã hết hạn.',
+            });
+            client.disconnect(true);
+        }
     }
 
     handleDisconnect(client: Socket) {
         this.logger.log(`Client ngắt kết nối Socket: ${client.id}`);
+    }
+
+    notifyStreamEnded(livestreamId: string) {
+        this.server.to(livestreamId).emit('stream_ended', { livestreamId });
+    }
+
+    notifyStreamStarted(stream: {
+        id: string;
+        title: string;
+        sellerId: string;
+        seller: { id: string; name: string };
+    }) {
+        this.server.emit('stream_started', {
+            id: stream.id,
+            title: stream.title,
+            sellerId: stream.sellerId,
+            seller: {
+                id: stream.seller.id,
+                name: stream.seller.name,
+            },
+        });
     }
 
     @SubscribeMessage('join_room')
