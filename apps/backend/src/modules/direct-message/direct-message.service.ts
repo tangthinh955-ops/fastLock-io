@@ -1,7 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { PrismaService } from '../../core/prisma/prisma.service';
-import { AiService } from '../ai/ai.service';
+import {
+  AiService,
+  AI_HISTORY_MESSAGE_LIMIT,
+  type ConversationMessage,
+} from '../ai/ai.service';
 
 @Injectable()
 export class DirectMessageService {
@@ -230,6 +234,26 @@ export class DirectMessageService {
       throw new NotFoundException('Shop không tồn tại.');
     }
 
+    // Đọc trước khi lưu câu hỏi mới để không gửi câu hỏi hai lần cho AI.
+    const previousMessages = await this.prisma.directMessage.findMany({
+      where: {
+        OR: [
+          { senderId: buyerId, receiverId: sellerId },
+          { senderId: sellerId, receiverId: buyerId },
+        ],
+        qrUrl: null,
+      },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: AI_HISTORY_MESSAGE_LIMIT,
+      select: { senderId: true, content: true },
+    });
+    const history: ConversationMessage[] = previousMessages
+      .reverse()
+      .map((entry) => ({
+        role: entry.senderId === buyerId ? 'user' : 'assistant',
+        content: entry.content,
+      }));
+
     const buyerMessage = await this.prisma.directMessage.create({
       data: {
         senderId: buyerId,
@@ -243,7 +267,11 @@ export class DirectMessageService {
       },
     });
 
-    const reply = await this.aiService.generateReply(sellerId, message);
+    const reply = await this.aiService.generateReply(
+      sellerId,
+      message,
+      history,
+    );
 
     const aiMessage = await this.prisma.directMessage.create({
       data: {
@@ -268,6 +296,8 @@ export class DirectMessageService {
     receiverId: string,
     amount: number,
     orderId: string,
+    productName?: string,
+    productSku?: string,
   ) {
     const buyer = await this.prisma.user.findFirst({
       where: { id: receiverId, role: Role.BUYER },
@@ -286,7 +316,12 @@ export class DirectMessageService {
 
     // Tạo link ảnh VietQR
     const qrUrl = `https://img.vietqr.io/image/${bank}-${account}-${template}.png?amount=${amount}&addInfo=${description}`;
-    const content = `Chúc mừng bạn đã chốt thành công đơn hàng ${orderId} trị giá ${amount}đ. Vui lòng quét mã QR bên dưới để thanh toán nhé!`;
+    const orderCode = orderId.slice(0, 8).toUpperCase();
+    const formattedAmount = amount.toLocaleString('vi-VN');
+    const productDetail = productName
+      ? `sản phẩm ${productName}${productSku ? ` (SKU: ${productSku})` : ''}`
+      : 'đơn hàng';
+    const content = `🎉 Bạn đã chốt thành công ${productDetail}. Tổng thanh toán: ${formattedAmount}đ. Mã đơn: ${orderCode}. Vui lòng quét mã QR bên dưới để thanh toán nhé!`;
 
     // Lưu vào Database
     return this.prisma.directMessage.create({

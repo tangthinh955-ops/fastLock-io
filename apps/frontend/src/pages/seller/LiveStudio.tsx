@@ -9,7 +9,7 @@ import { RecentOrdersList, type OrderNotification } from '../../components/strea
 import { LiveChatSidebar, type CommentItem } from '../../components/stream/LiveChatSidebar';
 
 export const LiveStudio: React.FC = () => {
-    const { user } = useAuth();
+    const { user, token } = useAuth();
     const [isStreaming, setIsStreaming] = useState(false);
     const [streamTitle, setStreamTitle] = useState('PHIÊN LIVESTREAM CHỐT ĐƠN HÔM NAY 🚀');
     const [currentStreamId, setCurrentStreamId] = useState<string | null>(null);
@@ -70,7 +70,9 @@ export const LiveStudio: React.FC = () => {
             setCurrentStreamId(streamData.id);
             setIsStreaming(true);
 
-            const socket = io(API_BASE);
+            const socket = io(API_BASE, {
+                auth: { token },
+            });
             socketRef.current = socket;
 
             socket.on('connect', () => {

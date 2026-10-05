@@ -2,11 +2,22 @@
 
 ---
 
+## Cập nhật 02/10/2026 — Lập kế hoạch nâng cấp toàn dự án
+
+- ✅ Hoàn thành đầu việc lập kế hoạch: đối chiếu trang giới thiệu TPos Livestream, `plan.md`, tiến độ và code hiện tại để viết lại phần ưu tiên trong `plan.md`; giữ kế hoạch ban đầu làm phụ lục đối chiếu.
+- Kế hoạch mới chia mốc A–E: ổn định quyền/pipeline/chống lặp; vòng đời đơn/người nhận/QR; Inbox realtime và Seller tiếp quản; AI dùng dữ liệu có nguồn và đánh giá; phiên live/báo cáo/demo có bằng chứng.
+- Phân công rõ Dev1/Dev2/[CHUNG], dependency schema/API/Socket, file và component dự kiến, tiêu chí nghiệm thu và kiến thức mỗi Dev phải trình bày được.
+- Ghi rõ Viewer hiện dùng ảnh minh họa, AI lịch sử còn thiếu E2E Groq thật, payment/giao hàng dự kiến demo thủ công; không biến các hạn chế thành tính năng đã hoàn thành.
+- Chỉ cập nhật tài liệu. Các mốc nâng cấp chưa triển khai; không chạy build/test mới cho thay đổi Markdown, không đổi schema/API/code hoặc trạng thái các chức năng bên dưới.
+- Repository còn thay đổi staged/unstaged trên `feat/direct-history`; chuẩn bị pull/install/generate/nhánh tính năng sau khi công việc dở dang được người dùng xử lý. Chưa có deadline cụ thể; dùng mốc nghiệm thu thay cho lịch tuần cố định.
+
+---
+
 ## 📌 THÔNG TIN HỆ THỐNG & PHÂN CHIA VAI TRÒ
 * **Repository:** `fastLock-io`
-* **Nhánh Git hiện tại:** `Ky`
-* **Vai trò:** **Kỳ (Dev 2)** - Phụ trách Luồng Sản phẩm, Thuật toán Aho-Corasick/Parser, Trừ kho Order, Socket Livestream & Live Studio WebCam UI.
-* **📖 HƯỚNG DẪN RIÊNG CHO KỲ:** Chi tiết sơ đồ lộ trình, giải thích code, lệnh test ngay & quy trình Git xem tại [`KY_GUIDE.md`](file:///d:/project/Th%C6%B0%20mu%CC%A3c%20m%C6%A1%CC%81i/fastLock-io/KY_GUIDE.md).
+* **Nhánh Git hiện tại:** `feat/direct-history`
+* **Phân công:** Dev 1 phụ trách Auth/User/AI/Direct Message/Admin/Viewer/Inbox; Dev 2 phụ trách Product/Parser/Order/Livestream/Live Studio.
+* **Quy tắc phối hợp:** Xem `AGENTS.md`; `KY_GUIDE.md` hiện không có trong repository.
 
 ---
 
@@ -25,9 +36,9 @@
 | **Phase 1** | **Order Atomic Stock (`modules/order`)** | **Dev 2 (Kỳ)** | ✅ **Hoàn thành** |
 | **Phase 1** | **Module Livestream Socket Gateway & Live Studio UI** | **Dev 2 (Kỳ)** | ✅ **Hoàn thành** |
 | **Phase 1** | Direct Message hai chiều & VietQR API | Dev 1 | ✅ Hoàn thành |
-| **Phase 1** | Module AI (Groq SDK), KbEntry & tư vấn riêng trong Inbox | Dev 1 | ✅ Hoàn thành |
+| **Phase 1** | Module AI (Groq Qwen), KbEntry & tư vấn riêng trong Inbox | Dev 1 | ✅ Hoàn thành |
 | **Phase 1** | Viewer Live UI, Buyer Inbox & Seller Inbox | Dev 1 | ✅ Hoàn thành |
-| **Phase 2** | Tích hợp Socket & AI (Full Pipeline E2E) | Cả hai | ⏳ Chưa bắt đầu |
+| **Phase 2** | Tích hợp Livestream, Order, VietQR & Inbox (Full Pipeline E2E) | Cả hai | 🔄 Đang thực hiện |
 
 *Ký hiệu: ⏳ Chưa bắt đầu | 🔄 Đang thực hiện | ✅ Hoàn thành | ❌ Lỗi*
 
@@ -36,6 +47,17 @@
 ## 📝 NHẬT KÝ DEV 1 (THỊNH)
 
 ### 📌 DIRECT MESSAGE, AI & INBOX
+
+#### Cập nhật 27/09/2026 — Ngữ cảnh tư vấn AI
+
+- ✅ Hoàn thành phần backend và kiểm tra tự động trên nhánh `feat/direct-history`.
+- `DirectMessageService` đọc tối đa 10 tin cũ của đúng cặp Buyer–Seller, bỏ tin có VietQR, xếp từ cũ đến mới và gán vai trò Buyer/Shop. Đọc lịch sử trước khi lưu câu mới để câu hỏi hiện tại không bị gửi lặp.
+- `AiService` gửi Knowledge Base + lịch sử + câu hỏi mới cho Groq. Phần lịch sử giới hạn 4.000 ký tự, ưu tiên các tin mới nhất và bỏ nguyên tin cũ khi vượt giới hạn; không xóa lịch sử trong database.
+- Prompt dùng ngữ cảnh để hiểu câu hỏi nối tiếp, hỏi lại khi thiếu tên/SKU, chuyển theo sản phẩm mới và không coi câu trả lời cũ là nguồn thay thế Knowledge Base.
+- Giữ nguyên API, schema, frontend, model và giới hạn phản hồi 200 token; không thay đổi module Dev 2.
+- Kiểm tra: 2 bộ unit test, 11 ca thành công (Groq/Prisma giả lập); `npm run build:backend` thành công. Chưa kiểm thử end-to-end trên Inbox với Groq thật.
+- Test thủ công tiếp theo: hỏi tên sản phẩm → chiều cao/cân nặng → “Vậy chọn size nào?”; đổi sản phẩm; đổi Shop/Buyer; thử hội thoại mới. Sản phẩm và bảng size phải có trong Knowledge Base để đánh giá câu trả lời.
+- Giới hạn: 10 tin tương đương khoảng 5 lượt, không bảo đảm đủ 5 cặp khi khách/Seller gửi liên tiếp hoặc vượt 4.000 ký tự. Tin Seller thủ công và AI cùng mang vai trò phía Shop; ngân sách ký tự lịch sử không phải giới hạn token toàn request và không bảo đảm tránh mọi lỗi 429.
 
 1. **Backend Direct Message:** ✅ **Hoàn thành**
    - Buyer lấy danh sách shop và lịch sử hội thoại hai chiều theo từng Seller.
@@ -54,14 +76,21 @@
    - `InboxPage.tsx` còn 107 dòng và `SellerInboxPage.tsx` còn 106 dòng; Buyer/Seller dùng chung phần hiển thị tin nhắn và logic phân trang.
    - Đã kiểm tra frontend build thành công sau khi refactor.
 
-3. **Viewer Livestream:** 🔄 **Chờ tích hợp Dev 2**
+3. **Viewer Livestream:** 🔄 **Đang tích hợp realtime**
    - Đã tách AI khỏi khung bình luận livestream; AI chỉ tư vấn trong Inbox riêng.
-   - Bình luận Viewer hiện là mô phỏng phía frontend.
-   - Đồng bộ bình luận realtime bằng Socket.io phụ thuộc module `livestream` của Dev 2.
+   - Viewer đã tải phiên livestream đang `LIVE`, tham gia đúng Socket room và gửi/nhận bình luận realtime với Live Studio.
+   - Nút **Tư vấn riêng với Shop** dùng `sellerId` của phiên live để mở đúng cuộc trò chuyện trong Inbox.
+   - Frontend build và kiểm thử kết nối Seller–Buyer thành công.
+   - Socket Buyer/Seller gửi JWT khi kết nối; Gateway từ chối token thiếu, sai hoặc hết hạn.
+   - Đã đồng bộ `stream_started` và `stream_ended` để Viewer cập nhật trạng thái mà không cần reload.
+   - Viewer giữ tối đa 10 comment gần nhất theo `livestreamId` trong `sessionStorage`.
+   - Livestream dùng chung `DirectMessageService` để gửi VietQR có tên sản phẩm, SKU, tổng tiền và mã đơn rút gọn.
 
 4. **Giới hạn hiện tại:**
    - Bảng `DirectMessage` chưa có trường phân biệt phản hồi do AI tạo với phản hồi Seller tự nhập.
    - Inbox chưa cập nhật realtime; người nhận cần tải lại hội thoại để thấy tin thủ công mới.
+   - Bước bảo mật 3B chưa hoàn thành: `send_comment` vẫn cần bỏ `buyerId`/`buyerName` từ payload và lấy danh tính hoàn toàn từ JWT.
+   - Lịch sử Live Chat chỉ lưu 10 comment trong tab hiện tại; chưa có lịch sử chung từ Redis hoặc database.
 
 ---
 

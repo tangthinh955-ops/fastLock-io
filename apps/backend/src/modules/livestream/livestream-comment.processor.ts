@@ -4,6 +4,7 @@ import { LivestreamService } from './livestream.service';
 import { ParserService } from '../parser/parser.service';
 import { OrderService } from '../order/order.service';
 import { PrismaService } from '../../core/prisma/prisma.service';
+import { DirectMessageService } from '../direct-message/direct-message.service';
 
 export class SendCommentDto {
     livestreamId: string;
@@ -22,6 +23,7 @@ export class LivestreamCommentProcessor {
         private readonly parserService: ParserService,
         private readonly orderService: OrderService,
         private readonly prisma: PrismaService,
+        private readonly directMessageService: DirectMessageService,
     ) { }
 
     async processComment(server: Server, data: SendCommentDto) {
@@ -31,6 +33,13 @@ export class LivestreamCommentProcessor {
         try {
             const stream = await this.livestreamService.getStreamById(livestreamId);
             if (!stream) return;
+
+            if (stream.status !== 'LIVE') {
+                server.to(livestreamId).emit('comment_error', {
+                    message: 'Phiên livestream đã kết thúc.',
+                });
+                return;
+            }
 
             const sellerId = stream.sellerId;
             const sellerSkus = await this.livestreamService.getSellerSkus(sellerId);
@@ -75,15 +84,14 @@ export class LivestreamCommentProcessor {
                         });
 
                         if (buyerId && buyerId !== 'buyer-uuid-001') {
-                            const qrUrl = `https://img.vietqr.io/image/970422-123456789-compact2.png?amount=${product.price}&addInfo=Don%20hang%20${order.id.slice(0, 8)}`;
-                            await this.prisma.directMessage.create({
-                                data: {
-                                    senderId: sellerId,
-                                    receiverId: buyerId,
-                                    content: `🎉 Chúc mừng bạn đã chốt thành công sản phẩm: ${product.name} (Mã: ${product.sku}) - Giá: ${product.price.toLocaleString('vi-VN')} VNĐ trong buổi Livestream! Vui lòng quét mã VietQR để thanh toán.`,
-                                    qrUrl,
-                                },
-                            });
+                            await this.directMessageService.sendOrderMessage(
+                                sellerId,
+                                buyerId,
+                                order.totalAmount,
+                                order.id,
+                                product.name,
+                                product.sku,
+                            );
                         }
                         return;
                     } catch (orderErr) {

@@ -8,5 +8,6 @@ import { AiModule } from '../ai/ai.module';
   imports: [PrismaModule, AiModule],
   controllers: [DirectMessageController],
   providers: [DirectMessageService],
+  exports: [DirectMessageService],
 })
 export class DirectMessageModule {}

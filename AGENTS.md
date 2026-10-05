@@ -1,14 +1,14 @@
 # QUY TẮC DỰ ÁN LIVEORDER (AGENTS.MD)
 
 ## 1. TÓM TẮT DỰ ÁN & LUỒNG NGHIỆP VỤ (CORE PIPELINE)
-- **Mục tiêu:** Hệ thống Chốt đơn tự động & Tư vấn khách hàng qua Livestream bằng AI dành cho Đồ án.
+- **Mục tiêu:** Hệ thống chốt đơn tự động qua Livestream và tư vấn khách hàng bằng AI trong Inbox riêng dành cho Đồ án.
 - **Môi trường Live:** Mô phỏng bằng WebCam HTML5 + Socket.io Chat real-time.
 - **Luồng xử lý Comment (Kép):**
   1. **Chốt đơn (Nhanh):** Comment chứa SKU (VD: "SP01 0912345678") -> Thuật toán Aho-Corasick bóc SKU (<1ms) -> Trừ kho Postgres (Atomic: `stock >= qty`) -> Bắn Socket nổ đơn lên màn hình Streamer -> Gọi Groq SDK gửi tin nhắn Inbox kèm link VietQR.
-  2. **Tư vấn (AI):** Comment KHÔNG chứa SKU nhưng chứa CÂU HỎI (VD: "Cao 1m60 mặc size gì?") -> Gọi Groq SDK (Llama 3) đọc Teencode & Knowledge Base (từ DB) -> Trả lời tư vấn ngay trên Khung Chat.
+  2. **Bình luận & Tư vấn riêng:** Comment không đủ SKU/SĐT -> Phát realtime trong phòng Live bằng Socket.io, không tự gọi AI. Khi cần tư vấn, Buyer bấm nút mở Inbox của đúng Seller -> Gửi câu hỏi riêng -> Groq Qwen đọc Knowledge Base của Shop -> Lưu câu hỏi và câu trả lời vào `DirectMessage`.
 
 ## 2. CÔNG NGHỆ CHÍNH (TECH STACK)
-- **Backend:** NestJS, PostgreSQL, Prisma ORM, Socket.io, Groq SDK (`groq-sdk`), Redis (Cache tuỳ chọn).
+- **Backend:** NestJS, PostgreSQL, Prisma ORM, Socket.io, Groq SDK (`groq-sdk`, Qwen 3.8 27B), Redis (Cache tuỳ chọn).
 - **Frontend:** React 19, Vite, Material UI (MUI), React Router v6.
 
 ## 3. CẤU TRÚC DỰ ÁN & PHÂN CHIA QUYỀN SỞ HỮU (CHỐNG GIT CONFLICT)
@@ -53,7 +53,7 @@ live-order-app/
 │       │   │   ├── admin/          # [BẠN] Dashboard ADMIN quản lý User
 │       │   │   ├── auth/           # [CHUNG] Đăng nhập / Đăng ký
 │       │   │   ├── seller/         # [KỲ] Dashboard (Products) & live-studio (WebCam)
-│       │   │   ├── viewer/         # [BẠN] BUYER xem Live + Khung Chat AI
+│       │   │   ├── viewer/         # [BẠN] BUYER xem Live + Chat Socket + mở tư vấn AI riêng
 │       │   │   └── inbox/          # [BẠN] BUYER xem Inbox nhận VietQR
 │       │   ├── components/
 │       │   │   ├── common/         # Layout Navbar, Sidebar
