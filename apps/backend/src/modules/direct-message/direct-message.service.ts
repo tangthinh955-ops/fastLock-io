@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Role } from '@prisma/client';
+import { ChatMode, MessageSource, Role } from '@prisma/client';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import {
   AiService,
@@ -13,6 +13,62 @@ export class DirectMessageService {
     private readonly prisma: PrismaService,
     private readonly aiService: AiService,
   ) {}
+
+  private async requireSellerConversation(sellerId: string, buyerId: string) {
+    const buyer = await this.prisma.user.findFirst({
+      where: { id: buyerId, role: Role.BUYER },
+      select: { id: true },
+    });
+    if (!buyer) throw new NotFoundException('Khách hàng không tồn tại.');
+
+    const message = await this.prisma.directMessage.findFirst({
+      where: {
+        OR: [
+          { senderId: sellerId, receiverId: buyerId },
+          { senderId: buyerId, receiverId: sellerId },
+        ],
+      },
+      select: { id: true },
+    });
+    if (!message) throw new NotFoundException('Cuộc trò chuyện không tồn tại.');
+  }
+
+  private async readConversationMode(buyerId: string, sellerId: string) {
+    const status = await this.prisma.conversation.findUnique({
+      where: { buyerId_sellerId: { buyerId, sellerId } },
+      select: { mode: true, version: true },
+    });
+    // GET không tạo dữ liệu: cặp chưa có bản ghi sử dụng chế độ AI mặc định.
+    return status ?? { mode: ChatMode.AI, version: 0 };
+  }
+
+  async getBuyerConversationMode(buyerId: string, sellerId: string) {
+    const seller = await this.prisma.user.findFirst({
+      where: { id: sellerId, role: Role.SELLER },
+      select: { id: true },
+    });
+    if (!seller) throw new NotFoundException('Shop không tồn tại.');
+    return this.readConversationMode(buyerId, sellerId);
+  }
+
+  async getSellerConversationMode(sellerId: string, buyerId: string) {
+    await this.requireSellerConversation(sellerId, buyerId);
+    return this.readConversationMode(buyerId, sellerId);
+  }
+
+  async updateSellerConversationMode(
+    sellerId: string,
+    buyerId: string,
+    mode: ChatMode,
+  ) {
+    await this.requireSellerConversation(sellerId, buyerId);
+    return this.prisma.conversation.upsert({
+      where: { buyerId_sellerId: { buyerId, sellerId } },
+      create: { buyerId, sellerId, mode },
+      update: { mode, version: { increment: 1 } },
+      select: { mode: true, version: true },
+    });
+  }
 
   // Chỉ trả thông tin cần thiết để hiển thị danh sách shop trong Inbox.
   async getShops(buyerId: string) {
@@ -151,17 +207,26 @@ export class DirectMessageService {
       throw new NotFoundException('Cuộc trò chuyện không tồn tại.');
     }
 
-    return this.prisma.directMessage.create({
-      data: {
-        senderId: sellerId,
-        receiverId: buyerId,
-        content: message,
-      },
-      include: {
-        sender: {
-          select: { id: true, name: true, role: true },
+    return this.prisma.$transaction(async (tx) => {
+      await tx.conversation.upsert({
+        where: { buyerId_sellerId: { buyerId, sellerId } },
+        create: { buyerId, sellerId, mode: ChatMode.HUMAN },
+        update: { mode: ChatMode.HUMAN, version: { increment: 1 } },
+      });
+
+      return tx.directMessage.create({
+        data: {
+          senderId: sellerId,
+          receiverId: buyerId,
+          content: message,
+          source: MessageSource.SELLER,
         },
-      },
+        include: {
+          sender: {
+            select: { id: true, name: true, role: true },
+          },
+        },
+      });
     });
   }
 
@@ -234,19 +299,30 @@ export class DirectMessageService {
       throw new NotFoundException('Shop không tồn tại.');
     }
 
-    // Đọc trước khi lưu câu hỏi mới để không gửi câu hỏi hai lần cho AI.
-    const previousMessages = await this.prisma.directMessage.findMany({
-      where: {
-        OR: [
-          { senderId: buyerId, receiverId: sellerId },
-          { senderId: sellerId, receiverId: buyerId },
-        ],
-        qrUrl: null,
-      },
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      take: AI_HISTORY_MESSAGE_LIMIT,
-      select: { senderId: true, content: true },
+    const conversation = await this.prisma.conversation.upsert({
+      where: { buyerId_sellerId: { buyerId, sellerId } },
+      create: { buyerId, sellerId },
+      // Không đặt lại mode: hội thoại HUMAN phải giữ nguyên sau khi tải lại.
+      update: { buyerId },
     });
+
+    // Đọc trước khi lưu câu hỏi mới để không gửi câu hỏi hai lần cho AI.
+    const previousMessages =
+      conversation.mode === ChatMode.AI
+        ? await this.prisma.directMessage.findMany({
+            where: {
+              OR: [
+                { senderId: buyerId, receiverId: sellerId },
+                { senderId: sellerId, receiverId: buyerId },
+              ],
+              qrUrl: null,
+              source: { not: MessageSource.SYSTEM },
+            },
+            orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+            take: AI_HISTORY_MESSAGE_LIMIT,
+            select: { senderId: true, content: true },
+          })
+        : [];
     const history: ConversationMessage[] = previousMessages
       .reverse()
       .map((entry) => ({
@@ -259,6 +335,7 @@ export class DirectMessageService {
         senderId: buyerId,
         receiverId: sellerId,
         content: message,
+        source: MessageSource.BUYER,
       },
       include: {
         sender: {
@@ -267,24 +344,44 @@ export class DirectMessageService {
       },
     });
 
+    if (conversation.mode === ChatMode.HUMAN) {
+      return { buyerMessage, aiMessage: null };
+    }
+
     const reply = await this.aiService.generateReply(
       sellerId,
       message,
       history,
     );
 
-    const aiMessage = await this.prisma.directMessage.create({
-      data: {
-        senderId: sellerId,
-        receiverId: buyerId,
-        content: reply,
-        isRead: true,
-      },
-      include: {
-        sender: {
-          select: { id: true, name: true, role: true },
+    // Không giữ transaction trong lúc chờ Groq. UPDATE có điều kiện khóa dòng
+    // đến khi lưu xong tin AI, tránh Seller tiếp quản giữa kiểm tra và CREATE.
+    const aiMessage = await this.prisma.$transaction(async (tx) => {
+      const allowed = await tx.conversation.updateMany({
+        where: {
+          id: conversation.id,
+          mode: ChatMode.AI,
+          version: conversation.version,
         },
-      },
+        data: { mode: ChatMode.AI },
+      });
+
+      if (allowed.count === 0) return null;
+
+      return tx.directMessage.create({
+        data: {
+          senderId: sellerId,
+          receiverId: buyerId,
+          content: reply,
+          source: MessageSource.AI,
+          isRead: true,
+        },
+        include: {
+          sender: {
+            select: { id: true, name: true, role: true },
+          },
+        },
+      });
     });
 
     return { buyerMessage, aiMessage };
@@ -330,6 +427,7 @@ export class DirectMessageService {
         receiverId,
         content,
         qrUrl,
+        source: MessageSource.SYSTEM,
       },
     });
   }

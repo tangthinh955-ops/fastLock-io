@@ -6,11 +6,21 @@ export interface InboxContact {
   unreadCount: number;
 }
 
+export type MessageSource = 'BUYER' | 'SELLER' | 'AI' | 'SYSTEM';
+
+export type ChatMode = 'AI' | 'HUMAN';
+
+export interface ConversationMode {
+  mode: ChatMode;
+  version: number;
+}
+
 export interface DirectMessage {
   id: string;
   senderId: string;
   receiverId: string;
   content: string;
+  source: MessageSource;
   qrUrl: string | null;
   createdAt: string;
   sender: {
@@ -22,7 +32,7 @@ export interface DirectMessage {
 
 export interface SendMessageResponse {
   buyerMessage: DirectMessage;
-  aiMessage: DirectMessage;
+  aiMessage: DirectMessage | null;
 }
 
 export type InboxView = 'buyer' | 'seller';

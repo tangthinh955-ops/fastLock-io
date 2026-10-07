@@ -12,6 +12,14 @@ export const InboxPage: React.FC = () => {
   const { user } = useAuth();
   const inbox = useBuyerInbox();
   const { conversation } = inbox;
+  const { status, loading: loadingMode } = inbox.conversationMode;
+  const modeLabel = loadingMode
+    ? 'Đang tải chế độ...'
+    : status
+      ? status.mode === 'AI'
+        ? 'AI đang hỗ trợ'
+        : 'Shop trực tiếp hỗ trợ'
+      : 'Chưa xác định chế độ';
 
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
@@ -57,7 +65,7 @@ export const InboxPage: React.FC = () => {
               <>
                 <ChatHeader
                   name={inbox.selectedShop.name}
-                  statusText="Trợ lý AI sẵn sàng hỗ trợ"
+                  statusText={modeLabel}
                   badgeLabel="Kênh chính thức"
                 />
                 <MessageList

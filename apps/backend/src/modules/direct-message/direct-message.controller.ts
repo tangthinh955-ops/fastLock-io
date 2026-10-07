@@ -18,6 +18,7 @@ import { CreateMessageDto } from './dto/create-message.dto';
 import { SendChatMessageDto } from './dto/send-chat-message.dto';
 import { SendSellerMessageDto } from './dto/send-seller-message.dto';
 import { MessagePaginationDto } from './dto/message-pagination.dto';
+import { UpdateConversationModeDto } from './dto/update-conversation-mode.dto';
 
 @Controller('messages')
 // Bật cả 2 Khiên: Kiểm tra Đăng nhập & Kiểm tra Phân quyền
@@ -39,7 +40,34 @@ export class DirectMessageController {
     return this.messageService.getSellerCustomers(req.user.userId);
   }
 
-  // Seller xem lịch sử chat với một Buyer thuộc cuộc trò chuyện của mình (Mặc định 5 tin mới nhất).
+  // Seller đọc và đổi chế độ của hội thoại thuộc Shop mình.
+  @Get('seller/conversations/:buyerId/mode')
+  @Roles(Role.SELLER)
+  async getSellerConversationMode(
+    @Req() req: any,
+    @Param('buyerId') buyerId: string,
+  ) {
+    return this.messageService.getSellerConversationMode(
+      req.user.userId,
+      buyerId,
+    );
+  }
+
+  @Patch('seller/conversations/:buyerId/mode')
+  @Roles(Role.SELLER)
+  async updateSellerConversationMode(
+    @Req() req: any,
+    @Param('buyerId') buyerId: string,
+    @Body() body: UpdateConversationModeDto,
+  ) {
+    return this.messageService.updateSellerConversationMode(
+      req.user.userId,
+      buyerId,
+      body.mode,
+    );
+  }
+
+  // Seller xem lịch sử chat (mặc định 5 tin mới nhất).
   @Get('seller/conversations/:buyerId')
   @Roles(Role.SELLER)
   async getSellerConversation(
@@ -71,10 +99,7 @@ export class DirectMessageController {
   // Seller trả lời thủ công trong cuộc trò chuyện đã có với Buyer.
   @Post('seller/conversations')
   @Roles(Role.SELLER)
-  async sendSellerMessage(
-    @Req() req: any,
-    @Body() body: SendSellerMessageDto,
-  ) {
+  async sendSellerMessage(@Req() req: any, @Body() body: SendSellerMessageDto) {
     return this.messageService.sendSellerMessage(
       req.user.userId,
       body.buyerId,
@@ -82,7 +107,20 @@ export class DirectMessageController {
     );
   }
 
-  // Lấy lịch sử chat riêng giữa Buyer đang đăng nhập và shop được chọn (Mặc định 5 tin mới nhất).
+  // Buyer chỉ đọc chế độ, không được thay đổi.
+  @Get('conversations/:sellerId/mode')
+  @Roles(Role.BUYER)
+  async getBuyerConversationMode(
+    @Req() req: any,
+    @Param('sellerId') sellerId: string,
+  ) {
+    return this.messageService.getBuyerConversationMode(
+      req.user.userId,
+      sellerId,
+    );
+  }
+
+  // Lấy lịch sử riêng giữa Buyer đang đăng nhập và Shop (mặc định 5 tin mới nhất).
   @Get('conversations/:sellerId')
   @Roles(Role.BUYER)
   async getConversation(
@@ -137,5 +175,4 @@ export class DirectMessageController {
       body.orderId,
     );
   }
-
 }
