@@ -36,6 +36,8 @@ model User {
   orders       Order[]         @relation("BuyerOrders")
   messagesSent DirectMessage[] @relation("MessageSender")
   messagesRecv DirectMessage[] @relation("MessageReceiver")
+  buyerConversations  Conversation[] @relation("ConversationBuyer")
+  sellerConversations Conversation[] @relation("ConversationSeller")
 }
 
 // -------------------------------------
@@ -121,11 +123,38 @@ model OrderItem {
 // -------------------------------------
 // 5. TIN NHẮN VIETQR / INBOX (DEV 1 QUẢN LÝ)
 // -------------------------------------
+enum MessageSource {
+  BUYER
+  SELLER
+  AI
+  SYSTEM
+}
+
+enum ChatMode {
+  AI
+  HUMAN
+}
+
+model Conversation {
+  id        String   @id @default(uuid())
+  buyerId   String
+  sellerId  String
+  mode      ChatMode @default(AI)
+  version   Int      @default(1)
+  updatedAt DateTime @updatedAt
+
+  buyer  User @relation("ConversationBuyer", fields: [buyerId], references: [id])
+  seller User @relation("ConversationSeller", fields: [sellerId], references: [id])
+
+  @@unique([buyerId, sellerId])
+}
+
 model DirectMessage {
   id         String   @id @default(uuid())
   senderId   String // Thường là hệ thống (System) hoặc Seller
   receiverId String // Là Buyer
   content    String   @db.Text
+  source     MessageSource
   qrUrl      String? // Link ảnh mã QR VietQR (nếu có)
   isRead     Boolean  @default(false)
   createdAt  DateTime @default(now())

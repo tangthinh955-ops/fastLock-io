@@ -71,10 +71,7 @@ export class DirectMessageController {
   // Seller trả lời thủ công trong cuộc trò chuyện đã có với Buyer.
   @Post('seller/conversations')
   @Roles(Role.SELLER)
-  async sendSellerMessage(
-    @Req() req: any,
-    @Body() body: SendSellerMessageDto,
-  ) {
+  async sendSellerMessage(@Req() req: any, @Body() body: SendSellerMessageDto) {
     return this.messageService.sendSellerMessage(
       req.user.userId,
       body.buyerId,
@@ -137,5 +134,4 @@ export class DirectMessageController {
       body.orderId,
     );
   }
-
 }

@@ -82,9 +82,10 @@ export const useBuyerInbox = () => {
         '/messages/conversations',
         { sellerId: selectedShopId, message },
       );
+      const { buyerMessage, aiMessage } = response.data;
       conversation.appendMessages(
-        response.data.buyerMessage,
-        response.data.aiMessage,
+        buyerMessage,
+        ...(aiMessage ? [aiMessage] : []),
       );
       setInputText('');
     } catch (requestError) {

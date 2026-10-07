@@ -57,7 +57,7 @@ export const InboxPage: React.FC = () => {
               <>
                 <ChatHeader
                   name={inbox.selectedShop.name}
-                  statusText="Trợ lý AI sẵn sàng hỗ trợ"
+                  statusText="Trao đổi riêng với Shop"
                   badgeLabel="Kênh chính thức"
                 />
                 <MessageList

@@ -15,13 +15,20 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   view,
 }) => {
   const isOwnMessage = message.senderId === currentUserId;
-  const senderLabel = isOwnMessage
-    ? view === 'buyer'
-      ? 'Bạn'
-      : 'Shop / Trợ lý AI'
-    : view === 'buyer'
-      ? `${message.sender.name} (Shop / Trợ lý AI)`
-      : message.sender.name;
+  const senderLabel = (() => {
+    switch (message.source) {
+      case 'BUYER':
+        return isOwnMessage ? 'Bạn' : message.sender.name;
+      case 'SELLER':
+        return `${message.sender.name} · Nhân viên Shop`;
+      case 'AI':
+        return `${message.sender.name} · Trợ lý AI`;
+      case 'SYSTEM':
+        return `${message.sender.name} · Hệ thống`;
+      default:
+        return message.sender.name;
+    }
+  })();
 
   if (view === 'seller') {
     return (
