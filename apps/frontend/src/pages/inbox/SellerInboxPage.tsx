@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Container, Paper, Typography } from '@mui/material';
+import { Box, Button, Container, Paper, Typography } from '@mui/material';
 import { ChatHeader } from '../../components/inbox/ChatHeader';
 import { ChatInputBar } from '../../components/inbox/ChatInputBar';
 import { CustomerSidebar } from '../../components/inbox/CustomerSidebar';
@@ -12,6 +12,14 @@ export const SellerInboxPage: React.FC = () => {
   const { user } = useAuth();
   const inbox = useSellerInbox();
   const { conversation } = inbox;
+  const { status, loading: loadingMode } = inbox.conversationMode;
+  const modeLabel = loadingMode
+    ? 'Đang tải chế độ...'
+    : status
+      ? status.mode === 'AI'
+        ? 'AI đang hỗ trợ'
+        : 'Shop trực tiếp hỗ trợ'
+      : 'Chưa xác định chế độ';
 
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
@@ -25,7 +33,7 @@ export const SellerInboxPage: React.FC = () => {
       >
         <InboxPageHeader
           title="Tin nhắn khách hàng"
-          description="Kiểm tra các cuộc trò chuyện giữa khách và trợ lý AI của shop."
+          description="Xem lịch sử tư vấn, tiếp quản khách hoặc bật lại trợ lý AI."
         />
 
         <Box
@@ -41,7 +49,7 @@ export const SellerInboxPage: React.FC = () => {
             customers={inbox.customers}
             selectedCustomerId={inbox.selectedCustomerId}
             loading={inbox.loadingCustomers}
-            disabled={inbox.sending}
+            disabled={inbox.sending || inbox.changingMode}
             onSelect={inbox.setSelectedCustomerId}
           />
 
@@ -57,7 +65,31 @@ export const SellerInboxPage: React.FC = () => {
               <>
                 <ChatHeader
                   name={inbox.selectedCustomer.name}
-                  statusText="Lịch sử Buyer ↔ Shop"
+                  statusText={modeLabel}
+                  actions={
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      disabled={
+                        !status ||
+                        loadingMode ||
+                        inbox.sending ||
+                        inbox.changingMode
+                      }
+                      onClick={() =>
+                        inbox.handleChangeMode(
+                          status?.mode === 'AI' ? 'HUMAN' : 'AI',
+                        )
+                      }
+                      sx={{ color: '#1e3a5f', borderColor: '#1e3a5f' }}
+                    >
+                      {inbox.changingMode
+                        ? 'Đang cập nhật...'
+                        : status?.mode === 'HUMAN'
+                          ? 'Bật lại AI'
+                          : 'Tiếp quản'}
+                    </Button>
+                  }
                 />
                 <MessageList
                   messages={conversation.messages}
@@ -74,7 +106,7 @@ export const SellerInboxPage: React.FC = () => {
                 />
                 <ChatInputBar
                   value={inbox.inputText}
-                  sending={inbox.sending}
+                  sending={inbox.sending || inbox.changingMode}
                   view="seller"
                   onChange={inbox.setInputText}
                   onSend={inbox.handleSendMessage}

@@ -1,8 +1,11 @@
 import { NotFoundException } from '@nestjs/common';
-import { ChatMode, MessageSource } from '@prisma/client';
+import { ChatMode, MessageSource, Role } from '@prisma/client';
+import { validateSync } from 'class-validator';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { AiService } from '../ai/ai.service';
 import { DirectMessageService } from './direct-message.service';
+import { DirectMessageController } from './direct-message.controller';
+import { UpdateConversationModeDto } from './dto/update-conversation-mode.dto';
 
 describe('DirectMessageService AI history', () => {
   const prisma = {
@@ -12,7 +15,11 @@ describe('DirectMessageService AI history', () => {
       findMany: jest.fn(),
       create: jest.fn(),
     },
-    conversation: { upsert: jest.fn(), updateMany: jest.fn() },
+    conversation: {
+      findUnique: jest.fn(),
+      upsert: jest.fn(),
+      updateMany: jest.fn(),
+    },
     $transaction: jest.fn(),
   };
   const ai = { generateReply: jest.fn() };
@@ -32,6 +39,10 @@ describe('DirectMessageService AI history', () => {
       version: 1,
     });
     prisma.conversation.updateMany.mockResolvedValue({ count: 1 });
+    prisma.conversation.findUnique.mockResolvedValue({
+      mode: ChatMode.HUMAN,
+      version: 2,
+    });
     prisma.$transaction.mockImplementation(
       async (callback: (tx: typeof prisma) => Promise<unknown>) =>
         callback(prisma),
@@ -204,5 +215,105 @@ describe('DirectMessageService AI history', () => {
     expect(prisma.$transaction).not.toHaveBeenCalled();
     expect(prisma.conversation.upsert).not.toHaveBeenCalled();
     expect(prisma.directMessage.create).not.toHaveBeenCalled();
+  });
+
+  it('returns default AI without creating data when Buyer opens a new conversation', async () => {
+    prisma.conversation.findUnique.mockResolvedValueOnce(null);
+    expect(await service.getBuyerConversationMode('buyer-a', 'shop-a')).toEqual(
+      {
+        mode: ChatMode.AI,
+        version: 0,
+      },
+    );
+    expect(prisma.conversation.findUnique).toHaveBeenCalledWith({
+      where: { buyerId_sellerId: { buyerId: 'buyer-a', sellerId: 'shop-a' } },
+      select: { mode: true, version: true },
+    });
+    expect(prisma.conversation.upsert).not.toHaveBeenCalled();
+  });
+
+  it('rejects mode lookup for a missing Shop', async () => {
+    prisma.user.findFirst.mockResolvedValueOnce(null);
+    await expect(
+      service.getBuyerConversationMode('buyer-a', 'missing'),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(prisma.conversation.findUnique).not.toHaveBeenCalled();
+  });
+
+  it('returns stored mode to the Seller only after checking the exact pair', async () => {
+    expect(
+      await service.getSellerConversationMode('shop-a', 'buyer-a'),
+    ).toEqual({ mode: ChatMode.HUMAN, version: 2 });
+    expect(prisma.directMessage.findFirst).toHaveBeenCalledWith({
+      where: {
+        OR: [
+          { senderId: 'shop-a', receiverId: 'buyer-a' },
+          { senderId: 'buyer-a', receiverId: 'shop-a' },
+        ],
+      },
+      select: { id: true },
+    });
+  });
+
+  it.each([ChatMode.AI, ChatMode.HUMAN])(
+    'changes mode to %s and invalidates old AI responses without sending messages',
+    async (mode) => {
+      await service.updateSellerConversationMode('shop-a', 'buyer-a', mode);
+      expect(prisma.conversation.upsert).toHaveBeenCalledWith({
+        where: { buyerId_sellerId: { buyerId: 'buyer-a', sellerId: 'shop-a' } },
+        create: { buyerId: 'buyer-a', sellerId: 'shop-a', mode },
+        update: { mode, version: { increment: 1 } },
+        select: { mode: true, version: true },
+      });
+      expect(prisma.directMessage.create).not.toHaveBeenCalled();
+      expect(ai.generateReply).not.toHaveBeenCalled();
+    },
+  );
+
+  it('rejects Seller mode read and update for a Buyer with no conversation in this Shop', async () => {
+    prisma.directMessage.findFirst.mockResolvedValue(null);
+    await expect(
+      service.getSellerConversationMode('other-shop', 'buyer-a'),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    await expect(
+      service.updateSellerConversationMode(
+        'other-shop',
+        'buyer-a',
+        ChatMode.HUMAN,
+      ),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(prisma.conversation.findUnique).not.toHaveBeenCalled();
+    expect(prisma.conversation.upsert).not.toHaveBeenCalled();
+  });
+
+  it('rejects a missing Buyer before changing mode', async () => {
+    prisma.user.findFirst.mockResolvedValueOnce(null);
+    await expect(
+      service.updateSellerConversationMode('shop-a', 'missing', ChatMode.AI),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(prisma.conversation.upsert).not.toHaveBeenCalled();
+  });
+
+  it.each(['UNKNOWN', '', undefined, null])(
+    'rejects invalid mode %s in the DTO',
+    (mode) => {
+      const dto = Object.assign(new UpdateConversationModeDto(), { mode });
+      expect(validateSync(dto).length).toBeGreaterThan(0);
+    },
+  );
+
+  it('restricts the mode update endpoint to Seller and the Buyer read endpoint to Buyer', () => {
+    expect(
+      Reflect.getMetadata(
+        'roles',
+        DirectMessageController.prototype.updateSellerConversationMode,
+      ),
+    ).toEqual([Role.SELLER]);
+    expect(
+      Reflect.getMetadata(
+        'roles',
+        DirectMessageController.prototype.getBuyerConversationMode,
+      ),
+    ).toEqual([Role.BUYER]);
   });
 });

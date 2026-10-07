@@ -6,6 +6,7 @@ import type {
   SendMessageResponse,
 } from '../components/inbox/types';
 import { usePaginatedConversation } from './usePaginatedConversation';
+import { useConversationMode } from './useConversationMode';
 
 export const useBuyerInbox = () => {
   const [searchParams] = useSearchParams();
@@ -16,6 +17,9 @@ export const useBuyerInbox = () => {
   const [shopsError, setShopsError] = useState('');
   const [inputText, setInputText] = useState('');
   const [sending, setSending] = useState(false);
+  const conversationMode = useConversationMode(
+    selectedShopId ? `/messages/conversations/${selectedShopId}/mode` : null,
+  );
 
   useEffect(() => {
     let active = true;
@@ -88,6 +92,7 @@ export const useBuyerInbox = () => {
         ...(aiMessage ? [aiMessage] : []),
       );
       setInputText('');
+      await conversationMode.refresh();
     } catch (requestError) {
       console.error('Lỗi khi gửi tin nhắn:', requestError);
       conversation.setError('Không thể gửi tin nhắn. Vui lòng thử lại.');
@@ -103,7 +108,8 @@ export const useBuyerInbox = () => {
     loadingShops,
     inputText,
     sending,
-    error: shopsError || conversation.error,
+    conversationMode,
+    error: shopsError || conversation.error || conversationMode.error,
     setSelectedShopId,
     setInputText,
     handleSendMessage,

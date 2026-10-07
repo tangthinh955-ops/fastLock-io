@@ -8,6 +8,13 @@ export interface InboxContact {
 
 export type MessageSource = 'BUYER' | 'SELLER' | 'AI' | 'SYSTEM';
 
+export type ChatMode = 'AI' | 'HUMAN';
+
+export interface ConversationMode {
+  mode: ChatMode;
+  version: number;
+}
+
 export interface DirectMessage {
   id: string;
   senderId: string;

@@ -14,6 +14,62 @@ export class DirectMessageService {
     private readonly aiService: AiService,
   ) {}
 
+  private async requireSellerConversation(sellerId: string, buyerId: string) {
+    const buyer = await this.prisma.user.findFirst({
+      where: { id: buyerId, role: Role.BUYER },
+      select: { id: true },
+    });
+    if (!buyer) throw new NotFoundException('Khách hàng không tồn tại.');
+
+    const message = await this.prisma.directMessage.findFirst({
+      where: {
+        OR: [
+          { senderId: sellerId, receiverId: buyerId },
+          { senderId: buyerId, receiverId: sellerId },
+        ],
+      },
+      select: { id: true },
+    });
+    if (!message) throw new NotFoundException('Cuộc trò chuyện không tồn tại.');
+  }
+
+  private async readConversationMode(buyerId: string, sellerId: string) {
+    const status = await this.prisma.conversation.findUnique({
+      where: { buyerId_sellerId: { buyerId, sellerId } },
+      select: { mode: true, version: true },
+    });
+    // GET không tạo dữ liệu: cặp chưa có bản ghi sử dụng chế độ AI mặc định.
+    return status ?? { mode: ChatMode.AI, version: 0 };
+  }
+
+  async getBuyerConversationMode(buyerId: string, sellerId: string) {
+    const seller = await this.prisma.user.findFirst({
+      where: { id: sellerId, role: Role.SELLER },
+      select: { id: true },
+    });
+    if (!seller) throw new NotFoundException('Shop không tồn tại.');
+    return this.readConversationMode(buyerId, sellerId);
+  }
+
+  async getSellerConversationMode(sellerId: string, buyerId: string) {
+    await this.requireSellerConversation(sellerId, buyerId);
+    return this.readConversationMode(buyerId, sellerId);
+  }
+
+  async updateSellerConversationMode(
+    sellerId: string,
+    buyerId: string,
+    mode: ChatMode,
+  ) {
+    await this.requireSellerConversation(sellerId, buyerId);
+    return this.prisma.conversation.upsert({
+      where: { buyerId_sellerId: { buyerId, sellerId } },
+      create: { buyerId, sellerId, mode },
+      update: { mode, version: { increment: 1 } },
+      select: { mode: true, version: true },
+    });
+  }
+
   // Chỉ trả thông tin cần thiết để hiển thị danh sách shop trong Inbox.
   async getShops(buyerId: string) {
     const shops = await this.prisma.user.findMany({

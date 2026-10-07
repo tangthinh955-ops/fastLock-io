@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import apiClient from '../api/client';
 import type {
+  ChatMode,
+  ConversationMode,
   DirectMessage,
   InboxContact,
 } from '../components/inbox/types';
 import { usePaginatedConversation } from './usePaginatedConversation';
+import { useConversationMode } from './useConversationMode';
 
 export const useSellerInbox = () => {
   const [customers, setCustomers] = useState<InboxContact[]>([]);
@@ -15,6 +18,11 @@ export const useSellerInbox = () => {
   const [customersError, setCustomersError] = useState('');
   const [inputText, setInputText] = useState('');
   const [sending, setSending] = useState(false);
+  const [changingMode, setChangingMode] = useState(false);
+  const modeEndpoint = selectedCustomerId
+    ? `/messages/seller/conversations/${selectedCustomerId}/mode`
+    : null;
+  const conversationMode = useConversationMode(modeEndpoint);
 
   useEffect(() => {
     let active = true;
@@ -49,9 +57,7 @@ export const useSellerInbox = () => {
   const handleMarkedRead = useCallback((customerId: string) => {
     setCustomers((currentCustomers) =>
       currentCustomers.map((customer) =>
-        customer.id === customerId
-          ? { ...customer, unreadCount: 0 }
-          : customer,
+        customer.id === customerId ? { ...customer, unreadCount: 0 } : customer,
       ),
     );
   }, []);
@@ -65,7 +71,7 @@ export const useSellerInbox = () => {
   const handleSendMessage = async () => {
     const message = inputText.trim();
     const buyerId = selectedCustomerId;
-    if (!buyerId || !message || sending) return;
+    if (!buyerId || !message || sending || changingMode) return;
 
     setSending(true);
     conversation.setError('');
@@ -76,11 +82,30 @@ export const useSellerInbox = () => {
       );
       conversation.appendMessages(response.data);
       setInputText('');
+      await conversationMode.refresh();
     } catch (requestError) {
       console.error('Lỗi khi gửi tin nhắn cho khách hàng:', requestError);
       conversation.setError('Không thể gửi tin nhắn. Vui lòng thử lại.');
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleChangeMode = async (mode: ChatMode) => {
+    if (!modeEndpoint || !conversationMode.status || sending || changingMode)
+      return;
+    setChangingMode(true);
+    conversation.setError('');
+    try {
+      const response = await apiClient.patch<ConversationMode>(modeEndpoint, {
+        mode,
+      });
+      conversationMode.applyStatus(response.data);
+    } catch (error) {
+      console.error('Lỗi khi đổi chế độ hội thoại:', error);
+      conversation.setError('Không thể đổi chế độ. Vui lòng thử lại.');
+    } finally {
+      setChangingMode(false);
     }
   };
 
@@ -93,7 +118,10 @@ export const useSellerInbox = () => {
     loadingCustomers,
     inputText,
     sending,
-    error: customersError || conversation.error,
+    changingMode,
+    conversationMode,
+    handleChangeMode,
+    error: customersError || conversation.error || conversationMode.error,
     setSelectedCustomerId,
     setInputText,
     handleSendMessage,

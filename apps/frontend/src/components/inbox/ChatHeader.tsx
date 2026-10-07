@@ -5,12 +5,14 @@ interface ChatHeaderProps {
   name: string;
   statusText: string;
   badgeLabel?: string;
+  actions?: React.ReactNode;
 }
 
 export const ChatHeader: React.FC<ChatHeaderProps> = ({
   name,
   statusText,
   badgeLabel,
+  actions,
 }) => (
   <Box
     sx={{
@@ -21,6 +23,8 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
+      flexWrap: 'wrap',
+      gap: 1.5,
     }}
   >
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
@@ -62,17 +66,22 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
         </Typography>
       </Box>
     </Box>
-    {badgeLabel && (
-      <Chip
-        label={badgeLabel}
-        size="small"
-        sx={{
-          bgcolor: '#eff6ff',
-          color: '#1d4ed8',
-          fontWeight: 600,
-          border: '1px solid #dbeafe',
-        }}
-      />
-    )}
+    <Box
+      sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}
+    >
+      {badgeLabel && (
+        <Chip
+          label={badgeLabel}
+          size="small"
+          sx={{
+            bgcolor: '#eff6ff',
+            color: '#1d4ed8',
+            fontWeight: 600,
+            border: '1px solid #dbeafe',
+          }}
+        />
+      )}
+      {actions}
+    </Box>
   </Box>
 );
