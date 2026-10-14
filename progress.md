@@ -1,5 +1,15 @@
 # TIẾN ĐỘ DỰ ÁN: LIVEORDER CHỐT ĐƠN ENGINE
 
+## Cập nhật 14/10/2026 — README và môi trường mẫu
+
+- ✅ Hoàn thành tài liệu trên nhánh `docs/readme-env-example`: mở rộng README gốc và thêm `apps/backend/.env.example` gồm DATABASE_URL/JWT_SECRET/GROQ_API_KEY/PORT. Giá trị mẫu khớp Docker PostgreSQL host 5433; JWT là placeholder, Groq để trống, không sao chép khóa thật.
+- README hướng dẫn cài gói, tạo `.env`, chạy Docker, generate/migrate Prisma, khởi chạy hai workspace, đường dẫn màn hình, demo và build/test tập trung. Phân biệt database mới/cũ, ghi rõ migration nguồn tin có DELETE Inbox và seed có ID chưa phải UUID v4; không reset database hoặc chạy seed/migration trong đầu việc này.
+- Ghi đúng hạn chế hiện tại: Frontend dùng API localhost:3001 nên không thêm env frontend chưa được sử dụng; đồng bộ trạng thái đã đọc/tải bù khi reconnect của S06, thanh toán tự động và RAG còn chưa hoàn thiện/triển khai. Không sửa code, schema, dependency hoặc module Dev2.
+- Kiểm tra: build Backend và Frontend thành công; cảnh báo bundle Frontend >500 kB còn tồn tại. File mẫu parse được bằng dotenv, có đúng bốn biến và giá trị local/placeholder; kiểm tra đường dẫn/lệnh README và `git diff --check` đạt. Git bỏ qua `.env` thật nhưng không bỏ qua `.env.example`. Chưa nghiệm thu cài mới trên máy/database trống; các lệnh setup được đối chiếu với cấu hình hiện tại, không chạy thay đổi database.
+- Commit/push riêng phần tài liệu theo yêu cầu người dùng; `KY_GUIDE.md` không có nên không tạo thêm file ngoài kế hoạch.
+
+---
+
 ## Cập nhật 14/10/2026 — S06 bước C1: Đồng bộ chế độ hội thoại (Dev 1)
 
 - ✅ Hoàn thành code và kiểm tra tự động C1 trên `feat/inbox-realtime-socket`. Thêm sự kiện `conversation_mode_changed` chứa buyerId/sellerId/mode/version, chỉ phát tới room riêng của hai người sau khi lưu chế độ thành công. Seller gửi thủ công: mode HUMAN và tin SELLER lưu cùng transaction; chỉ phát mode và tin sau commit, giữ response HTTP cũ.
