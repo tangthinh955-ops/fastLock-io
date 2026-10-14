@@ -15,6 +15,11 @@ export interface ConversationMode {
   version: number;
 }
 
+export interface ConversationModeEvent extends ConversationMode {
+  buyerId: string;
+  sellerId: string;
+}
+
 export interface DirectMessage {
   id: string;
   senderId: string;

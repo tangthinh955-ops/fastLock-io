@@ -6,12 +6,14 @@ import {
   AI_HISTORY_MESSAGE_LIMIT,
   type ConversationMessage,
 } from '../ai/ai.service';
+import { DirectMessageEvents } from './direct-message.events';
 
 @Injectable()
 export class DirectMessageService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly aiService: AiService,
+    private readonly events: DirectMessageEvents,
   ) {}
 
   private async requireSellerConversation(sellerId: string, buyerId: string) {
@@ -62,12 +64,14 @@ export class DirectMessageService {
     mode: ChatMode,
   ) {
     await this.requireSellerConversation(sellerId, buyerId);
-    return this.prisma.conversation.upsert({
+    const status = await this.prisma.conversation.upsert({
       where: { buyerId_sellerId: { buyerId, sellerId } },
       create: { buyerId, sellerId, mode },
       update: { mode, version: { increment: 1 } },
       select: { mode: true, version: true },
     });
+    this.events.publishConversationMode({ buyerId, sellerId, ...status });
+    return status;
   }
 
   // Chỉ trả thông tin cần thiết để hiển thị danh sách shop trong Inbox.
@@ -77,6 +81,18 @@ export class DirectMessageService {
       select: {
         id: true,
         name: true,
+        messagesSent: {
+          where: { receiverId: buyerId },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: { createdAt: true },
+        },
+        messagesRecv: {
+          where: { senderId: buyerId },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: { createdAt: true },
+        },
         _count: {
           select: {
             messagesSent: {
@@ -88,10 +104,16 @@ export class DirectMessageService {
       orderBy: [{ name: 'asc' }, { id: 'asc' }],
     });
 
-    return shops.map(({ _count, ...shop }) => ({
-      ...shop,
-      unreadCount: _count.messagesSent,
-    }));
+    return this.sortInboxContacts(
+      shops.map(({ _count, messagesSent, messagesRecv, ...shop }) => ({
+        ...shop,
+        unreadCount: _count.messagesSent,
+        lastMessageAt: Math.max(
+          messagesSent[0]?.createdAt.getTime() ?? 0,
+          messagesRecv[0]?.createdAt.getTime() ?? 0,
+        ),
+      })),
+    );
   }
 
   // Lấy danh sách Buyer đã gửi hoặc nhận tin nhắn với Seller.
@@ -107,6 +129,18 @@ export class DirectMessageService {
       select: {
         id: true,
         name: true,
+        messagesSent: {
+          where: { receiverId: sellerId },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: { createdAt: true },
+        },
+        messagesRecv: {
+          where: { senderId: sellerId },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: { createdAt: true },
+        },
         _count: {
           select: {
             messagesSent: {
@@ -118,10 +152,37 @@ export class DirectMessageService {
       orderBy: [{ name: 'asc' }, { id: 'asc' }],
     });
 
-    return buyers.map(({ _count, ...buyer }) => ({
-      ...buyer,
-      unreadCount: _count.messagesSent,
-    }));
+    return this.sortInboxContacts(
+      buyers.map(({ _count, messagesSent, messagesRecv, ...buyer }) => ({
+        ...buyer,
+        unreadCount: _count.messagesSent,
+        lastMessageAt: Math.max(
+          messagesSent[0]?.createdAt.getTime() ?? 0,
+          messagesRecv[0]?.createdAt.getTime() ?? 0,
+        ),
+      })),
+    );
+  }
+
+  private sortInboxContacts(
+    contacts: {
+      id: string;
+      name: string;
+      unreadCount: number;
+      lastMessageAt: number;
+    }[],
+  ) {
+    return contacts
+      .sort(
+        (a, b) =>
+          b.lastMessageAt - a.lastMessageAt ||
+          a.name.localeCompare(b.name) ||
+          a.id.localeCompare(b.id),
+      )
+      .map(({ lastMessageAt, ...contact }) => {
+        void lastMessageAt;
+        return contact;
+      });
   }
 
   // Seller lấy lịch sử hai chiều với đúng tài khoản Buyer được chọn (Mặc định 5 tin mới nhất).
@@ -207,27 +268,34 @@ export class DirectMessageService {
       throw new NotFoundException('Cuộc trò chuyện không tồn tại.');
     }
 
-    return this.prisma.$transaction(async (tx) => {
-      await tx.conversation.upsert({
-        where: { buyerId_sellerId: { buyerId, sellerId } },
-        create: { buyerId, sellerId, mode: ChatMode.HUMAN },
-        update: { mode: ChatMode.HUMAN, version: { increment: 1 } },
-      });
+    const { sellerMessage, status } = await this.prisma.$transaction(
+      async (tx) => {
+        const status = await tx.conversation.upsert({
+          where: { buyerId_sellerId: { buyerId, sellerId } },
+          create: { buyerId, sellerId, mode: ChatMode.HUMAN },
+          update: { mode: ChatMode.HUMAN, version: { increment: 1 } },
+          select: { mode: true, version: true },
+        });
 
-      return tx.directMessage.create({
-        data: {
-          senderId: sellerId,
-          receiverId: buyerId,
-          content: message,
-          source: MessageSource.SELLER,
-        },
-        include: {
-          sender: {
-            select: { id: true, name: true, role: true },
+        const sellerMessage = await tx.directMessage.create({
+          data: {
+            senderId: sellerId,
+            receiverId: buyerId,
+            content: message,
+            source: MessageSource.SELLER,
           },
-        },
-      });
-    });
+          include: {
+            sender: {
+              select: { id: true, name: true, role: true },
+            },
+          },
+        });
+        return { sellerMessage, status };
+      },
+    );
+    this.events.publishConversationMode({ buyerId, sellerId, ...status });
+    this.events.publishMessage(sellerMessage);
+    return sellerMessage;
   }
 
   // Lấy tin nhắn theo cả hai chiều giữa một Buyer và một Seller (Mặc định 5 tin mới nhất).
@@ -343,6 +411,7 @@ export class DirectMessageService {
         },
       },
     });
+    this.events.publishMessage(buyerMessage);
 
     if (conversation.mode === ChatMode.HUMAN) {
       return { buyerMessage, aiMessage: null };
@@ -384,6 +453,7 @@ export class DirectMessageService {
       });
     });
 
+    if (aiMessage) this.events.publishMessage(aiMessage);
     return { buyerMessage, aiMessage };
   }
 
@@ -421,7 +491,7 @@ export class DirectMessageService {
     const content = `🎉 Bạn đã chốt thành công ${productDetail}. Tổng thanh toán: ${formattedAmount}đ. Mã đơn: ${orderCode}. Vui lòng quét mã QR bên dưới để thanh toán nhé!`;
 
     // Lưu vào Database
-    return this.prisma.directMessage.create({
+    const systemMessage = await this.prisma.directMessage.create({
       data: {
         senderId,
         receiverId,
@@ -429,6 +499,14 @@ export class DirectMessageService {
         qrUrl,
         source: MessageSource.SYSTEM,
       },
+      include: {
+        sender: { select: { id: true, name: true, role: true } },
+      },
     });
+    this.events.publishMessage(systemMessage);
+    // Giữ response VietQR như cũ; thông tin sender chỉ cần cho sự kiện Inbox.
+    const { sender, ...response } = systemMessage;
+    void sender;
+    return response;
   }
 }

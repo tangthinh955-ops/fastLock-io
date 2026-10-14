@@ -17,28 +17,54 @@ export const useConversationMode = (endpoint: string | null) => {
     error: '',
   });
   const requestIdRef = useRef(0);
+  const endpointRef = useRef(endpoint);
+  endpointRef.current = endpoint;
 
   const refresh = useCallback(async () => {
+    if (endpointRef.current !== endpoint) return;
     const requestId = ++requestIdRef.current;
     if (!endpoint) {
       setState({ endpoint, status: null, loading: false, error: '' });
       return;
     }
 
-    setState({ endpoint, status: null, loading: true, error: '' });
+    setState((current) => ({
+      endpoint,
+      status: current.endpoint === endpoint ? current.status : null,
+      loading: true,
+      error: '',
+    }));
     try {
       const response = await apiClient.get<ConversationMode>(endpoint);
-      if (requestId !== requestIdRef.current) return;
-      setState({ endpoint, status: response.data, loading: false, error: '' });
-    } catch (error) {
-      if (requestId !== requestIdRef.current) return;
-      console.error('Lỗi khi tải chế độ hội thoại:', error);
-      setState({
+      if (
+        requestId !== requestIdRef.current ||
+        endpointRef.current !== endpoint
+      )
+        return;
+      setState((current) => ({
         endpoint,
-        status: null,
+        status:
+          current.endpoint === endpoint &&
+          current.status &&
+          current.status.version > response.data.version
+            ? current.status
+            : response.data,
+        loading: false,
+        error: '',
+      }));
+    } catch (error) {
+      if (
+        requestId !== requestIdRef.current ||
+        endpointRef.current !== endpoint
+      )
+        return;
+      console.error('Lỗi khi tải chế độ hội thoại:', error);
+      setState((current) => ({
+        endpoint,
+        status: current.endpoint === endpoint ? current.status : null,
         loading: false,
         error: 'Không thể tải chế độ hội thoại. Hãy chọn lại cuộc trò chuyện.',
-      });
+      }));
     }
   }, [endpoint]);
 
@@ -51,8 +77,20 @@ export const useConversationMode = (endpoint: string | null) => {
   }, [refresh]);
 
   const applyStatus = (status: ConversationMode) => {
+    // Callback HTTP của hội thoại cũ không được cập nhật hội thoại đang chọn.
+    if (!endpoint || endpointRef.current !== endpoint) return;
     requestIdRef.current++;
-    setState({ endpoint, status, loading: false, error: '' });
+    setState((current) => ({
+      endpoint,
+      status:
+        current.endpoint === endpoint &&
+        current.status &&
+        current.status.version > status.version
+          ? current.status
+          : status,
+      loading: false,
+      error: '',
+    }));
   };
 
   const isCurrent = state.endpoint === endpoint;

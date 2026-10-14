@@ -1,14 +1,22 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import apiClient from '../api/client';
 import type {
   InboxContact,
+  DirectMessage,
   SendMessageResponse,
 } from '../components/inbox/types';
 import { usePaginatedConversation } from './usePaginatedConversation';
 import { useConversationMode } from './useConversationMode';
+import { useAuth } from '../context/AuthContext';
+import { useInboxSocket } from './useInboxSocket';
+import {
+  orderInboxContacts,
+  rememberInboxActivity,
+} from '../utils/inboxMessages';
 
 export const useBuyerInbox = () => {
+  const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const requestedSellerId = searchParams.get('sellerId');
   const [shops, setShops] = useState<InboxContact[]>([]);
@@ -17,23 +25,40 @@ export const useBuyerInbox = () => {
   const [shopsError, setShopsError] = useState('');
   const [inputText, setInputText] = useState('');
   const [sending, setSending] = useState(false);
+  const activityRef = useRef(
+    new Map<string, Pick<DirectMessage, 'id' | 'createdAt'>>(),
+  );
+  const contactsRequestRef = useRef(0);
   const conversationMode = useConversationMode(
     selectedShopId ? `/messages/conversations/${selectedShopId}/mode` : null,
   );
 
-  useEffect(() => {
-    let active = true;
-
-    const fetchShops = async () => {
-      setLoadingShops(true);
+  const fetchShops = useCallback(
+    async (initial = false) => {
+      const request = ++contactsRequestRef.current;
+      if (initial) setLoadingShops(true);
       setShopsError('');
       try {
         const response = await apiClient.get<InboxContact[]>('/messages/shops');
-        if (!active) return;
+        if (request !== contactsRequestRef.current) return;
 
-        setShops(response.data);
+        const ordered = orderInboxContacts(response.data, activityRef.current);
+        setShops((current) =>
+          orderInboxContacts(
+            [
+              ...ordered,
+              ...current.filter(
+                (shop) =>
+                  activityRef.current.has(shop.id) &&
+                  !ordered.some((entry) => entry.id === shop.id),
+              ),
+            ],
+            activityRef.current,
+          ),
+        );
         setSelectedShopId((currentShopId) => {
           if (
+            (initial || !currentShopId) &&
             requestedSellerId &&
             response.data.some((shop) => shop.id === requestedSellerId)
           ) {
@@ -45,21 +70,25 @@ export const useBuyerInbox = () => {
           ) {
             return currentShopId;
           }
-          return response.data[0]?.id ?? null;
+          return ordered[0]?.id ?? null;
         });
       } catch (requestError) {
         console.error('Lỗi khi tải danh sách shop:', requestError);
-        if (active) setShopsError('Không thể tải danh sách shop.');
+        if (request === contactsRequestRef.current)
+          setShopsError('Không thể tải danh sách shop.');
       } finally {
-        if (active) setLoadingShops(false);
+        if (request === contactsRequestRef.current) setLoadingShops(false);
       }
-    };
+    },
+    [requestedSellerId],
+  );
 
-    fetchShops();
+  useEffect(() => {
+    void fetchShops(true);
     return () => {
-      active = false;
+      contactsRequestRef.current++;
     };
-  }, [requestedSellerId]);
+  }, [fetchShops]);
 
   const handleMarkedRead = useCallback((shopId: string) => {
     setShops((currentShops) =>
@@ -74,6 +103,32 @@ export const useBuyerInbox = () => {
     endpointBase: '/messages/conversations',
     onMarkedRead: handleMarkedRead,
   });
+
+  const handleNewMessage = (message: DirectMessage) => {
+    if (
+      !user ||
+      (message.senderId !== user.id && message.receiverId !== user.id)
+    )
+      return;
+    const shopId =
+      message.senderId === user.id ? message.receiverId : message.senderId;
+    rememberInboxActivity(activityRef.current, shopId, message);
+    setShops((current) => orderInboxContacts(current, activityRef.current));
+    if (!shops.some((shop) => shop.id === shopId)) void fetchShops();
+    if (shopId === selectedShopId) conversation.appendMessages(message);
+  };
+  const socket = useInboxSocket(
+    handleNewMessage,
+    () => {
+      void fetchShops(!selectedShopId);
+      void conversation.refreshLatest();
+      void conversationMode.refresh();
+    },
+    (status) => {
+      if (status.buyerId === user?.id && status.sellerId === selectedShopId)
+        conversationMode.applyStatus(status);
+    },
+  );
 
   const handleSendMessage = async () => {
     const message = inputText.trim();
@@ -91,6 +146,12 @@ export const useBuyerInbox = () => {
         buyerMessage,
         ...(aiMessage ? [aiMessage] : []),
       );
+      rememberInboxActivity(
+        activityRef.current,
+        selectedShopId,
+        aiMessage ?? buyerMessage,
+      );
+      setShops((current) => orderInboxContacts(current, activityRef.current));
       setInputText('');
       await conversationMode.refresh();
     } catch (requestError) {
@@ -109,7 +170,11 @@ export const useBuyerInbox = () => {
     inputText,
     sending,
     conversationMode,
-    error: shopsError || conversation.error || conversationMode.error,
+    error:
+      shopsError ||
+      conversation.error ||
+      conversationMode.error ||
+      socket.error,
     setSelectedShopId,
     setInputText,
     handleSendMessage,
