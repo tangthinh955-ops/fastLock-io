@@ -1,5 +1,39 @@
 # TIẾN ĐỘ DỰ ÁN: LIVEORDER CHỐT ĐƠN ENGINE
 
+## Cập nhật 15/10/2026 — S19 đổi sang kế hoạch PA2
+
+- ✅ Hoàn thành cập nhật tài liệu theo yêu cầu người dùng: `plan.md` v2.2, dòng S19 trong bảng phiên và mục 7 thống nhất PA2 embedding local bằng Transformers.js, truy xuất KbEntry + tên/SKU Product đúng Shop, lấy giá/kho sống từ DB. Groq giữ vai trò sinh câu trả lời; không thêm PDF/UI hoặc database vector chuyên dụng.
+- Bổ sung query theo ngữ cảnh, ưu tiên SKU chính xác, top-k tối đa 3–5 có lọc mức liên quan/tag nguồn, embed bù dữ liệu cũ, chống embed trùng, cập nhật/vô hiệu hóa nguồn và model/version. Lưu RAM hay PostgreSQL và model cụ thể còn phải chốt trước code; migration chỉ thực hiện nếu phương án lưu được duyệt cần tới.
+- Nêu rõ Thịnh lead AI/retrieval/KB; Kỳ phụ trách tích hợp Product; schema/module integration [CHUNG] cần duyệt. Hook gọi trong Product không thay thế cơ chế xử lý tạo/sửa/xóa và lỗi embedding; lỗi embedding không được làm báo thất bại sau khi Product đã lưu.
+- Giữ takeover/Socket/API contract; embedding lỗi có timeout và fallback full-KB đúng Shop, ghi nhận fallback riêng. Đo A/B gồm baseline hiện tại và đối chiếu cùng nguồn KB + Product; ít nhất 20 tình huống, đo chất lượng/nguồn/token/độ trễ và tách lần đầu/có cache. Mục tiêu 7 ngày gồm báo cáo/demo được xác nhận sau thử nghiệm ngày 1.
+- Chỉ sửa `plan.md` và thêm nhật ký này, giữ phần đánh giá dự án đã có; không sửa code/schema, cài dependency, chạy migration hoặc đổi trạng thái tính năng S19 thành hoàn thành. Yêu cầu tạo nhánh `docs/s19-pa2-plan` bị người dùng từ chối, nên cập nhật trên nhánh hiện tại; không commit/push. `KY_GUIDE.md` không có nên không tạo thêm.
+- Người dùng sau đó yêu cầu bổ sung trực tiếp và push trên nhánh hiện tại, không tạo nhánh mới. Kiểm tra trước commit/push: build Backend và Frontend chạy lại thành công; Frontend còn cảnh báo bundle >500 kB. Commit chỉ gồm `plan.md` và `progress.md`, bao gồm nhật ký đánh giá dự án đã thực hiện trong cùng phiên; không sửa code.
+
+---
+
+## Cập nhật 15/10/2026 — Đánh giá lại toàn bộ dự án
+
+- ✅ Hoàn thành đầu việc rà soát code và kiểm tra tự động trên bản hiện tại của nhánh `docs/readme-env-example`, commit `964dae8`. Đối chiếu backend, frontend, schema/migrations, README và kế hoạch; không sửa code, schema, dependency hoặc dữ liệu database, không commit/push. Trạng thái này chỉ áp dụng cho đầu việc đánh giá, không xác nhận các tính năng còn thiếu đã hoàn thành.
+- Kết quả thực chạy: `npm.cmd run build:backend` và `npm.cmd run build:frontend` thành công. Bundle Frontend 696,91 kB, gzip 218,55 kB, còn cảnh báo >500 kB. `npm.cmd test --workspace apps/backend -- --runInBand`: 3/5 bộ test đạt, 47/49 ca đạt; hai test Controller AI/DirectMessage lỗi thiếu provider/mock. Frontend lint chạy thành công với 10 cảnh báo. `npm.cmd run start:prod --workspace apps/backend` thất bại MODULE_NOT_FOUND: script tìm `dist/main` nhưng build tạo `dist/src/main.js`.
+- Ưu tiên bảo mật/nghiệp vụ: Product/Order/Livestream HTTP chưa có JWT/role/ownership guards; `send_comment` vẫn dùng Buyer từ payload thay vì JWT; `new_order` và comment phát SĐT chưa che tới phòng live. Order API chưa kiểm tra sản phẩm thuộc đúng Shop và live đang LIVE. VietQR dùng tài khoản cố định; API tạo tin SYSTEM nhận amount/orderId từ client mà chưa đối chiếu đơn.
+- Kiểm chứng trong bộ nhớ bằng module đã build: comment `SP010 0912345678` với SKU `SP01`, `SP010` trả cả hai mã theo thứ tự SP01 trước, processor chọn mã đầu nên có thể chốt nhầm; DTO Order chấp nhận `items:[]`; metadata ba Controller Product/Order/Livestream không có guard. Không tạo file test hoặc dữ liệu thử trong database.
+- Độ ổn định còn thiếu: order đã commit nhưng lỗi lưu tin QR chưa có retry/idempotency; Inbox chưa tải bù tin/mode sau reconnect và chưa đồng bộ unread khi tin mới tới; LiveStudio chưa xử lý camera trả về muộn và vẫn xóa trạng thái live khi API kết thúc thất bại. Auth throttle khai báo `default` trong khi cấu hình tên `global`, nên giới hạn 5 lần/phút chưa được áp dụng đúng.
+- Điểm tốt giữ lại: trừ kho có điều kiện trong transaction cùng Order, snapshot giá từ server; Inbox tách cặp Buyer–Seller và nguồn BUYER/SELLER/AI/SYSTEM, phát sau lưu; tiếp quản dùng mode/version để loại AI lỗi thời; frontend đã tách hook/component theo trách nhiệm, gộp tin theo ID và bảo vệ phản hồi hội thoại cũ.
+- Chưa nghiệm thu trình duyệt hai phiên Buyer/Seller, Groq thật, benchmark <1ms, webhook hoặc thanh toán thật. RAG S19 chưa triển khai; S06 còn reconnect/unread; S07/S08 còn QR theo Shop và vòng đời thanh toán/hủy/hoàn kho. Docker hiện chỉ gồm Postgres/Redis, chưa có pipeline CI trong cây file được rà soát. Seed chưa phải UUID v4; migration nguồn tin có DELETE lịch sử Inbox như README đã ghi.
+- `KY_GUIDE.md` không có trong workspace nên không tạo thêm file. Chỉ cập nhật nhật ký đánh giá này; không đổi các mốc tính năng cũ sang hoàn thành.
+
+---
+
+## Cập nhật 14/10/2026 — README và môi trường mẫu
+
+- ✅ Hoàn thành tài liệu trên nhánh `docs/readme-env-example`: mở rộng README gốc và thêm `apps/backend/.env.example` gồm DATABASE_URL/JWT_SECRET/GROQ_API_KEY/PORT. Giá trị mẫu khớp Docker PostgreSQL host 5433; JWT là placeholder, Groq để trống, không sao chép khóa thật.
+- README hướng dẫn cài gói, tạo `.env`, chạy Docker, generate/migrate Prisma, khởi chạy hai workspace, đường dẫn màn hình, demo và build/test tập trung. Phân biệt database mới/cũ, ghi rõ migration nguồn tin có DELETE Inbox và seed có ID chưa phải UUID v4; không reset database hoặc chạy seed/migration trong đầu việc này.
+- Ghi đúng hạn chế hiện tại: Frontend dùng API localhost:3001 nên không thêm env frontend chưa được sử dụng; đồng bộ trạng thái đã đọc/tải bù khi reconnect của S06, thanh toán tự động và RAG còn chưa hoàn thiện/triển khai. Không sửa code, schema, dependency hoặc module Dev2.
+- Kiểm tra: build Backend và Frontend thành công; cảnh báo bundle Frontend >500 kB còn tồn tại. File mẫu parse được bằng dotenv, có đúng bốn biến và giá trị local/placeholder; kiểm tra đường dẫn/lệnh README và `git diff --check` đạt. Git bỏ qua `.env` thật nhưng không bỏ qua `.env.example`. Chưa nghiệm thu cài mới trên máy/database trống; các lệnh setup được đối chiếu với cấu hình hiện tại, không chạy thay đổi database.
+- Commit/push riêng phần tài liệu theo yêu cầu người dùng; `KY_GUIDE.md` không có nên không tạo thêm file ngoài kế hoạch.
+
+---
+
 ## Cập nhật 14/10/2026 — S06 bước C1: Đồng bộ chế độ hội thoại (Dev 1)
 
 - ✅ Hoàn thành code và kiểm tra tự động C1 trên `feat/inbox-realtime-socket`. Thêm sự kiện `conversation_mode_changed` chứa buyerId/sellerId/mode/version, chỉ phát tới room riêng của hai người sau khi lưu chế độ thành công. Seller gửi thủ công: mode HUMAN và tin SELLER lưu cùng transaction; chỉ phát mode và tin sau commit, giữ response HTTP cũ.
