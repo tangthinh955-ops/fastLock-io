@@ -1,6 +1,6 @@
 # 📋 LIVEORDER — PRODUCTION READINESS MASTER PLAN (LỘ TRÌNH 5 ĐỢT SONG SONG)
 
-> **Phiên bản:** v2.1 (Chuyển khoản thật & xác nhận tự động) — Ngày cập nhật: 07/10/2026
+> **Phiên bản:** v2.2 (Bổ sung S19 PA2 — RAG local cho Inbox) — Ngày cập nhật: 15/10/2026
 > **Dev 1 (Thịnh):** AI, Inbox, Admin, Viewer, Lead Luồng Buyer & Tài liệu  
 > **Dev 2 (Kỳ):** Product, Parser, Order, Livestream, Seller Studio, Lead Luồng Seller & DevOps/CI  
 > **Nguyên tắc thực thi:** Làm việc song song theo 5 đợt; kiểm thử trên dữ liệu thật; số liệu đo đạc khách quan; cập nhật tiến độ chi tiết tại `progress.md`.
@@ -58,7 +58,7 @@
 | **S16** | Dockerfile Multi-stage & Compose Production | 🟩 | `devops/docker-production` | Kỳ lead viết Dockerfile tối ưu cho Backend & Frontend (Nginx proxy); cập nhật `docker-compose.yml` gồm Postgres, Redis, Backend, Frontend. | Chạy `docker compose up --build` khởi động toàn bộ hệ thống mượt mà trên máy mới. |
 | **S17** | GitHub Actions CI Pipeline tự động hóa | 🟩 | `devops/github-actions-ci` | Kỳ lead tạo workflow GitHub Actions: Tự động chạy Lint check → Type check (`tsc --noEmit`) → Chạy Test → Chạy Build khi có PR vào `main`. | PR tự động kiểm tra, báo tích xanh mới cho merge, loại bỏ hoàn toàn lỗi gãy build. |
 | **S18** | Security Hardening & Hoàn thiện README Demo | 🟦 | `chore/security-readme-final` | Thịnh lead audit bảo mật: Bật Helmet, chặn CORS mở, áp Rate Limit Redis, xóa `killPort()`, viết tài liệu `README.md` và kịch bản demo. | `npm audit` sạch lỗ hổng; README có sơ đồ kiến trúc hoàn chỉnh và kịch bản demo mượt. |
-| **S19** | RAG cho Inbox AI & Báo cáo thực nghiệm (7 ngày) | 🟦 | `codex/inbox-rag` | Dev 1 giữ keyword/answer/sellerId; tạo embedding, lọc đúng Shop và chọn kiến thức liên quan trước khi gọi Qwen. Giữ lịch sử, Seller tiếp quản và Socket; so sánh AI cũ/RAG trên 20 tình huống, hoàn thiện báo cáo và demo. Chi tiết tại mục 7. | Không lẫn kiến thức Shop; thiếu dữ liệu thì hỏi lại/từ chối; không phát AI lỗi thời sau tiếp quản; có số liệu thực đo và build/test phù hợp đạt. |
+| **S19** | PA2 — RAG local từ KB + Product & Báo cáo thực nghiệm (mục tiêu 7 ngày) | 🟦🟩 | `codex/inbox-rag` | Thịnh lead embedding local bằng Transformers.js; truy xuất KbEntry + tên/SKU Product đúng sellerId, lấy giá/kho từ DB lúc trả lời; top-k có lọc mức liên quan và tag nguồn vào Groq. Kỳ phụ trách tích hợp cập nhật Product; schema/migration [CHUNG] chốt trước code. Giữ lịch sử, takeover, Socket và API contract; fallback full-KB, đo A/B trên ít nhất 20 tình huống. Chi tiết tại mục 7. | Không lẫn Shop/chốt nhầm SKU; hàng không có thì hỏi lại hoặc báo không tìm thấy; dữ liệu sửa/xóa không còn trong retrieval; không phát AI lỗi thời sau takeover. Có số liệu chất lượng/token/độ trễ/fallback thực đo, build/test phù hợp đạt và demo ổn định. |
 
 ---
 
@@ -189,14 +189,64 @@ Tài liệu tham khảo: [SePay Webhooks](https://docs.sepay.vn/tich-hop-webhook
 
 ---
 
-## 7. S19 — Nâng cấp RAG cho Inbox AI & Báo cáo thực nghiệm
+## 7. S19 — PA2: RAG local từ KbEntry + Product & Báo cáo thực nghiệm
 
-| Lead | Thời gian | Nhiệm vụ | Tiêu chuẩn hoàn thành |
-|---|---|---|---|
-| **Dev 1 — Thịnh** | **7 ngày, gồm báo cáo** | Giữ `keyword`, `answer`, `sellerId`; tạo embedding để tìm kiến thức theo ý nghĩa. Lọc đúng Shop trước khi chọn các mục liên quan gửi Qwen. Giữ lịch sử hội thoại, Seller tiếp quản và Socket hiện có. So sánh AI cũ/RAG trên 20 tình huống; đưa kết quả vào báo cáo. | Không lẫn kiến thức giữa Shop; tin hỏi khác từ khóa vẫn tìm được dữ liệu phù hợp; thiếu dữ liệu thì hỏi lại/từ chối; AI không trả lời sau tiếp quản. Có số liệu thực đo, build/test phù hợp đạt và demo ổn định. |
+PA2 thay thế phạm vi S19 chỉ truy xuất KbEntry trước đây. Mục tiêu là truy xuất dữ liệu đúng Shop theo ngữ nghĩa, bổ sung giá/tồn kho từ database tại thời điểm trả lời và đo hiệu quả so với đưa toàn bộ dữ liệu vào prompt. Không mặc định RAG chính xác hơn hoặc nhanh hơn trước khi có số liệu.
 
-- **Phạm vi:** Nâng cấp module AI trên `KbEntry` hiện có; một dịch vụ embedding dùng chung, bộ nhớ đệm vector trong backend. Chưa thêm PDF, database vector hoặc UI mới.
-- **Lịch:** Ngày 1 chuẩn bị dữ liệu/baseline và thử embedding; ngày 2–3 triển khai; ngày 4–5 kiểm thử, đo và sửa lỗi; ngày 6–7 hoàn thiện báo cáo, slide và demo.
-- **Dependency:** Tận dụng S05 và S06 A/B đã có; kết quả đánh giá bổ sung S15, tài liệu bổ sung S18. Có timeout và phương án dùng luồng AI cũ khi embedding lỗi.
-- **Trước triển khai:** Đọc lại `progress.md`, chốt file tác động và xin xác nhận theo `AGENTS.md`; thay đổi file [CHUNG] cần được duyệt.
-- **Trạng thái:** Chưa triển khai. Mục S19 này chốt phạm vi một tuần, thay cho lịch bốn tuần trong tài liệu RAG tham khảo trước đó.
+| Phụ trách | Thời gian | Phạm vi |
+|---|---|---|
+| **Thịnh — Dev 1, lead S19** | **Mục tiêu 7 ngày, gồm báo cáo/demo; xác nhận sau thử nghiệm ngày 1** | Embedding local, retrieval, cập nhật KbEntry, tích hợp prompt/fallback, kiểm thử và đo A/B. |
+| **Kỳ — Dev 2** | Phối hợp trong S19 | Tích hợp tạo/sửa/xóa Product với cơ chế cập nhật chỉ mục đã thống nhất; giữ hành vi lưu sản phẩm hiện có. |
+| **[CHUNG]** | Chốt trước khi viết code | Cách lưu vector, dependency/module integration và schema/migration nếu cần. Một người đại diện chạy migration đã duyệt. |
+
+### 7.1. Công nghệ và nguồn dữ liệu
+
+- **Embedding local:** Dùng `@huggingface/transformers` (Transformers.js), chọn model embedding đa ngôn ngữ có bản tương thích và thử chất lượng tiếng Việt trên máy demo. Chốt model ID/revision, kiểu lượng tử, pooling/normalization và kích thước vector trước code. Khoảng 120 MB là ước lượng, cần đo dung lượng tải và RAM thực tế.
+- **Vận hành:** Một pipeline embedding dùng chung, giữ cache model bền vững để tái sử dụng sau restart/deploy; chuẩn bị đủ model/tokenizer/runtime cần thiết và kiểm tra embedding chạy khi mất mạng. Groq vẫn là API duy nhất cho sinh câu trả lời; toàn bộ hệ thống tư vấn vẫn cần mạng để gọi Groq.
+- **KbEntry:** Embed `keyword + answer`, giữ nguyên dữ liệu gõ tay và `sellerId`.
+- **Product:** Embed tên + SKU; giữ `productId`, `sellerId` và loại nguồn để lấy lại dữ liệu gốc. Không đưa giá/tồn kho vào vector. Chỉ lấy giá/kho của sản phẩm còn tồn tại và thuộc đúng Shop từ DB lúc dựng prompt.
+- **Giới hạn phạm vi:** Không thêm PDF, UI mới, dịch vụ embedding bên ngoài hoặc database vector chuyên dụng trong S19 này.
+
+### 7.2. Luồng truy xuất và trả lời
+
+Buyer gửi Inbox → giữ luồng lưu/phát tin BUYER hiện có → nếu HUMAN thì dừng AI → dựng truy vấn từ câu hỏi và ngữ cảnh cần thiết → embed local → chọn ứng viên đúng sellerId → cosine + kiểm tra SKU/mức liên quan → tối đa 3–5 mục phù hợp → đọc dữ liệu gốc và giá/kho hiện tại → gắn tag [SẢN PHẨM]/[KIẾN THỨC] → Groq sinh trả lời → kiểm tra mode/version hiện có → lưu/phát tin AI.
+
+- Dùng lịch sử để hiểu câu nối tiếp như “áo đó còn không?”, nhưng không coi lịch sử là kiến thức có thẩm quyền hoặc tự đoán sản phẩm chưa rõ.
+- SKU được nhắc rõ phải kiểm tra chính xác trong đúng Shop; không dùng cosine để thay thế SKU bằng sản phẩm có mã gần giống. S19 không thay đổi parser/chốt đơn livestream của Kỳ.
+- Top-k là giới hạn tối đa, không ép lấy đủ mục. Ngưỡng liên quan và cách phân bổ Product/KB được chọn qua tập thử riêng; câu ngoài dữ liệu phải hỏi lại hoặc báo không có thông tin phù hợp. Tránh một loại nguồn chiếm hết kết quả khi câu hỏi cần cả sản phẩm và chính sách.
+- KB quy định kiến thức/chính sách; dữ liệu Product từ DB là nguồn giá/kho. Điều chỉnh prompt có chủ đích để cho phép báo snapshot giá/kho này, không tự xác nhận đơn hoặc thanh toán. Tồn kho lúc trả lời không bảo đảm đặt hàng thành công; Order vẫn quyết định bằng transaction trừ kho.
+
+### 7.3. Lưu vector, dữ liệu cũ và cập nhật chỉ mục
+
+- **Quyết định cần chốt trước code:** Lưu vector trong RAM hay lưu bền vững trong PostgreSQL. RAM không bắt buộc migration; nếu chọn PostgreSQL thì lập kế hoạch schema/migration [CHUNG], không tự thêm cột vào KbEntry/Product.
+- Chỉ mục cần nhận diện nguồn/id/sellerId, nội dung đã embed và model/version. Nội dung hoặc model thay đổi thì vector cũ không được tái sử dụng; toàn bộ vector dùng chung để chấm cosine phải tương thích.
+- **Dữ liệu cũ:** Tự embed bù lúc retrieve đầu tiên của Shop, theo lô có giới hạn và chống nhiều request embed trùng. Không cần script dọn/xóa dữ liệu. Ghi nhận thời gian lần đầu riêng và có timeout/fallback để câu hỏi không bị treo.
+- **Cập nhật:** KbEntry tạo/sửa nếu có/xóa; Product tạo/sửa tên hoặc SKU/xóa phải cập nhật hoặc vô hiệu hóa chỉ mục sau khi dữ liệu được lưu thành công. Giá/kho đổi không cần embed lại. Trước khi dùng kết quả, kiểm tra nguồn vẫn tồn tại/thuộc Shop và nội dung chưa lỗi thời; thiếu vector hoặc vector cũ thì embed bù theo cơ chế trên.
+- Hook trong `product.service.ts` chỉ là phần gọi tích hợp, không ước lượng toàn bộ cơ chế bằng “5 dòng”. Lỗi embedding không làm API báo lưu sản phẩm thất bại khi dữ liệu đã commit; để lại khả năng embed bù ở lần retrieve sau. Tránh phụ thuộc vòng giữa Product và AI.
+
+### 7.4. Fallback và phần giữ nguyên
+
+- Model/embedding/retrieval lỗi hoặc quá timeout → dùng luồng full-KB hiện có của đúng Shop. Không đưa vector/dữ liệu của Shop khác vào fallback.
+- Full-KB hiện tại không có Product: khi fallback không tự khẳng định giá/kho nếu chưa có dữ liệu đáng tin cậy. Phân biệt lỗi kỹ thuật với câu hỏi không có dữ liệu; câu ngoài dữ liệu không tự động kích hoạt full-KB chỉ để cố tìm câu trả lời.
+- Giữ API contract, lịch sử hội thoại, nguồn tin, Socket và cơ chế HUMAN/mode/version. Embedding/Groq nằm ngoài transaction; phản hồi AI vẫn phải bị loại khi Seller đã tiếp quản.
+- Ghi nhận RAG/fallback và lý do để đo đạc; không tính câu fallback là kết quả retrieval thành công.
+
+### 7.5. Đo A/B và nghiệm thu
+
+- **Hai đối chiếu:** (1) AI hiện tại full-KB và PA2 để đánh giá nâng cấp tổng thể; (2) full-context KB + Product và PA2 trên cùng nguồn dữ liệu để đánh giá riêng tác động của retrieval. Giữ cùng model sinh, cấu hình, dữ liệu và ngữ cảnh; không kết luận RAG tốt hơn chỉ vì PA2 được cấp thêm Product.
+- Ít nhất 20 tình huống có đáp án/mục nguồn kỳ vọng: paraphrase tiếng Việt, câu nối tiếp, SKU gần giống, sản phẩm không tồn tại, câu ngoài KB, câu cần nhiều nguồn, hai Shop có dữ liệu tương tự, đổi giá/kho, sửa/xóa nguồn, embedding lỗi và Seller tiếp quản khi AI đang chờ. Chọn ngưỡng/top-k bằng tập thử riêng trước khi chạy tập đánh giá.
+- Đo độ đúng/đủ, tỷ lệ lấy đúng nguồn, khả năng hỏi lại/từ chối, token đầu vào thực tế, thời gian embedding/retrieval/Groq và tổng thời gian trả lời, tỷ lệ fallback. Tách lần đầu tải model/embed bù và các lần đã có cache; ghi rõ máy/model/cấu hình/số lần chạy.
+- Nghiệm thu: không lẫn Shop; không thay SKU chính xác bằng sản phẩm khác; sửa/xóa nguồn không còn xuất hiện dưới dạng dữ liệu cũ; giá/kho từ DB đúng thời điểm đọc; fallback hoạt động; AI không lưu/phát sau takeover; build/test phù hợp đạt; demo Buyer/Seller và embedding offline thành công.
+- Báo cáo trung thực cả trường hợp PA2 giảm token nhưng không tăng độ chính xác hoặc tăng độ trễ. Câu chuyện báo cáo: “Truy xuất top-k theo ngữ nghĩa từ kiến thức và sản phẩm đúng Shop, bổ sung dữ liệu biến động từ DB, thay vì nhét toàn bộ dữ liệu vào prompt.”
+
+### 7.6. Lịch và điều kiện triển khai
+
+- **Ngày 1:** Thử embedding trên máy demo, kiểm tra tiếng Việt/offline, đo dung lượng/RAM/độ trễ; chuẩn bị baseline và tập tình huống. Chốt cách lưu vector, hợp đồng với Kỳ và lịch khả thi.
+- **Ngày 2–3:** Triển khai embedding/retrieval, embed bù/cập nhật nguồn, dữ liệu Product sống, prompt và fallback trong phạm vi đã duyệt.
+- **Ngày 4–5:** Kiểm thử cách ly Shop/SKU/lịch sử/takeover/cập nhật nguồn, đo A/B và sửa lỗi trong phạm vi.
+- **Ngày 6–7:** Báo cáo, slide, build/test và demo. Nếu thử nghiệm ngày 1 hoặc phối hợp schema/Product chưa đạt thì điều chỉnh lịch trước, không cắt nghiệm thu để giữ mốc 7 ngày.
+- **Dependency:** Tận dụng S05, S06 A/B/C1; S06 reconnect/unread vẫn là đầu việc riêng. Kết quả đánh giá bổ sung S15, tài liệu bổ sung S18. Kỳ có thể xử lý các lỗi P1 chốt đơn song song; PA2 không thay thế việc sửa các lỗi đó.
+- **Trước code:** Đọc `progress.md`, lập danh sách [CREATE]/[MODIFY] cụ thể và xin xác nhận theo AGENTS.md. Kỳ phụ trách Product; schema và file tích hợp [CHUNG] cần duyệt. Chưa cài dependency, sửa code hoặc chạy migration trong phiên cập nhật tài liệu này.
+- **Trạng thái:** Đã chốt hướng PA2 ở mức kế hoạch; chưa triển khai/chưa nghiệm thu. Cách lưu vector và model cụ thể còn phải chốt trước code. Mục này thay thế mô tả S19 cũ; mục tiêu 7 ngày gồm báo cáo/demo có điều kiện như trên.
+
+Tham khảo kỹ thuật: [Transformers.js — Node.js, model cache và local models](https://huggingface.co/docs/transformers.js/v3.8.1/tutorials/node).
