@@ -6,10 +6,11 @@ import { AiService } from '../ai/ai.service';
 import { DirectMessageService } from './direct-message.service';
 import { DirectMessageController } from './direct-message.controller';
 import { UpdateConversationModeDto } from './dto/update-conversation-mode.dto';
+import { DirectMessageEvents } from './direct-message.events';
 
 describe('DirectMessageService AI history', () => {
   const prisma = {
-    user: { findFirst: jest.fn() },
+    user: { findFirst: jest.fn(), findMany: jest.fn() },
     directMessage: {
       findFirst: jest.fn(),
       findMany: jest.fn(),
@@ -23,6 +24,10 @@ describe('DirectMessageService AI history', () => {
     $transaction: jest.fn(),
   };
   const ai = { generateReply: jest.fn() };
+  const events = {
+    publishMessage: jest.fn(),
+    publishConversationMode: jest.fn(),
+  };
   let service: DirectMessageService;
 
   beforeEach(() => {
@@ -51,6 +56,7 @@ describe('DirectMessageService AI history', () => {
     service = new DirectMessageService(
       prisma as unknown as PrismaService,
       ai as unknown as AiService,
+      events as unknown as DirectMessageEvents,
     );
   });
 
@@ -156,6 +162,8 @@ describe('DirectMessageService AI history', () => {
     expect(prisma.directMessage.findMany).not.toHaveBeenCalled();
     expect(ai.generateReply).not.toHaveBeenCalled();
     expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(events.publishMessage).toHaveBeenCalledTimes(1);
+    expect(events.publishMessage).toHaveBeenCalledWith(result.buyerMessage);
   });
 
   it('discards a pending AI reply when the mode or version changed', async () => {
@@ -170,6 +178,10 @@ describe('DirectMessageService AI history', () => {
     expect(ai.generateReply).toHaveBeenCalledTimes(1);
     expect(result.aiMessage).toBeNull();
     expect(prisma.directMessage.create).toHaveBeenCalledTimes(1);
+    expect(events.publishMessage).toHaveBeenCalledTimes(1);
+    expect(events.publishMessage.mock.calls[0][0].source).toBe(
+      MessageSource.BUYER,
+    );
     expect(prisma.conversation.updateMany).toHaveBeenCalledWith({
       where: { id: 'conversation-a', mode: ChatMode.AI, version: 1 },
       data: { mode: ChatMode.AI },
@@ -186,6 +198,15 @@ describe('DirectMessageService AI history', () => {
   });
 
   it('takes over the exact Buyer–Seller pair and saves the Seller reply in one transaction', async () => {
+    prisma.conversation.upsert.mockResolvedValueOnce({
+      mode: ChatMode.HUMAN,
+      version: 2,
+    });
+    prisma.$transaction.mockImplementationOnce(async (callback) => {
+      const result = await callback(prisma);
+      expect(events.publishConversationMode).not.toHaveBeenCalled();
+      return result;
+    });
     const result = await service.sendSellerMessage(
       'shop-a',
       'buyer-a',
@@ -197,11 +218,19 @@ describe('DirectMessageService AI history', () => {
       where: { buyerId_sellerId: { buyerId: 'buyer-a', sellerId: 'shop-a' } },
       create: { buyerId: 'buyer-a', sellerId: 'shop-a', mode: ChatMode.HUMAN },
       update: { mode: ChatMode.HUMAN, version: { increment: 1 } },
+      select: { mode: true, version: true },
     });
     expect(prisma.conversation.upsert.mock.invocationCallOrder[0]).toBeLessThan(
       prisma.directMessage.create.mock.invocationCallOrder[0],
     );
     expect(result.source).toBe(MessageSource.SELLER);
+    expect(events.publishMessage).toHaveBeenCalledWith(result);
+    expect(events.publishConversationMode).toHaveBeenCalledWith({
+      buyerId: 'buyer-a',
+      sellerId: 'shop-a',
+      mode: ChatMode.HUMAN,
+      version: 2,
+    });
     expect(ai.generateReply).not.toHaveBeenCalled();
   });
 
@@ -258,7 +287,14 @@ describe('DirectMessageService AI history', () => {
   it.each([ChatMode.AI, ChatMode.HUMAN])(
     'changes mode to %s and invalidates old AI responses without sending messages',
     async (mode) => {
+      prisma.conversation.upsert.mockResolvedValueOnce({ mode, version: 3 });
       await service.updateSellerConversationMode('shop-a', 'buyer-a', mode);
+      expect(events.publishConversationMode).toHaveBeenCalledWith({
+        buyerId: 'buyer-a',
+        sellerId: 'shop-a',
+        mode,
+        version: 3,
+      });
       expect(prisma.conversation.upsert).toHaveBeenCalledWith({
         where: { buyerId_sellerId: { buyerId: 'buyer-a', sellerId: 'shop-a' } },
         create: { buyerId: 'buyer-a', sellerId: 'shop-a', mode },
@@ -315,5 +351,139 @@ describe('DirectMessageService AI history', () => {
         DirectMessageController.prototype.getBuyerConversationMode,
       ),
     ).toEqual([Role.BUYER]);
+  });
+
+  it('publishes Buyer before waiting for Groq and AI only after transaction commit', async () => {
+    ai.generateReply.mockImplementation(async () => {
+      expect(events.publishMessage).toHaveBeenCalledTimes(1);
+      expect(events.publishMessage.mock.calls[0][0].source).toBe(
+        MessageSource.BUYER,
+      );
+      return 'AI reply';
+    });
+    prisma.$transaction.mockImplementation(
+      async (callback: (tx: typeof prisma) => Promise<unknown>) => {
+        const result = await callback(prisma);
+        expect(events.publishMessage).toHaveBeenCalledTimes(1);
+        return result;
+      },
+    );
+    const result = await service.sendChatMessage(
+      'buyer-a',
+      'shop-a',
+      'Size nào?',
+    );
+    expect(events.publishMessage).toHaveBeenCalledTimes(2);
+    expect(events.publishMessage).toHaveBeenNthCalledWith(2, result.aiMessage);
+  });
+
+  it('does not publish Seller when the transaction rolls back', async () => {
+    prisma.$transaction.mockRejectedValueOnce(new Error('Commit failed'));
+    await expect(
+      service.sendSellerMessage('shop-a', 'buyer-a', 'Shop trả lời'),
+    ).rejects.toThrow('Commit failed');
+    expect(events.publishMessage).not.toHaveBeenCalled();
+    expect(events.publishConversationMode).not.toHaveBeenCalled();
+  });
+
+  it('does not publish mode when saving the mode fails', async () => {
+    prisma.conversation.upsert.mockRejectedValueOnce(new Error('Save failed'));
+    await expect(
+      service.updateSellerConversationMode('shop-a', 'buyer-a', ChatMode.HUMAN),
+    ).rejects.toThrow('Save failed');
+    expect(events.publishConversationMode).not.toHaveBeenCalled();
+  });
+
+  it('does not publish AI when its transaction fails', async () => {
+    prisma.$transaction.mockRejectedValueOnce(new Error('Commit failed'));
+    await expect(
+      service.sendChatMessage('buyer-a', 'shop-a', 'Câu hỏi'),
+    ).rejects.toThrow('Commit failed');
+    expect(events.publishMessage).toHaveBeenCalledTimes(1);
+    expect(events.publishMessage.mock.calls[0][0].source).toBe(
+      MessageSource.BUYER,
+    );
+  });
+
+  it('publishes SYSTEM with sender information while keeping the old QR response shape', async () => {
+    const saved = {
+      id: 'qr-a',
+      source: MessageSource.SYSTEM,
+      senderId: 'shop-a',
+      receiverId: 'buyer-a',
+      sender: { id: 'shop-a', name: 'Shop', role: Role.SELLER },
+    };
+    prisma.directMessage.create.mockResolvedValueOnce(saved);
+    const response = await service.sendOrderMessage(
+      'shop-a',
+      'buyer-a',
+      20000,
+      'order-a',
+    );
+    expect(events.publishMessage).toHaveBeenCalledWith(saved);
+    expect(response).not.toHaveProperty('sender');
+    expect(response.id).toBe('qr-a');
+  });
+
+  it('orders Buyer shops by latest message in either direction, with unused shops last', async () => {
+    prisma.user.findMany.mockResolvedValue([
+      {
+        id: 'unused',
+        name: 'A',
+        _count: { messagesSent: 0 },
+        messagesSent: [],
+        messagesRecv: [],
+      },
+      {
+        id: 'old',
+        name: 'B',
+        _count: { messagesSent: 2 },
+        messagesSent: [{ createdAt: new Date('2026-10-01') }],
+        messagesRecv: [],
+      },
+      {
+        id: 'new',
+        name: 'Z',
+        _count: { messagesSent: 1 },
+        messagesSent: [],
+        messagesRecv: [{ createdAt: new Date('2026-10-10') }],
+      },
+    ]);
+    const shops = await service.getShops('buyer-a');
+    expect(shops.map((shop) => shop.id)).toEqual(['new', 'old', 'unused']);
+    expect(shops[0]).toEqual({ id: 'new', name: 'Z', unreadCount: 1 });
+    expect(
+      prisma.user.findMany.mock.calls[0][0].select.messagesSent.where,
+    ).toEqual({ receiverId: 'buyer-a' });
+    expect(
+      prisma.user.findMany.mock.calls[0][0].select.messagesRecv.where,
+    ).toEqual({ senderId: 'buyer-a' });
+  });
+
+  it('orders Seller customers using only messages with the authenticated Shop', async () => {
+    prisma.user.findMany.mockResolvedValue([
+      {
+        id: 'old',
+        name: 'A',
+        _count: { messagesSent: 0 },
+        messagesSent: [{ createdAt: new Date('2026-10-01') }],
+        messagesRecv: [],
+      },
+      {
+        id: 'new',
+        name: 'Z',
+        _count: { messagesSent: 1 },
+        messagesSent: [],
+        messagesRecv: [{ createdAt: new Date('2026-10-10') }],
+      },
+    ]);
+    const customers = await service.getSellerCustomers('shop-a');
+    expect(customers.map((customer) => customer.id)).toEqual(['new', 'old']);
+    expect(
+      prisma.user.findMany.mock.calls[0][0].select.messagesSent.where,
+    ).toEqual({ receiverId: 'shop-a' });
+    expect(
+      prisma.user.findMany.mock.calls[0][0].select.messagesRecv.where,
+    ).toEqual({ senderId: 'shop-a' });
   });
 });

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import apiClient from '../api/client';
 import type {
   ChatMode,
@@ -8,8 +8,15 @@ import type {
 } from '../components/inbox/types';
 import { usePaginatedConversation } from './usePaginatedConversation';
 import { useConversationMode } from './useConversationMode';
+import { useAuth } from '../context/AuthContext';
+import { useInboxSocket } from './useInboxSocket';
+import {
+  orderInboxContacts,
+  rememberInboxActivity,
+} from '../utils/inboxMessages';
 
 export const useSellerInbox = () => {
+  const { user } = useAuth();
   const [customers, setCustomers] = useState<InboxContact[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(
     null,
@@ -19,40 +26,56 @@ export const useSellerInbox = () => {
   const [inputText, setInputText] = useState('');
   const [sending, setSending] = useState(false);
   const [changingMode, setChangingMode] = useState(false);
+  const activityRef = useRef(
+    new Map<string, Pick<DirectMessage, 'id' | 'createdAt'>>(),
+  );
+  const contactsRequestRef = useRef(0);
   const modeEndpoint = selectedCustomerId
     ? `/messages/seller/conversations/${selectedCustomerId}/mode`
     : null;
   const conversationMode = useConversationMode(modeEndpoint);
 
-  useEffect(() => {
-    let active = true;
+  const fetchCustomers = useCallback(async (initial = false) => {
+    const request = ++contactsRequestRef.current;
+    if (initial) setLoadingCustomers(true);
+    setCustomersError('');
+    try {
+      const response = await apiClient.get<InboxContact[]>(
+        '/messages/seller/customers',
+      );
+      if (request !== contactsRequestRef.current) return;
 
-    const fetchCustomers = async () => {
-      setLoadingCustomers(true);
-      setCustomersError('');
-      try {
-        const response = await apiClient.get<InboxContact[]>(
-          '/messages/seller/customers',
-        );
-        if (!active) return;
-
-        setCustomers(response.data);
-        setSelectedCustomerId(response.data[0]?.id ?? null);
-      } catch (requestError) {
-        console.error('Lỗi khi tải danh sách khách hàng:', requestError);
-        if (active) {
-          setCustomersError('Không thể tải danh sách khách hàng.');
-        }
-      } finally {
-        if (active) setLoadingCustomers(false);
+      const ordered = orderInboxContacts(response.data, activityRef.current);
+      setCustomers((current) =>
+        orderInboxContacts(
+          [
+            ...ordered,
+            ...current.filter(
+              (customer) =>
+                activityRef.current.has(customer.id) &&
+                !ordered.some((entry) => entry.id === customer.id),
+            ),
+          ],
+          activityRef.current,
+        ),
+      );
+      setSelectedCustomerId((current) => current ?? ordered[0]?.id ?? null);
+    } catch (requestError) {
+      console.error('Lỗi khi tải danh sách khách hàng:', requestError);
+      if (request === contactsRequestRef.current) {
+        setCustomersError('Không thể tải danh sách khách hàng.');
       }
-    };
-
-    fetchCustomers();
-    return () => {
-      active = false;
-    };
+    } finally {
+      if (request === contactsRequestRef.current) setLoadingCustomers(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void fetchCustomers(true);
+    return () => {
+      contactsRequestRef.current++;
+    };
+  }, [fetchCustomers]);
 
   const handleMarkedRead = useCallback((customerId: string) => {
     setCustomers((currentCustomers) =>
@@ -68,6 +91,43 @@ export const useSellerInbox = () => {
     onMarkedRead: handleMarkedRead,
   });
 
+  const handleNewMessage = (message: DirectMessage) => {
+    if (
+      !user ||
+      (message.senderId !== user.id && message.receiverId !== user.id)
+    )
+      return;
+    const buyerId =
+      message.senderId === user.id ? message.receiverId : message.senderId;
+    rememberInboxActivity(activityRef.current, buyerId, message);
+    setCustomers((current) => {
+      const known = current.some((customer) => customer.id === buyerId);
+      const entries =
+        !known && message.senderId === buyerId
+          ? [
+              ...current,
+              { id: buyerId, name: message.sender.name, unreadCount: 0 },
+            ]
+          : current;
+      return orderInboxContacts(entries, activityRef.current);
+    });
+    if (!customers.some((customer) => customer.id === buyerId))
+      void fetchCustomers();
+    if (buyerId === selectedCustomerId) conversation.appendMessages(message);
+  };
+  const socket = useInboxSocket(
+    handleNewMessage,
+    () => {
+      void fetchCustomers();
+      void conversation.refreshLatest();
+      void conversationMode.refresh();
+    },
+    (status) => {
+      if (status.sellerId === user?.id && status.buyerId === selectedCustomerId)
+        conversationMode.applyStatus(status);
+    },
+  );
+
   const handleSendMessage = async () => {
     const message = inputText.trim();
     const buyerId = selectedCustomerId;
@@ -81,6 +141,10 @@ export const useSellerInbox = () => {
         { buyerId, message },
       );
       conversation.appendMessages(response.data);
+      rememberInboxActivity(activityRef.current, buyerId, response.data);
+      setCustomers((current) =>
+        orderInboxContacts(current, activityRef.current),
+      );
       setInputText('');
       await conversationMode.refresh();
     } catch (requestError) {
@@ -121,7 +185,11 @@ export const useSellerInbox = () => {
     changingMode,
     conversationMode,
     handleChangeMode,
-    error: customersError || conversation.error || conversationMode.error,
+    error:
+      customersError ||
+      conversation.error ||
+      conversationMode.error ||
+      socket.error,
     setSelectedCustomerId,
     setInputText,
     handleSendMessage,

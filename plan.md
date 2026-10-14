@@ -34,7 +34,7 @@
 
 ---
 
-## 3. BẢNG PHÂN BỔ 18 PHIÊN LÀM VIỆC CHI TIẾT
+## 3. BẢNG PHÂN BỔ 19 PHIÊN LÀM VIỆC CHI TIẾT
 
 > **Ký hiệu:** 🟦 Thịnh (Dev 1 Lead) | 🟩 Kỳ (Dev 2 Lead)
 
@@ -58,6 +58,7 @@
 | **S16** | Dockerfile Multi-stage & Compose Production | 🟩 | `devops/docker-production` | Kỳ lead viết Dockerfile tối ưu cho Backend & Frontend (Nginx proxy); cập nhật `docker-compose.yml` gồm Postgres, Redis, Backend, Frontend. | Chạy `docker compose up --build` khởi động toàn bộ hệ thống mượt mà trên máy mới. |
 | **S17** | GitHub Actions CI Pipeline tự động hóa | 🟩 | `devops/github-actions-ci` | Kỳ lead tạo workflow GitHub Actions: Tự động chạy Lint check → Type check (`tsc --noEmit`) → Chạy Test → Chạy Build khi có PR vào `main`. | PR tự động kiểm tra, báo tích xanh mới cho merge, loại bỏ hoàn toàn lỗi gãy build. |
 | **S18** | Security Hardening & Hoàn thiện README Demo | 🟦 | `chore/security-readme-final` | Thịnh lead audit bảo mật: Bật Helmet, chặn CORS mở, áp Rate Limit Redis, xóa `killPort()`, viết tài liệu `README.md` và kịch bản demo. | `npm audit` sạch lỗ hổng; README có sơ đồ kiến trúc hoàn chỉnh và kịch bản demo mượt. |
+| **S19** | RAG cho Inbox AI & Báo cáo thực nghiệm (7 ngày) | 🟦 | `codex/inbox-rag` | Dev 1 giữ keyword/answer/sellerId; tạo embedding, lọc đúng Shop và chọn kiến thức liên quan trước khi gọi Qwen. Giữ lịch sử, Seller tiếp quản và Socket; so sánh AI cũ/RAG trên 20 tình huống, hoàn thiện báo cáo và demo. Chi tiết tại mục 7. | Không lẫn kiến thức Shop; thiếu dữ liệu thì hỏi lại/từ chối; không phát AI lỗi thời sau tiếp quản; có số liệu thực đo và build/test phù hợp đạt. |
 
 ---
 
@@ -185,3 +186,17 @@ Tài liệu tham khảo: [SePay Webhooks](https://docs.sepay.vn/tich-hop-webhook
    * Bắt buộc chạy `npm run build:backend` và `npm run build:frontend` pass 100% trước khi tạo Pull Request.
 4. **Cập nhật tiến độ:**
    * Ngay sau khi hoàn thành và nghiệm thu xong 1 phiên, chuyển trạng thái tương ứng trong `progress.md` sang `✅ Hoàn thành`.
+
+---
+
+## 7. S19 — Nâng cấp RAG cho Inbox AI & Báo cáo thực nghiệm
+
+| Lead | Thời gian | Nhiệm vụ | Tiêu chuẩn hoàn thành |
+|---|---|---|---|
+| **Dev 1 — Thịnh** | **7 ngày, gồm báo cáo** | Giữ `keyword`, `answer`, `sellerId`; tạo embedding để tìm kiến thức theo ý nghĩa. Lọc đúng Shop trước khi chọn các mục liên quan gửi Qwen. Giữ lịch sử hội thoại, Seller tiếp quản và Socket hiện có. So sánh AI cũ/RAG trên 20 tình huống; đưa kết quả vào báo cáo. | Không lẫn kiến thức giữa Shop; tin hỏi khác từ khóa vẫn tìm được dữ liệu phù hợp; thiếu dữ liệu thì hỏi lại/từ chối; AI không trả lời sau tiếp quản. Có số liệu thực đo, build/test phù hợp đạt và demo ổn định. |
+
+- **Phạm vi:** Nâng cấp module AI trên `KbEntry` hiện có; một dịch vụ embedding dùng chung, bộ nhớ đệm vector trong backend. Chưa thêm PDF, database vector hoặc UI mới.
+- **Lịch:** Ngày 1 chuẩn bị dữ liệu/baseline và thử embedding; ngày 2–3 triển khai; ngày 4–5 kiểm thử, đo và sửa lỗi; ngày 6–7 hoàn thiện báo cáo, slide và demo.
+- **Dependency:** Tận dụng S05 và S06 A/B đã có; kết quả đánh giá bổ sung S15, tài liệu bổ sung S18. Có timeout và phương án dùng luồng AI cũ khi embedding lỗi.
+- **Trước triển khai:** Đọc lại `progress.md`, chốt file tác động và xin xác nhận theo `AGENTS.md`; thay đổi file [CHUNG] cần được duyệt.
+- **Trạng thái:** Chưa triển khai. Mục S19 này chốt phạm vi một tuần, thay cho lịch bốn tuần trong tài liệu RAG tham khảo trước đó.
