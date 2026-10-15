@@ -1,5 +1,16 @@
 # TIẾN ĐỘ DỰ ÁN: LIVEORDER CHỐT ĐƠN ENGINE
 
+## Cập nhật 16/10/2026 — Làm rõ thứ tự ưu tiên và dependency trong plan
+
+- ✅ Hoàn thành cập nhật tài liệu theo yêu cầu người dùng: `plan.md` v2.3, thêm mục 1.2 giải thích S01–S19 là mã đầu việc, không bắt buộc làm tuần tự. Thịnh ưu tiên thử nghiệm S19 ngày 1; Kỳ sửa lỗi bảo mật/chốt đơn song song và phối hợp điểm tích hợp Product.
+- Thêm hai cột trạng thái/dependency cho đủ 19 đầu việc, tổng hợp từ nhật ký và lần rà soát 15/10. S05 đã có code/kiểm tra tự động nhưng chưa nghiệm thu UI/Groq thật; S06 còn reconnect/unread; S19 mới chốt PA2, chưa triển khai. Phần chưa có bằng chứng triển khai ghi “chưa ghi nhận”, không tự đánh dấu hoàn thành.
+- Làm rõ S19 dùng nền S05/S06 A/B/C1 hiện có, không phải chờ toàn bộ S01–S18 hoặc phần reconnect/unread/Payment. Ngày 1 vẫn phải thử model, chọn cách lưu vector và xác nhận lại mục tiêu 7 ngày; Product/file [CHUNG] tuân theo phân công và phê duyệt trước code.
+- Tách nghiệm thu RAG theo mục 7.5 khỏi nghiệm thu toàn hệ thống. Demo chung vẫn cần sửa các lỗi bảo mật/chốt đơn, hoàn thiện các luồng liên quan và kiểm thử hai phía Buyer–Seller. Ghi rõ S07 phụ thuộc Payment S08, S11 phụ thuộc dữ liệu PAID; các màn Orders/thông tin người nhận còn phải chốt nhiệm vụ/owner riêng.
+- Chỉ cập nhật `plan.md` và `progress.md` trên nhánh hiện tại theo yêu cầu; không sửa code/schema, cài dependency, chạy migration hoặc thay đổi trạng thái tính năng thành hoàn thành. `KY_GUIDE.md` không có nên không tạo thêm.
+- Kiểm tra: bảng đủ 19 dòng, mỗi dòng 8 cột và giữ nguyên nội dung 6 cột gốc; rà soát độc lập không phát hiện sai lệch với các nội dung đã duyệt; `git diff --check` đạt. Build Backend và Frontend chạy lại thành công trước commit/push; Frontend còn cảnh báo bundle >500 kB. Thực hiện commit/push hai file tài liệu trên nhánh hiện tại theo yêu cầu đã có của người dùng.
+
+---
+
 ## Cập nhật 15/10/2026 — S19 đổi sang kế hoạch PA2
 
 - ✅ Hoàn thành cập nhật tài liệu theo yêu cầu người dùng: `plan.md` v2.2, dòng S19 trong bảng phiên và mục 7 thống nhất PA2 embedding local bằng Transformers.js, truy xuất KbEntry + tên/SKU Product đúng Shop, lấy giá/kho sống từ DB. Groq giữ vai trò sinh câu trả lời; không thêm PDF/UI hoặc database vector chuyên dụng.
