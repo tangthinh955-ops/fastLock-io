@@ -8,6 +8,9 @@ export class OrderService {
 
     async createOrder(dto: CreateOrderDto) {
         const { buyerId, livestreamId, items } = dto;
+        if (!buyerId) {
+            throw new BadRequestException('Định danh người mua (buyerId) là bắt buộc để tạo đơn hàng');
+        }
 
         // Transaction bảo đảm Atomic Update & Rollback nếu hết hàng
         return await this.prisma.$transaction(async (tx) => {
@@ -63,7 +66,7 @@ export class OrderService {
             // 3. Tạo bản ghi Đơn hàng
             const order = await tx.order.create({
                 data: {
-                    buyerId: buyerId || 'buyer-uuid-001',
+                    buyerId,
                     livestreamId,
                     totalAmount,
                     status: 'PENDING',

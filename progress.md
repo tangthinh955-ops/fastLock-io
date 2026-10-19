@@ -1,5 +1,16 @@
 # TIẾN ĐỘ DỰ ÁN: LIVEORDER CHỐT ĐƠN ENGINE
 
+## Cập nhật 19/10/2026 — S02: Chuẩn hóa Seed UUID v4 Deterministic & Dọn dẹp Fallback (Dev 2 - Kỳ)
+
+- ✅ **Hoàn thành S02 (Chuẩn hóa Seed UUID v4 Deterministic):**
+  - Cập nhật `apps/backend/prisma/seed.ts`: Thay thế các ID dạng text (`admin-uuid-001`, `seller-uuid-001`, `buyer-uuid-001`) bằng các hằng số UUID v4 chuẩn RFC 4122 (`a0000000-0000-4000-8000-000000000001`, `...0002`, `...0003`).
+  - Khắc phục triệt để lỗi `400 Bad Request` khi gọi các API DirectMessage và Order có gắn `@IsUUID('4')` với tài khoản seed.
+  - Cập nhật `apps/backend/src/modules/order/order.service.ts`: Xóa bỏ hoàn toàn fallback `buyerId || 'buyer-uuid-001'`, kiểm tra bắt buộc `buyerId` hợp lệ để đảm bảo tính toàn vẹn dữ liệu đơn hàng.
+  - Cập nhật `apps/frontend/src/pages/seller/SellerDashboard.tsx`: Chuyển fallback an toàn `sellerId` sang UUID v4 (`a0000000-0000-4000-8000-000000000002`).
+- **Kiểm tra build:** `npm run build:backend` và `npm run build:frontend` đều thành công 100% không còn lỗi TypeScript.
+
+---
+
 ## Cập nhật 19/10/2026 — S01, S03 & Bảo vệ Dữ liệu Livestream (Dev 2 - Kỳ)
 
 - ✅ **Hoàn thành S01 (Auth Guards & Phân quyền Tài nguyên):**

@@ -19,7 +19,7 @@ export interface Product {
 
 export const SellerDashboard: React.FC = () => {
   const { user } = useAuth();
-  const sellerId = user?.id || 'seller-uuid-001';
+  const sellerId = user?.id || 'a0000000-0000-4000-8000-000000000002';
 
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
