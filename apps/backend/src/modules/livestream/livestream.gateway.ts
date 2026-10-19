@@ -105,6 +105,14 @@ export class LivestreamGateway implements OnGatewayConnection, OnGatewayDisconne
         @ConnectedSocket() client: Socket,
         @MessageBody() data: SendCommentDto,
     ) {
-        await this.commentProcessor.processComment(this.server, data);
+        const authUser = client.data?.user;
+        const buyerId = authUser?.userId;
+        const buyerName = data.buyerName || authUser?.email?.split('@')[0] || 'Khách hàng';
+
+        await this.commentProcessor.processComment(this.server, {
+            ...data,
+            buyerId,
+            buyerName,
+        });
     }
 }

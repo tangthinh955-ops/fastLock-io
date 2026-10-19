@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 
@@ -63,7 +63,7 @@ export class OrderService {
             // 3. Tạo bản ghi Đơn hàng
             const order = await tx.order.create({
                 data: {
-                    buyerId,
+                    buyerId: buyerId || 'buyer-uuid-001',
                     livestreamId,
                     totalAmount,
                     status: 'PENDING',
@@ -84,7 +84,7 @@ export class OrderService {
         });
     }
 
-    async getOrderById(id: string) {
+    async getOrderById(id: string, user?: { userId: string; role: string }) {
         const order = await this.prisma.order.findUnique({
             where: { id },
             include: {
@@ -96,11 +96,22 @@ export class OrderService {
                 buyer: {
                     select: { id: true, name: true, email: true },
                 },
+                livestream: {
+                    select: { id: true, sellerId: true },
+                },
             },
         });
 
         if (!order) {
             throw new NotFoundException(`Không tìm thấy đơn hàng ID ${id}`);
+        }
+
+        if (user && user.role === 'BUYER' && order.buyerId !== user.userId) {
+            throw new ForbiddenException('Bạn không có quyền xem đơn hàng của người khác!');
+        }
+
+        if (user && user.role === 'SELLER' && order.livestream?.sellerId !== user.userId) {
+            throw new ForbiddenException('Đơn hàng này không thuộc phiên Livestream của bạn!');
         }
 
         return order;

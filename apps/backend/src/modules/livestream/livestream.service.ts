@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { CreateLivestreamDto } from './dto/create-livestream.dto';
 
@@ -9,11 +9,11 @@ export class LivestreamService {
     /**
      * Bắt đầu một phiên Livestream mới cho Seller
      */
-    async createStream(dto: CreateLivestreamDto) {
+    async createStream(sellerId: string, dto: CreateLivestreamDto) {
         // Tự động kết thúc các phiên live cũ đang bật của Seller này (nếu có)
         await this.prisma.livestream.updateMany({
             where: {
-                sellerId: dto.sellerId,
+                sellerId,
                 status: 'LIVE',
             },
             data: {
@@ -26,7 +26,7 @@ export class LivestreamService {
         return await this.prisma.livestream.create({
             data: {
                 title: dto.title,
-                sellerId: dto.sellerId,
+                sellerId,
                 status: 'LIVE',
                 startedAt: new Date(),
             },
@@ -45,10 +45,14 @@ export class LivestreamService {
     /**
      * Kết thúc phiên Livestream
      */
-    async endStream(id: string) {
+    async endStream(id: string, sellerId?: string) {
         const stream = await this.prisma.livestream.findUnique({ where: { id } });
         if (!stream) {
             throw new NotFoundException(`Không tìm thấy phiên Livestream ID: ${id}`);
+        }
+
+        if (sellerId && stream.sellerId !== sellerId) {
+            throw new ForbiddenException('Bạn không có quyền kết thúc phiên Livestream của người khác!');
         }
 
         return await this.prisma.livestream.update({

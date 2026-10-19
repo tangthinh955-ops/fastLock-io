@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
   InternalServerErrorException,
 } from '@nestjs/common';
 import { PrismaService } from '../../core/prisma/prisma.service';
@@ -12,15 +13,15 @@ import { UpdateProductDto } from './dto/update-product.dto';
 export class ProductService {
   constructor(private prisma: PrismaService) {}
 
-  async create(dto: CreateProductDto) {
+  async create(sellerId: string, dto: CreateProductDto) {
     try {
       // 1. Kiểm tra tài khoản Seller có tồn tại không
       const seller = await this.prisma.user.findUnique({
-        where: { id: dto.sellerId },
+        where: { id: sellerId },
       });
       if (!seller) {
         throw new BadRequestException(
-          `Không tìm thấy tài khoản Seller ID '${dto.sellerId}' trong CSDL! Vui lòng đăng nhập lại.`,
+          `Không tìm thấy tài khoản Seller ID '${sellerId}' trong CSDL! Vui lòng đăng nhập lại.`,
         );
       }
 
@@ -33,10 +34,13 @@ export class ProductService {
       }
 
       return await this.prisma.product.create({
-        data: dto,
+        data: {
+          ...dto,
+          sellerId,
+        },
       });
     } catch (err: any) {
-      if (err instanceof BadRequestException || err instanceof NotFoundException) {
+      if (err instanceof BadRequestException || err instanceof NotFoundException || err instanceof ForbiddenException) {
         throw err;
       }
       if (err?.code === 'P1001') {
@@ -70,16 +74,22 @@ export class ProductService {
     return product;
   }
 
-  async update(id: string, dto: UpdateProductDto) {
-    await this.findOne(id);
+  async update(id: string, sellerId: string, dto: UpdateProductDto) {
+    const product = await this.findOne(id);
+    if (product.sellerId !== sellerId) {
+      throw new ForbiddenException('Bạn không có quyền chỉnh sửa sản phẩm của Shop khác!');
+    }
     return this.prisma.product.update({
       where: { id },
       data: dto,
     });
   }
 
-  async remove(id: string) {
-    await this.findOne(id);
+  async remove(id: string, sellerId: string) {
+    const product = await this.findOne(id);
+    if (product.sellerId !== sellerId) {
+      throw new ForbiddenException('Bạn không có quyền xóa sản phẩm của Shop khác!');
+    }
     return this.prisma.product.delete({ where: { id } });
   }
 }

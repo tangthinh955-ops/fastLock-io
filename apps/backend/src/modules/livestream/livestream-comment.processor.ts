@@ -49,6 +49,18 @@ export class LivestreamCommentProcessor {
             const isOrder = Boolean(finalPhone && parseResult.skus.length > 0);
 
             if (isOrder && parseResult.skus.length > 0) {
+                if (!buyerId) {
+                    this.logger.warn(`Bình luận chứa SKU & SĐT nhưng buyer chưa đăng nhập: livestreamId=${livestreamId}`);
+                    server.to(livestreamId).emit('comment_received', {
+                        id: `comment-${Date.now()}`,
+                        buyerName: buyerName || 'Khách vãng lai',
+                        content: commentText,
+                        isOrder: false,
+                        createdAt: new Date(),
+                    });
+                    return;
+                }
+
                 const targetSku = parseResult.skus[0];
                 const product = await this.prisma.product.findUnique({
                     where: { sku: targetSku },
@@ -57,10 +69,14 @@ export class LivestreamCommentProcessor {
                 if (product && product.sellerId === sellerId && product.stock > 0) {
                     try {
                         const order = await this.orderService.createOrder({
-                            buyerId: buyerId || 'buyer-uuid-001',
+                            buyerId,
                             livestreamId,
                             items: [{ productId: product.id, quantity: 1 }],
                         });
+
+                        const maskedPhone = (finalPhone && finalPhone.length >= 7)
+                            ? `${finalPhone.slice(0, 4)}***${finalPhone.slice(-3)}`
+                            : (finalPhone || '');
 
                         server.to(livestreamId).emit('new_order', {
                             orderId: order.id,
@@ -69,7 +85,7 @@ export class LivestreamCommentProcessor {
                             price: product.price,
                             totalAmount: order.totalAmount,
                             buyerName: buyerName || 'Khách hàng',
-                            phone: finalPhone,
+                            phone: maskedPhone,
                             createdAt: order.createdAt,
                         });
 
@@ -83,16 +99,14 @@ export class LivestreamCommentProcessor {
                             createdAt: new Date(),
                         });
 
-                        if (buyerId && buyerId !== 'buyer-uuid-001') {
-                            await this.directMessageService.sendOrderMessage(
-                                sellerId,
-                                buyerId,
-                                order.totalAmount,
-                                order.id,
-                                product.name,
-                                product.sku,
-                            );
-                        }
+                        await this.directMessageService.sendOrderMessage(
+                            sellerId,
+                            buyerId,
+                            order.totalAmount,
+                            order.id,
+                            product.name,
+                            product.sku,
+                        );
                         return;
                     } catch (orderErr) {
                         this.logger.error(`Lỗi khi tạo đơn hàng: ${orderErr.message}`);

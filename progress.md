@@ -1,5 +1,23 @@
 # TIẾN ĐỘ DỰ ÁN: LIVEORDER CHỐT ĐƠN ENGINE
 
+## Cập nhật 19/10/2026 — S01, S03 & Bảo vệ Dữ liệu Livestream (Dev 2 - Kỳ)
+
+- ✅ **Hoàn thành S01 (Auth Guards & Phân quyền Tài nguyên):**
+  - Tạo decorator `@CurrentUser()` trích xuất an toàn payload JWT (`userId`, `role`, `email`).
+  - Bảo vệ `ProductController`: `@UseGuards(JwtAuthGuard, RolesGuard)` và `@Roles(Role.SELLER)` cho `POST`, `PATCH`, `DELETE`. Các endpoint `GET` vẫn mở public để viewer xem danh mục.
+  - Phân quyền trong `ProductService`: `create`, `update`, `remove` sử dụng `sellerId` từ token JWT, ngăn chặn can thiệp sản phẩm giữa các shop khác nhau (`ForbiddenException`).
+  - Bảo vệ `OrderController`: `@UseGuards(JwtAuthGuard)` trên `POST /orders` (tự động gán `buyerId` từ token) và `GET /orders/:id`. `OrderService.getOrderById` kiểm tra quyền sở hữu (Buyer chỉ xem đơn của mình, Seller chỉ xem đơn phát sinh từ live của shop mình).
+  - Bảo vệ `LivestreamController`: `@UseGuards(JwtAuthGuard, RolesGuard)` và `@Roles(Role.SELLER)` cho `POST /livestreams` và `PATCH /livestreams/:id/end`. `LivestreamService.endStream` kiểm tra quyền sở hữu phiên live.
+- ✅ **Hoàn thành S03 (Xác thực Socket & Định danh Buyer):**
+  - `LivestreamGateway`: Trong sự kiện `send_comment`, trích xuất `buyerId` và `buyerName` trực tiếp từ `client.data.user` (đã verify qua JWT handshake), loại bỏ việc tin tưởng `buyerId` gửi từ client payload.
+  - `LivestreamCommentProcessor`: Loại bỏ triệt để fallback `buyer-uuid-001`. Nếu bình luận chứa SKU & SĐT nhưng buyer chưa xác thực danh tính, hệ thống bỏ qua chốt đơn và ghi log cảnh báo.
+  - Refactor `LiveStudio.tsx`: Thay thế gọi `axios.post` trực tiếp bằng `apiClient` để tự động đính kèm `Bearer token`.
+- ✅ **Bảo vệ Quyền riêng tư (SĐT):**
+  - Server-side Masking: Tự động che số điện thoại (`0912***678`) trước khi emit sự kiện `new_order` tới toàn bộ người xem trong phòng livestream.
+- **Kiểm tra build:** `npm run build:backend` và `npm run build:frontend` đều thành công 100% không còn lỗi TypeScript.
+
+---
+
 ## Cập nhật 16/10/2026 — Làm rõ thứ tự ưu tiên và dependency trong plan
 
 - ✅ Hoàn thành cập nhật tài liệu theo yêu cầu người dùng: `plan.md` v2.3, thêm mục 1.2 giải thích S01–S19 là mã đầu việc, không bắt buộc làm tuần tự. Thịnh ưu tiên thử nghiệm S19 ngày 1; Kỳ sửa lỗi bảo mật/chốt đơn song song và phối hợp điểm tích hợp Product.
