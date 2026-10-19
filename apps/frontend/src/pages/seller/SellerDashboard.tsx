@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Container, Snackbar, Alert } from '@mui/material';
+import { Container, Snackbar, Alert, Box, Tabs, Tab } from '@mui/material';
+import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
+import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
 import apiClient from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { ProductStatsHeader } from '../../components/product/ProductStatsHeader';
 import { ProductTableList } from '../../components/product/ProductTableList';
 import { ProductFormModal } from '../../components/product/ProductFormModal';
+import { SellerOrderTable, type Order } from '../../components/order/SellerOrderTable';
 
 export interface Product {
   id: string;
@@ -21,6 +24,9 @@ export const SellerDashboard: React.FC = () => {
   const { user } = useAuth();
   const sellerId = user?.id || 'a0000000-0000-4000-8000-000000000002';
 
+  const [currentTab, setCurrentTab] = useState<number>(0);
+
+  // Sản phẩm state
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -34,6 +40,13 @@ export const SellerDashboard: React.FC = () => {
   const [formImageUrl, setFormImageUrl] = useState<string>('');
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState<boolean>(false);
+
+  // Đơn hàng state
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState<boolean>(false);
+  const [orderStatusFilter, setOrderStatusFilter] = useState<string>('');
+  const [orderPage, setOrderPage] = useState<number>(1);
+  const [orderTotalPages, setOrderTotalPages] = useState<number>(1);
 
   const [toast, setToast] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
     open: false,
@@ -54,9 +67,33 @@ export const SellerDashboard: React.FC = () => {
     }
   }, [sellerId]);
 
+  const fetchOrders = useCallback(async () => {
+    setOrdersLoading(true);
+    try {
+      const params: any = { page: orderPage, limit: 10 };
+      if (orderStatusFilter) {
+        params.status = orderStatusFilter;
+      }
+      const res = await apiClient.get('/orders/seller', { params });
+      setOrders(res.data.data);
+      setOrderTotalPages(res.data.totalPages || 1);
+    } catch (err: any) {
+      console.error('Lỗi khi tải danh sách đơn hàng:', err);
+      setToast({ open: true, message: 'Không thể tải danh sách đơn hàng!', severity: 'error' });
+    } finally {
+      setOrdersLoading(false);
+    }
+  }, [orderPage, orderStatusFilter]);
+
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
+
+  useEffect(() => {
+    if (currentTab === 1) {
+      fetchOrders();
+    }
+  }, [currentTab, fetchOrders]);
 
   const handleOpenAddModal = () => {
     setEditingProduct(null);
@@ -119,25 +156,88 @@ export const SellerDashboard: React.FC = () => {
     }
   };
 
+  const handleUpdateOrderStatus = async (orderId: string, newStatus: 'PAID' | 'CANCELLED') => {
+    try {
+      await apiClient.patch(`/orders/${orderId}/status`, { status: newStatus });
+      setToast({
+        open: true,
+        message: newStatus === 'PAID' ? 'Đã xác nhận thanh toán đơn hàng!' : 'Đã hủy đơn hàng & hoàn kho thành công!',
+        severity: 'success',
+      });
+      fetchOrders();
+      fetchProducts();
+    } catch (err: any) {
+      const msg = err.response?.data?.message || 'Thao tác cập nhật đơn hàng thất bại!';
+      setToast({ open: true, message: msg, severity: 'error' });
+    }
+  };
+
   const filteredProducts = products.filter(
     (p) => p.sku.toLowerCase().includes(searchQuery.toLowerCase()) || p.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
     <Container maxWidth="xl" sx={{ mt: 4, mb: 6 }}>
-      <ProductStatsHeader products={products} onRefresh={fetchProducts} />
-      <ProductTableList
-        products={filteredProducts} loading={loading} searchQuery={searchQuery}
-        onSearchChange={setSearchQuery} onOpenAddModal={handleOpenAddModal}
-        onOpenEditModal={handleOpenEditModal} onDelete={handleDelete}
-      />
-      <ProductFormModal
-        open={openModal} editingProduct={editingProduct} formSku={formSku} formName={formName}
-        formPrice={formPrice} formStock={formStock} formImageUrl={formImageUrl} formError={formError}
-        submitting={submitting} onClose={() => setOpenModal(false)} onSkuChange={setFormSku}
-        onNameChange={setFormName} onPriceChange={setFormPrice} onStockChange={setFormStock}
-        onImageUrlChange={setFormImageUrl} onSubmit={handleSubmit}
-      />
+      {/* Navigation Tabs */}
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 4 }}>
+        <Tabs
+          value={currentTab}
+          onChange={(_, val) => setCurrentTab(val)}
+          textColor="primary"
+          indicatorColor="primary"
+        >
+          <Tab
+            icon={<Inventory2OutlinedIcon />}
+            iconPosition="start"
+            label="Quản lý Sản phẩm & Tồn kho"
+            sx={{ fontWeight: 600, fontSize: '0.95rem', py: 1.5 }}
+          />
+          <Tab
+            icon={<ReceiptLongOutlinedIcon />}
+            iconPosition="start"
+            label="Quản lý Đơn hàng Livestream"
+            sx={{ fontWeight: 600, fontSize: '0.95rem', py: 1.5 }}
+          />
+        </Tabs>
+      </Box>
+
+      {/* Tab 0: Danh sách sản phẩm */}
+      {currentTab === 0 && (
+        <>
+          <ProductStatsHeader products={products} onRefresh={fetchProducts} />
+          <ProductTableList
+            products={filteredProducts} loading={loading} searchQuery={searchQuery}
+            onSearchChange={setSearchQuery} onOpenAddModal={handleOpenAddModal}
+            onOpenEditModal={handleOpenEditModal} onDelete={handleDelete}
+          />
+          <ProductFormModal
+            open={openModal} editingProduct={editingProduct} formSku={formSku} formName={formName}
+            formPrice={formPrice} formStock={formStock} formImageUrl={formImageUrl} formError={formError}
+            submitting={submitting} onClose={() => setOpenModal(false)} onSkuChange={setFormSku}
+            onNameChange={setFormName} onPriceChange={setFormPrice} onStockChange={setFormStock}
+            onImageUrlChange={setFormImageUrl} onSubmit={handleSubmit}
+          />
+        </>
+      )}
+
+      {/* Tab 1: Danh sách đơn hàng */}
+      {currentTab === 1 && (
+        <SellerOrderTable
+          orders={orders}
+          loading={ordersLoading}
+          statusFilter={orderStatusFilter}
+          onStatusFilterChange={(val) => {
+            setOrderStatusFilter(val);
+            setOrderPage(1);
+          }}
+          onUpdateStatus={handleUpdateOrderStatus}
+          onRefresh={fetchOrders}
+          page={orderPage}
+          totalPages={orderTotalPages}
+          onPageChange={setOrderPage}
+        />
+      )}
+
       <Snackbar open={toast.open} autoHideDuration={4000} onClose={() => setToast({ ...toast, open: false })} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}>
         <Alert severity={toast.severity} sx={{ width: '100%', borderRadius: 2 }}>{toast.message}</Alert>
       </Snackbar>

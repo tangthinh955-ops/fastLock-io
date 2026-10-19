@@ -1,5 +1,23 @@
 # TIẾN ĐỘ DỰ ÁN: LIVEORDER CHỐT ĐƠN ENGINE
 
+## Cập nhật 19/10/2026 — S08: Quản lý Vòng đời Đơn hàng & Hoàn kho Atomic khi Hủy đơn (Dev 2 - Kỳ)
+
+- ✅ **Hoàn thành S08 (Order Lifecycle & Hoàn kho Atomic):**
+  - Tạo DTO `UpdateOrderStatusDto` xác thực enum `OrderStatus` (`PENDING`, `PAID`, `CANCELLED`).
+  - Tạo DTO `GetOrdersQueryDto` hỗ trợ phân trang (`page`, `limit`) và lọc trạng thái đơn hàng.
+  - Cập nhật `OrderService`:
+    - `getOrdersForSeller`: Lấy danh sách đơn của shop đang đăng nhập, phân trang, lọc theo trạng thái, bao gồm chi tiết sản phẩm, phiên live và khách hàng.
+    - `getOrdersForBuyer`: Lấy lịch sử đơn hàng của người mua đang đăng nhập.
+    - `updateOrderStatus`: Kiểm tra quyền sở hữu đơn hàng của shop, kiểm soát chuyển trạng thái hợp lệ (chặn chuyển ngược `PAID` → `PENDING` hoặc sửa đơn đã `CANCELLED`).
+    - **Hoàn kho Atomic:** Khi đơn hàng chuyển sang `CANCELLED`, hệ thống tự động hoàn lại số lượng tồn kho nguyên tử (`stock: { increment: quantity }`) cho từng sản phẩm trong Prisma transaction.
+  - Cập nhật `OrderController`: Mở các endpoints `@Get('seller')` (Role: SELLER), `@Get('buyer')` (Role: BUYER), và `@Patch(':id/status')` (Role: SELLER) với đầy đủ JwtAuthGuard và RolesGuard.
+  - Frontend:
+    - Xây dựng component `SellerOrderTable.tsx` hiển thị danh sách đơn hàng, chip trạng thái trực quan, bộ lọc trạng thái, phân trang và các nút hành động "Xác nhận thanh toán" / "Hủy & Hoàn kho".
+    - Tích hợp hệ thống Tabs ("Quản lý Sản phẩm & Tồn kho" và "Quản lý Đơn hàng Livestream") trong `SellerDashboard.tsx`.
+- **Kiểm tra build:** `npm run build:backend` và `npm run build:frontend` đều thành công 100% không còn lỗi TypeScript.
+
+---
+
 ## Cập nhật 19/10/2026 — S02: Chuẩn hóa Seed UUID v4 Deterministic & Dọn dẹp Fallback (Dev 2 - Kỳ)
 
 - ✅ **Hoàn thành S02 (Chuẩn hóa Seed UUID v4 Deterministic):**
