@@ -1,7 +1,12 @@
-import { Controller, Post, Get, Patch, Body, Param } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Body, Param, UseGuards } from '@nestjs/common';
+import { Role } from '@prisma/client';
 import { LivestreamService } from './livestream.service';
 import { CreateLivestreamDto } from './dto/create-livestream.dto';
 import { LivestreamGateway } from './livestream.gateway';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
 @Controller('livestreams')
 export class LivestreamController {
@@ -11,15 +16,25 @@ export class LivestreamController {
     ) { }
 
     @Post()
-    async createStream(@Body() dto: CreateLivestreamDto) {
-        const stream = await this.livestreamService.createStream(dto);
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(Role.SELLER)
+    async createStream(
+        @CurrentUser('userId') sellerId: string,
+        @Body() dto: CreateLivestreamDto,
+    ) {
+        const stream = await this.livestreamService.createStream(sellerId, dto);
         this.livestreamGateway.notifyStreamStarted(stream);
         return stream;
     }
 
     @Patch(':id/end')
-    async endStream(@Param('id') id: string) {
-        const stream = await this.livestreamService.endStream(id);
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(Role.SELLER)
+    async endStream(
+        @Param('id') id: string,
+        @CurrentUser('userId') sellerId: string,
+    ) {
+        const stream = await this.livestreamService.endStream(id, sellerId);
         this.livestreamGateway.notifyStreamEnded(id);
         return stream;
     }

@@ -3,16 +3,20 @@ import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
+export const SEED_ADMIN_ID = 'a0000000-0000-4000-8000-000000000001';
+export const SEED_SELLER_ID = 'a0000000-0000-4000-8000-000000000002';
+export const SEED_BUYER_ID = 'a0000000-0000-4000-8000-000000000003';
+
 async function main() {
   console.log('Bắt đầu khởi tạo dữ liệu mẫu (Seeding)...');
   const passwordHash = await bcrypt.hash('123456', 10);
 
-  // 1. Tạo ADMIN với ID cố định 'admin-uuid-001'
+  // 1. Tạo ADMIN với UUID v4 cố định
   const admin = await prisma.user.upsert({
     where: { email: 'admin@liveorder.com' },
-    update: { id: 'admin-uuid-001' },
+    update: { id: SEED_ADMIN_ID, password: passwordHash, name: 'System Admin', role: Role.ADMIN },
     create: {
-      id: 'admin-uuid-001',
+      id: SEED_ADMIN_ID,
       email: 'admin@liveorder.com',
       password: passwordHash,
       name: 'System Admin',
@@ -20,12 +24,12 @@ async function main() {
     },
   });
 
-  // 2. Tạo SELLER với ID cố định 'seller-uuid-001'
+  // 2. Tạo SELLER với UUID v4 cố định
   const seller = await prisma.user.upsert({
     where: { email: 'seller@liveorder.com' },
-    update: { id: 'seller-uuid-001' },
+    update: { id: SEED_SELLER_ID, password: passwordHash, name: 'Chủ Shop (Streamer)', role: Role.SELLER },
     create: {
-      id: 'seller-uuid-001',
+      id: SEED_SELLER_ID,
       email: 'seller@liveorder.com',
       password: passwordHash,
       name: 'Chủ Shop (Streamer)',
@@ -33,12 +37,12 @@ async function main() {
     },
   });
 
-  // 3. Tạo BUYER với ID cố định 'buyer-uuid-001'
+  // 3. Tạo BUYER với UUID v4 cố định
   const buyer = await prisma.user.upsert({
     where: { email: 'buyer@liveorder.com' },
-    update: { id: 'buyer-uuid-001' },
+    update: { id: SEED_BUYER_ID, password: passwordHash, name: 'Khách hàng', role: Role.BUYER },
     create: {
-      id: 'buyer-uuid-001',
+      id: SEED_BUYER_ID,
       email: 'buyer@liveorder.com',
       password: passwordHash,
       name: 'Khách hàng',
@@ -46,7 +50,7 @@ async function main() {
     },
   });
 
-  console.log('Seeding thành công! Các tài khoản cố định ID:');
+  console.log('Seeding thành công! Các tài khoản cố định ID (UUID v4):');
   console.log('- Admin:', admin.email, `(ID: ${admin.id})`);
   console.log('- Seller:', seller.email, `(ID: ${seller.id})`);
   console.log('- Buyer:', buyer.email, `(ID: ${buyer.id})`);

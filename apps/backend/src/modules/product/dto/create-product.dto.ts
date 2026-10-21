@@ -23,7 +23,7 @@ export class CreateProductDto {
   @IsString()
   imageUrl?: string;
 
-  @IsNotEmpty({ message: 'sellerId không được để trống' })
+  @IsOptional()
   @IsString()
-  sellerId: string;
+  sellerId?: string;
 }

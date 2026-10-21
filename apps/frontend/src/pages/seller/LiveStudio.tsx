@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Box, Grid } from '@mui/material';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from '../../context/AuthContext';
-import axios from 'axios';
+import apiClient from '../../api/client';
 import { StreamControlHeader } from '../../components/stream/StreamControlHeader';
 import { WebCamPlayer } from '../../components/stream/WebCamPlayer';
 import { RecentOrdersList, type OrderNotification } from '../../components/stream/RecentOrdersList';
@@ -65,7 +65,7 @@ export const LiveStudio: React.FC = () => {
     const handleStartLive = async () => {
         if (!user) return;
         try {
-            const res = await axios.post(`${API_BASE}/livestreams`, { title: streamTitle, sellerId: user.id });
+            const res = await apiClient.post('/livestreams', { title: streamTitle });
             const streamData = res.data;
             setCurrentStreamId(streamData.id);
             setIsStreaming(true);
@@ -95,7 +95,7 @@ export const LiveStudio: React.FC = () => {
 
     const handleEndLive = async () => {
         if (currentStreamId) {
-            try { await axios.patch(`${API_BASE}/livestreams/${currentStreamId}/end`); } catch {}
+            try { await apiClient.patch(`/livestreams/${currentStreamId}/end`); } catch {}
         }
         if (socketRef.current) {
             socketRef.current.emit('leave_room', { livestreamId: currentStreamId });
