@@ -1,5 +1,49 @@
 # TIẾN ĐỘ DỰ ÁN: LIVEORDER CHỐT ĐƠN ENGINE
 
+## Cập nhật 22/10/2026 — S19 sửa AI lặp thông tin sản phẩm cũ trong lịch sử (Dev 1)
+
+- ✅ Hoàn thành bước sửa đã được yêu cầu: khi tư vấn sản phẩm, ưu tiên nguồn Product vừa đọc từ DB; giữ lịch sử để hiểu mẫu/nhu cầu/chiều cao/cân nặng. Tiếp tục trên `feat/s19-rag-demo`, giữ nguyên staging có trước, không commit/push.
+- Chẩn đoán bằng dữ liệu thực tế: SP03 Áo thun basic và SP04 Áo sơ mi nam đã có vector hợp lệ, retrieval chọn đúng hai nguồn mới. Replay Groq với lịch sử lặp nhiều lần vẫn trả SP01/SP02; cùng câu hỏi bỏ lịch sử thì trả nguồn mới. Lỗi quan sát nằm ở bước sinh câu trả lời, không phải DB chưa lưu hoặc vector chưa tạo.
+- AiService gửi một system prompt quy định thẩm quyền nguồn, giữ nguyên lịch sử native-role trong giới hạn cũ, rồi một lượt user cuối chứa nguồn hiện tại và câu hỏi nguyên văn có delimiter. Nguồn chỉ gửi một lần; không dựa vào system message thứ hai giữa hội thoại. Quy tắc tên/SKU/giá/kho theo nguồn Product hiện tại, không điền bằng tin AI cũ khi thiếu dữ liệu; giữ KB cho bảng size/chính sách. Không thay query/retrieval/API/Socket/mode/version.
+- Cảnh báo rõ kết quả truy xuất chỉ là một phần danh mục, không có tổng số loại/mẫu; câu hỏi tổng số phải nói chưa đủ dữ liệu và chỉ giới thiệu ứng viên đang có nguồn. Chưa xây dựng chức năng thống kê/liệt kê đầy đủ danh mục.
+- Thêm regression test bắt đúng cấu trúc request: nhiều câu trả lời cũ vẫn giữ nguyên, dữ liệu Product mới ở lượt cuối, không nhân đôi nguồn. Đã chạy test fail trước rồi sửa pass; unit test chỉ xác minh request, không giả lập bằng chứng chất lượng Groq. Review độc lập không thấy blocker trong diff tạo request.
+- Kiểm tra cuối: **5 suite / 89 test AI/Inbox pass**, Backend build thành công, Prettier và git diff --check đạt. Frontend không đổi nên không chạy lại build Frontend ở bước này.
+- Groq thật trên bản cuối: giữ lịch sử cũ vẫn trả SP04/SP03; tin thử cũ báo SP04 giá 100.000đ/kho 1 nhưng câu mới trả đúng DB 300.000đ/kho 5; hỏi tổng loại áo trả chưa có tổng số và giới thiệu SP03/SP04; câu nối tiếp dùng đúng 170cm/65kg và thích mặc rộng, không hỏi lại số đo đã có. Đây là các lượt thử thực tế có giới hạn, không bảo đảm mọi câu hỏi/mọi lần sinh đều chính xác.
+- [MODIFY]: `apps/backend/src/modules/ai/ai.service.ts`, `apps/backend/src/modules/ai/ai.service.spec.ts`, `docs/s19-demo.md`, `progress.md`. Không tạo file, không đổi schema/dependency, không chạy migration hoặc xóa lịch sử; script chẩn đoán không lưu câu trả lời vào Inbox. Không sửa file Dev 2/[CHUNG].
+- S19 vẫn cần nghiệm thu trình duyệt và bộ đánh giá A/B theo plan; không suy ra cải thiện token/độ chính xác tổng quát từ riêng lỗi đã sửa.
+
+---
+
+## Cập nhật 22/10/2026 — S19 mở rộng tìm Product bằng RAG (Dev 1)
+
+- ✅ Hoàn thành phần code và kiểm tra tự động Product RAG đã duyệt trên `feat/s19-rag-demo`; chưa nghiệm thu toàn bộ S19. Giữ nguyên staging của phần KB có trước, không commit/push.
+- Thêm bảng ProductEmbedding (productId PK/FK, vector/hash/model) và quan hệ ngược trong Product theo phạm vi schema đã duyệt. Migration `20261022010000_add_product_embeddings` chỉ tạo bảng/FK cascade, đã deploy vào DB `.env` localhost:5432; cả 5 migration up to date. Prisma generate/validate đạt; không reset/xóa dữ liệu cũ.
+- ProductRetrievalService đọc Product đúng sellerId, ưu tiên SKU chính xác; không thay mã thiếu bằng mẫu gần nghĩa. Không có mã thì embed câu hỏi, cosine với vector tên + SKU, tối đa 2 Product. Vector thiếu/cũ tạo bù tối đa 16/lượt, chống tác vụ trùng; giá/kho không nằm trong vector và được đọc lại từ DB trước khi dựng prompt. Product xóa thì vector xóa cascade; tên/SKU đổi thì chỉ mục được tạo lại khi retrieve.
+- AiService ghép Product + KB tối đa 3 nguồn/4.000 ký tự, dành chỗ cho hai loại nguồn nếu phù hợp và vừa ngân sách, dùng chung một vector truy vấn. Prompt cho phép báo snapshot giá/kho nhưng không giữ hàng/tạo đơn/xác nhận thanh toán; không bịa màu/size/chất liệu thiếu dữ liệu. Giữ API Inbox, lịch sử, Socket và mode/version/HUMAN.
+- Rà soát độc lập phát hiện lỗi SKU có dấu nối và ngữ cảnh đổi mẫu; đã thêm regression test, xác minh test fail rồi sửa: AO-SP01 không bị tách, SP01-RED không lấy SP01, AO-KHAC viết hoa chưa có thì báo thiếu; “Còn áo polo” không kéo SKU cũ. “Vậy áo còn hàng không?”/trả lời cân nặng và áo rộng vẫn giữ ngữ cảnh; tên T-shirt không bị mặc định coi là mã. Nhận diện câu nối tiếp vẫn dùng heuristic, mã tự do nên ghi rõ SKU để tránh mơ hồ.
+- Kiểm tra: 5 suite AI/Product retrieval/KB retrieval/Inbox Gateway/Inbox Service, **88 ca pass**; Backend và Frontend build đạt (Frontend còn cảnh báo bundle >500 kB). Không chạy toàn bộ suite scaffolding ngoài phạm vi. Đã tách cosine/kiểm tra vector dùng chung vào vector.utils, không thay đổi embedding model/dependency.
+- PostgreSQL + embedding local thật: 4 sản phẩm thử tạo 4 vector, service mới dùng lại không embed passage; đổi giá/kho không embed lại; đổi tên chỉ tạo lại 1 vector; xóa Product xóa vector; không lẫn Shop/mã gần giống. Câu áo sơ mi/áo phông/quần bò đứng đầu đúng nguồn trong bộ thử nhỏ, nhưng điểm các mẫu gần nhau nên chưa kết luận chất lượng tổng quát.
+- HTTP + Groq thật: câu hỏi kết hợp SKU + giá/kho/phí ship trả đúng fixture **125.000đ, 2 sản phẩm, 25.000đ**; mã không tồn tại không bị thay thế; chuyển HUMAN rồi gửi Buyer có aiMessage=null. Toàn bộ user/KB/Product/conversation/tin/vector fixture đã dọn; dữ liệu nghiệp vụ còn 9 User/2 Product/4 KB/18 Live/10 Order/10 OrderItem/1 Conversation/24 DirectMessage như trước phần Product này (khác mốc 17 Live của lần kiểm tra KB trước đó).
+- [CREATE]: migration Product nêu trên; `ai/product-retrieval.service.ts`; `ai/product-retrieval.service.spec.ts`; `ai/vector.utils.ts`. [MODIFY]: `prisma/schema.prisma`; `ai/ai.service.ts`; `ai/ai.service.spec.ts`; `ai/ai.module.ts`; `ai/knowledge-retrieval.service.ts`; `docs/s19-demo.md`; `plan.md`; `progress.md`. Không sửa CRUD Product/Order/Parser/Livestream/Live Studio hoặc API DirectMessage. `KY_GUIDE.md` không có nên không tạo ngoài kế hoạch.
+- Còn lại: nghiệm thu Buyer/Seller trên trình duyệt, thử ngữ cảnh khó và đủ bộ A/B ít nhất 20 tình huống theo plan mục 7.5; chưa tuyên bố token/độ chính xác tốt hơn baseline khi chưa đo.
+
+---
+
+## Cập nhật 22/10/2026 — S19 demo KB: RAG local và vector PostgreSQL (Dev 1)
+
+- ✅ Hoàn thành code và kiểm tra tự động bản demo KB trên `feat/s19-rag-demo`; chưa đánh dấu hoàn thành toàn bộ S19 PA2. Giữ thay đổi local có trước trong plan/progress, không tự commit/push.
+- Tạo EmbeddingService dùng Transformers.js 3.8.1, Xenova/multilingual-e5-small q8/mean/L2/prefix query-passage, vector 384 chiều; dùng chung loader và xếp hàng inference để giới hạn tải CPU/RAM. Thử tiếng Việt/offline sau cache thành công; số liệu và giới hạn ghi tại docs/s19-demo.md.
+- Tạo KnowledgeRetrievalService: lưu Float[]/embeddingModel/embeddingHash trong KbEntry, tái sử dụng vector đúng hash/model sau khi tạo lại service, tạo bù có giới hạn lô 16, chống embed passage trùng, lưu có điều kiện theo nội dung/owner, kiểm tra lại nguồn sau inference. Cosine theo đúng Shop, tối đa 3 nguồn/4.000 ký tự; ngưỡng thử ban đầu 0,82 chưa phải kết quả đánh giá chính thức. Timeout 30 giây trả thông báo kiểm tra; không fallback sang full-KB không giới hạn.
+- Migration `20261022000000_add_kb_embeddings` chỉ thêm 3 cột và index sellerId, đã áp dụng trên database `.env` ở localhost:5432 sau khi xác nhận 3 migration cũ đều đã áp dụng. Không reset, không chạy lại migration xóa tin cũ. Prisma Client generate thành công; cả 4 migration up to date. Đã tạo vector cho 4 KB hiện có, không đổi tiêu đề/nội dung.
+- AiService chỉ ghép nguồn truy xuất vào prompt, giữ lịch sử/mode/version/Socket. Bổ sung ngữ cảnh cho câu nối tiếp và trả lời chiều cao/cân nặng; câu có SKU mới không kéo ngữ cảnh SKU cũ. Không có nguồn thì báo thiếu dữ liệu, embedding lỗi thì báo kiểm tra, không gọi Groq bằng full-KB. Log nguồn/độ trễ và token usage nếu có, không log toàn hội thoại hoặc khóa.
+- Gỡ giới hạn 20 tại Service/Controller và AiSettingsPage; giao diện/validation dùng Tiêu đề/Nội dung kiến thức, giữ API keyword/answer và giới hạn 100/1.000 ký tự. GET/POST/DELETE KB không đưa vector ra response. Chỉ sửa trang Seller AI đã được duyệt, không sửa Product/Order/Parser/Live Studio hoặc logic DirectMessage.
+- Kiểm tra: 4 bộ test AI/retrieval/Inbox, 64 ca pass; build Backend và Frontend thành công, Frontend còn cảnh báo bundle >500 kB. Test được viết/chạy fail trước phần tương ứng, sau sửa chạy pass. Review độc lập chỉ ra mất ngữ cảnh câu trả lời chiều cao/cân nặng; đã thêm 2 regression test và sửa, đều pass.
+- PostgreSQL + embedding thật: tạo 21 mục qua AiService, đúng 21 passage embedding; hai Shop không lẫn nguồn; dùng lại vector DB, sửa chỉ embed lại mục đó, nguồn xóa không còn trong kết quả, câu ngoài dữ liệu bị loại. HTTP thật: tạo/list KB, ẩn vector, chặn Buyer 403, tiêu đề quá dài 400. HTTP + Groq thật trả đúng phí ship theo fixture; HUMAN trả aiMessage=null. Lỗi kết nối Groq trong sandbox được xác minh bằng request ngoài sandbox thành công.
+- Dữ liệu test tạm đã dọn; còn 9 User/2 Product/4 KB/17 Live/10 Order/10 OrderItem/1 Conversation/24 DirectMessage như trước. Hash nội dung 4 KB trước/sau khớp. Chưa nghiệm thu giao diện bằng trình duyệt, toàn bộ 8 tình huống với Groq/UI, bộ 20 tình huống A/B hoặc Product/giá/kho sống. Không tuyên bố hoàn tất S19 đầy đủ hay token/độ chính xác cải thiện khi chưa đo.
+- File CREATE: migration nêu trên; ai/embedding.service.ts; ai/knowledge-retrieval.service.ts; ai/knowledge-retrieval.service.spec.ts; docs/s19-demo.md. File MODIFY: schema.prisma; ai.service.ts/spec.ts/controller.ts/module.ts; dto/create-kb.dto.ts; seller/AiSettingsPage.tsx; backend/package.json; package-lock.json; plan.md; progress.md. KY_GUIDE.md không có nên không tạo ngoài kế hoạch.
+
+---
+
 ## Cập nhật 19/10/2026 — S08: Quản lý Vòng đời Đơn hàng & Hoàn kho Atomic khi Hủy đơn (Dev 2 - Kỳ)
 
 - ✅ **Hoàn thành S08 (Order Lifecycle & Hoàn kho Atomic):**
@@ -44,6 +88,16 @@
 - ✅ **Bảo vệ Quyền riêng tư (SĐT):**
   - Server-side Masking: Tự động che số điện thoại (`0912***678`) trước khi emit sự kiện `new_order` tới toàn bộ người xem trong phòng livestream.
 - **Kiểm tra build:** `npm run build:backend` và `npm run build:frontend` đều thành công 100% không còn lỗi TypeScript.
+
+---
+
+## Cập nhật 16/10/2026 — S19 theo mốc nghiệm thu, bỏ giới hạn thời gian
+
+- ✅ Hoàn thành cập nhật tài liệu theo yêu cầu người dùng: `plan.md` v2.4 bỏ mục tiêu 7 ngày và lịch chia theo ngày của S19. Thay bằng bốn mốc: thử nghiệm/chốt phương án → triển khai → kiểm thử/đo A/B → báo cáo/demo; chuyển mốc khi có kết quả kiểm chứng, không ấn định số ngày.
+- Đồng bộ mục ưu tiên 1.2, dòng S19 trong bảng phiên, bảng phân công S19 và mục 7.6. Giữ phạm vi PA2, dependency, phân công Product/[CHUNG], fallback, tiêu chí nghiệm thu và việc Kỳ xử lý lỗi chốt đơn song song.
+- Các nhật ký cũ nhắc lịch theo ngày là lịch sử quyết định; quy định tiến độ hiện hành là các mốc nghiệm thu tại `plan.md` v2.4. S19 vẫn chưa triển khai, chưa có kết quả thử model hoặc RAG để đánh dấu tính năng hoàn thành.
+- Chỉ cập nhật `plan.md` và `progress.md` trên nhánh hiện tại; không sửa code/schema, cài dependency hoặc chạy migration. `KY_GUIDE.md` không có nên không tạo thêm.
+- Kiểm tra: `plan.md` không còn mục tiêu 7 ngày/lịch ngày 1–7; có đủ bốn mốc, bảng phiên giữ 19 dòng với 8 cột; `git diff --check` đạt. Build Backend/Frontend chạy lại thành công, Frontend còn cảnh báo bundle >500 kB. Yêu cầu cấp quyền stage Git bị người dùng từ chối; thay đổi hiện chỉ lưu trong workspace, chưa stage/commit/push.
 
 ---
 

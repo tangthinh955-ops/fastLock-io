@@ -2,14 +2,14 @@ import { IsString, IsNotEmpty, MaxLength } from 'class-validator';
 
 export class CreateKbEntryDto {
   @IsString()
-  @IsNotEmpty({ message: 'Từ khóa (keyword) không được để trống' })
-  @MaxLength(100, { message: 'Từ khóa không được vượt quá 100 ký tự' })
+  @IsNotEmpty({ message: 'Tiêu đề không được để trống' })
+  @MaxLength(100, { message: 'Tiêu đề không được vượt quá 100 ký tự' })
   keyword: string;
 
   @IsString()
-  @IsNotEmpty({ message: 'Nội dung quy định (answer) không được để trống' })
+  @IsNotEmpty({ message: 'Nội dung kiến thức không được để trống' })
   @MaxLength(1000, {
-    message: 'Nội dung quy định không được vượt quá 1000 ký tự',
+    message: 'Nội dung kiến thức không được vượt quá 1000 ký tự',
   })
   answer: string;
 }

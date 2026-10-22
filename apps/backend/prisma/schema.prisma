@@ -55,6 +55,17 @@ model Product {
 
   seller     User        @relation("SellerProducts", fields: [sellerId], references: [id])
   orderItems OrderItem[]
+  aiEmbedding ProductEmbedding?
+}
+
+// AI-owned index; product CRUD and live price/stock stay in Product.
+model ProductEmbedding {
+  productId      String  @id
+  embedding      Float[] @default([])
+  embeddingModel String?
+  embeddingHash  String?
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
 // -------------------------------------
@@ -65,8 +76,13 @@ model KbEntry {
   keyword  String
   answer   String @db.Text
   sellerId String
+  embedding      Float[] @default([])
+  embeddingModel String?
+  embeddingHash  String?
 
   seller User @relation("SellerKb", fields: [sellerId], references: [id])
+
+  @@index([sellerId])
 }
 
 // -------------------------------------

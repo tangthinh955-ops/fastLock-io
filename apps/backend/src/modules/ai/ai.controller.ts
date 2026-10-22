@@ -7,7 +7,6 @@ import {
   Get,
   Delete,
   Param,
-  BadRequestException,
 } from '@nestjs/common';
 import { AiService } from './ai.service';
 import { CreateKbEntryDto } from './dto/create-kb.dto';
@@ -35,20 +34,7 @@ export class AiController {
   @Roles(Role.SELLER)
   async addKnowledgeBase(@Req() req: any, @Body() dto: CreateKbEntryDto) {
     const sellerId = req.user.userId;
-    try {
-      return await this.aiService.addKnowledgeBase(
-        sellerId,
-        dto.keyword,
-        dto.answer,
-      );
-    } catch (error: any) {
-      if (error.message === 'LIMIT_EXCEEDED') {
-        throw new BadRequestException(
-          'Bạn đã đạt giới hạn tối đa 20 quy tắc. Vui lòng xóa bớt các quy tắc cũ để thêm mới.',
-        );
-      }
-      throw error;
-    }
+    return this.aiService.addKnowledgeBase(sellerId, dto.keyword, dto.answer);
   }
 
   @Delete('knowledge/:id')
