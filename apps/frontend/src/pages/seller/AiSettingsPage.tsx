@@ -16,7 +16,6 @@ import {
   Alert,
   Snackbar,
   Grid,
-  LinearProgress,
 } from '@mui/material';
 import { Delete as DeleteIcon, Add as AddIcon, AutoAwesome as AutoAwesomeIcon } from '@mui/icons-material';
 import apiClient from '../../api/client';
@@ -39,8 +38,6 @@ export const AiSettingsPage: React.FC = () => {
     open: false, message: '', severity: 'success'
   });
 
-  const MAX_RULES = 20;
-
   const fetchRules = async () => {
     setLoading(true);
     try {
@@ -48,7 +45,7 @@ export const AiSettingsPage: React.FC = () => {
       setRules(res.data);
     } catch (err) {
       console.error(err);
-      setToast({ open: true, message: 'Lỗi tải danh sách quy tắc AI', severity: 'error' });
+      setToast({ open: true, message: 'Lỗi tải danh sách kiến thức AI', severity: 'error' });
     } finally {
       setLoading(false);
     }
@@ -61,15 +58,10 @@ export const AiSettingsPage: React.FC = () => {
   const handleAddRule = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formKeyword.trim() || !formAnswer.trim()) {
-      setToast({ open: true, message: 'Vui lòng nhập đầy đủ Từ khóa và Câu trả lời', severity: 'error' });
+      setToast({ open: true, message: 'Vui lòng nhập đầy đủ Tiêu đề và Nội dung kiến thức', severity: 'error' });
       return;
     }
     
-    if (rules.length >= MAX_RULES) {
-      setToast({ open: true, message: 'Bạn đã đạt giới hạn tối đa 20 quy tắc.', severity: 'error' });
-      return;
-    }
-
     setSubmitting(true);
     try {
       await apiClient.post('/ai/knowledge', {
@@ -78,10 +70,10 @@ export const AiSettingsPage: React.FC = () => {
       });
       setFormKeyword('');
       setFormAnswer('');
-      setToast({ open: true, message: 'Thêm quy tắc thành công', severity: 'success' });
+      setToast({ open: true, message: 'Thêm kiến thức thành công', severity: 'success' });
       fetchRules();
     } catch (err: any) {
-      const errMsg = err.response?.data?.message || 'Lỗi thêm quy tắc';
+      const errMsg = err.response?.data?.message || 'Lỗi thêm kiến thức';
       setToast({ open: true, message: Array.isArray(errMsg) ? errMsg.join(', ') : errMsg, severity: 'error' });
     } finally {
       setSubmitting(false);
@@ -89,18 +81,15 @@ export const AiSettingsPage: React.FC = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa quy tắc này?')) return;
+    if (!window.confirm('Bạn có chắc chắn muốn xóa kiến thức này?')) return;
     try {
       await apiClient.delete(`/ai/knowledge/${id}`);
-      setToast({ open: true, message: 'Đã xóa quy tắc', severity: 'success' });
+      setToast({ open: true, message: 'Đã xóa kiến thức', severity: 'success' });
       fetchRules();
     } catch (err) {
-      setToast({ open: true, message: 'Lỗi xóa quy tắc', severity: 'error' });
+      setToast({ open: true, message: 'Lỗi xóa kiến thức', severity: 'error' });
     }
   };
-
-  const isLimitReached = rules.length >= MAX_RULES;
-  const progressPercent = (rules.length / MAX_RULES) * 100;
 
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 6 }}>
@@ -111,7 +100,7 @@ export const AiSettingsPage: React.FC = () => {
           <Typography variant="h4" sx={{ fontWeight: 800 }}>Cấu hình Trí tuệ Nhân tạo (AI)</Typography>
         </Box>
         <Typography variant="body1" sx={{ opacity: 0.9 }}>
-          Thiết lập các quy tắc và chính sách bán hàng để nhân viên AI trả lời tự động cho khách hàng của bạn.
+          Thêm bảng size, thông tin và chính sách của Shop để AI tìm kiến thức phù hợp khi tư vấn khách hàng.
         </Typography>
       </Paper>
 
@@ -119,60 +108,47 @@ export const AiSettingsPage: React.FC = () => {
         {/* Khung Thêm Quy Tắc */}
         <Grid size={{ xs: 12, md: 4 }}>
           <Paper sx={{ p: 3, borderRadius: 2, border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}>
-            <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2 }}>Thêm Quy Tắc Mới</Typography>
+            <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2 }}>Thêm kiến thức mới</Typography>
             
-            <Box sx={{ mb: 3 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                <Typography variant="body2" sx={{ fontWeight: 'bold' }}>Số lượng quy tắc:</Typography>
-                <Typography variant="body2" color={isLimitReached ? 'error' : 'textSecondary'} sx={{ fontWeight: 'bold' }}>
-                  {rules.length} / {MAX_RULES}
-                </Typography>
-              </Box>
-              <LinearProgress 
-                variant="determinate" 
-                value={progressPercent} 
-                color={isLimitReached ? 'error' : 'primary'}
-                sx={{ height: 8, borderRadius: 4 }}
-              />
-            </Box>
-
-            {isLimitReached && (
-              <Alert severity="warning" sx={{ mb: 3, borderRadius: 2 }}>
-                Bạn đã đạt giới hạn tối đa 20 quy tắc để đảm bảo hiệu suất AI. Vui lòng xóa bớt quy tắc cũ để thêm mới.
-              </Alert>
-            )}
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Đã lưu {rules.length} mục kiến thức.
+            </Typography>
 
             <form onSubmit={handleAddRule}>
               <TextField
-                label="Từ khóa / Tình huống"
-                placeholder="VD: Phí ship, Chính sách đổi trả..."
+                label="Tiêu đề"
+                placeholder="VD: Chính sách giao hàng"
+                helperText="Tối đa 100 ký tự"
+                slotProps={{ htmlInput: { maxLength: 100 } }}
                 fullWidth
                 size="small"
                 margin="normal"
                 value={formKeyword}
                 onChange={(e) => setFormKeyword(e.target.value)}
-                disabled={isLimitReached || submitting}
+                disabled={submitting}
               />
               <TextField
-                label="AI sẽ trả lời là..."
-                placeholder="VD: Dạ shop em freeship cho đơn từ 200k ạ."
+                label="Nội dung kiến thức"
+                placeholder="VD: Phí giao hàng 25.000đ. Miễn phí với đơn từ 500.000đ."
+                helperText="Tối đa 1.000 ký tự"
+                slotProps={{ htmlInput: { maxLength: 1000 } }}
                 fullWidth
                 multiline
                 rows={4}
                 margin="normal"
                 value={formAnswer}
                 onChange={(e) => setFormAnswer(e.target.value)}
-                disabled={isLimitReached || submitting}
+                disabled={submitting}
               />
               <Button
                 type="submit"
                 variant="contained"
                 fullWidth
                 startIcon={<AddIcon />}
-                disabled={isLimitReached || submitting}
+                disabled={submitting}
                 sx={{ mt: 2, py: 1.5, fontWeight: 'bold' }}
               >
-                Lưu Quy Tắc
+                Lưu kiến thức
               </Button>
             </form>
           </Paper>
@@ -184,8 +160,8 @@ export const AiSettingsPage: React.FC = () => {
             <Table>
               <TableHead sx={{ bgcolor: '#f8fafc' }}>
                 <TableRow>
-                  <TableCell sx={{ fontWeight: 'bold', width: '30%' }}>Từ khóa</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold', width: '60%' }}>Nội dung trả lời</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', width: '30%' }}>Tiêu đề</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', width: '60%' }}>Nội dung kiến thức</TableCell>
                   <TableCell sx={{ fontWeight: 'bold', width: '10%' }} align="center">Xóa</TableCell>
                 </TableRow>
               </TableHead>
@@ -193,7 +169,7 @@ export const AiSettingsPage: React.FC = () => {
                 {loading ? (
                   <TableRow><TableCell colSpan={3} align="center">Đang tải...</TableCell></TableRow>
                 ) : rules.length === 0 ? (
-                  <TableRow><TableCell colSpan={3} align="center" sx={{ py: 4, color: 'text.secondary' }}>Chưa có quy tắc nào.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={3} align="center" sx={{ py: 4, color: 'text.secondary' }}>Chưa có kiến thức nào.</TableCell></TableRow>
                 ) : (
                   rules.map((rule) => (
                     <TableRow key={rule.id} hover>
