@@ -24,16 +24,37 @@ export const Navbar: React.FC = () => {
 
   return (
     <AppBar position="static" sx={{ background: '#1a1a2e' }}>
-      <Toolbar>
+      <Toolbar
+        sx={{ flexWrap: 'wrap', rowGap: 1, py: { xs: 1.5, lg: 0 } }}
+      >
         <Typography
           variant="h6"
-          sx={{ flexGrow: 1, fontWeight: 'bold', letterSpacing: 1, cursor: 'pointer' }}
+          sx={{
+            flexGrow: 1,
+            minWidth: 0,
+            fontWeight: 'bold',
+            fontSize: { xs: '1.05rem', sm: '1.25rem' },
+            letterSpacing: 1,
+            whiteSpace: 'nowrap',
+            cursor: 'pointer',
+          }}
           onClick={() => navigate(user.role === 'ADMIN' ? '/admin/dashboard' : user.role === 'SELLER' ? '/seller/dashboard' : '/viewer')}
         >
           ⚡ LIVEORDER ENGINE
         </Typography>
 
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            width: { xs: '100%', lg: 'auto' },
+            minWidth: 0,
+            maxWidth: '100%',
+            gap: { xs: 0.75, sm: 1, lg: 1.5 },
+            '& .MuiButton-root': { whiteSpace: 'nowrap', minHeight: 40 },
+          }}
+        >
           {user.role === 'SELLER' && (
             <>
               <Button color="inherit" onClick={() => navigate('/seller/dashboard')} variant="text" size="small">
@@ -43,7 +64,7 @@ export const Navbar: React.FC = () => {
                 🎥 Live Studio
               </Button>
               <Button color="inherit" onClick={() => navigate('/seller/ai-settings')} variant="text" size="small">
-                Cấu hình AI
+                Kho kiến thức
               </Button>
               <Button color="inherit" onClick={() => navigate('/seller/inbox')} variant="text" size="small">
                 💬 Tin nhắn khách hàng
@@ -60,7 +81,12 @@ export const Navbar: React.FC = () => {
               </Button>
             </>
           )}
-          <Typography variant="body2">{user.name}</Typography>
+          <Typography
+            variant="body2"
+            sx={{ minWidth: 0, maxWidth: '100%', overflowWrap: 'anywhere' }}
+          >
+            {user.name}
+          </Typography>
           <Chip label={user.role} color={getRoleColor(user.role)} size="small" />
           <Button color="inherit" onClick={handleLogout} variant="outlined" size="small">
             Đăng xuất
