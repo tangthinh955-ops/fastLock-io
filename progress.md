@@ -5,7 +5,8 @@
 - ✅ Người dùng xác nhận: chỉ có **1 buổi livestream thật với 20–30 người** (mục tiêu 25–26/11/2026); mọi thời điểm còn lại **tự test quy mô nhỏ 1–3 tài khoản/thiết bị**. Hệ quả trực tiếp: lần đầu hệ thống đón 20–30 kết nối thật sẽ là buổi demo, không có buổi thử với số người thật trước đó.
 - Điều chỉnh `plan.md` mục 8: 8.1 thêm yêu cầu "1 buổi thật + tự test"; 8.2 cập nhật hạn mức LiveKit; 8.5 đổi M5 từ "tải thử 20–30 người thật" sang "tự test 1–3 thiết bị + script mô phỏng ~30 kết nối Socket gửi comment/đơn" — mô phỏng không phát video nên không tiêu quota LiveKit; 8.6 cập nhật ngân sách quota (~1.950/5.000) và thêm rủi ro "lần đầu đón 20–30 kết nối thật là buổi demo" kèm biện pháp: mô phỏng tải, chuẩn bị ≥30 tài khoản seed, giới hạn lượt hỏi AI, phương án tắt tạm tính năng nặng.
 - Script mô phỏng nếu triển khai sẽ nằm **ngoài repository** (như thực hành dọn dữ liệu/script tạm trước đây), không tạo file test rác trong repo; phải lập kế hoạch và xin duyệt trước khi tạo/chạy.
-- [MODIFY]: `plan.md` (8.1, 8.2, 8.5, 8.6), `progress.md` (nhật ký này). Không sửa code, schema, dependency; không commit/push.
+- ✅ M0 bước 1 theo quyết định người dùng (commit + PR): tạo 2 commit trên `feat/seller-knowledge-ui` — `f230c3e feat(kb): implement knowledge base management UI and responsive navbar` (Navbar, AiSettingsPage, components/knowledge-base/) và `e1eaf5a docs(plan): add deploy & live demo plan v2.6 and progress logs` (plan.md, progress.md) — đã push lên origin; file `docs/Groq-RAG-LiveOrder.pptx` giữ ngoài Git theo yêu cầu. Build Backend/Frontend đã chạy xanh trong phiên hôm nay trước khi push. PR chờ người dùng tạo/merge trên GitHub (gh CLI chưa cài); sau merge mới tiếp tục pull main và tạo nhánh `feat/deploy-live-demo`.
+- [MODIFY]: `progress.md` (nhật ký này). Không sửa code, schema, dependency.
 
 ---
 
