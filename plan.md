@@ -1,6 +1,6 @@
 # 📋 LIVEORDER — PRODUCTION READINESS MASTER PLAN (LỘ TRÌNH 5 ĐỢT SONG SONG)
 
-> **Phiên bản:** v2.5 (S19 demo KB + Product, tiếp tục nghiệm thu/A-B) — Ngày cập nhật: 22/10/2026
+> **Phiên bản:** v2.6 (S19 demo KB + Product, tiếp tục nghiệm thu/A-B; bổ sung mục 8 Kế hoạch Deploy & Live Demo) — Ngày cập nhật: 12/11/2026
 > **Dev 1 (Thịnh):** AI, Inbox, Admin, Viewer, Lead Luồng Buyer & Tài liệu  
 > **Dev 2 (Kỳ):** Product, Parser, Order, Livestream, Seller Studio, Lead Luồng Seller & DevOps/CI  
 > **Nguyên tắc thực thi:** Làm việc song song theo 5 đợt; kiểm thử trên dữ liệu thật; số liệu đo đạc khách quan; cập nhật tiến độ chi tiết tại `progress.md`.
@@ -271,3 +271,76 @@ Tham khảo kỹ thuật: [Transformers.js — Node.js, model cache và local mo
 - Chọn tối đa 2 Product, ghép KB theo ngân sách chung 3 nguồn/4.000 ký tự; ưu tiên một nguồn mỗi loại nếu cùng liên quan và vừa ngân sách. Ngưỡng cosine thử ban đầu 0,82 cần tiếp tục đánh giá. Một vector câu hỏi dùng chung cho hai retrieval. Lỗi embedding/timeout không fallback full-KB. Giữ lịch sử, takeover và Socket hiện có.
 - Đã kiểm tra bằng 88 unit test AI/Inbox, build Backend/Frontend, PostgreSQL + embedding thật và HTTP + Groq thật. Đã tạo vector cho 4 KB cũ; Product cũ tạo bù khi có truy vấn ngữ nghĩa. Cả 5 migration up to date ở database localhost:5432, giữ nguyên dữ liệu nghiệp vụ.
 - Chưa có kết quả A/B 20 tình huống hoặc nghiệm thu UI đầy đủ. So khớp mã tự do không nhãn vẫn có giới hạn nhận diện; nên dùng mã chữ/số/dấu nối/gạch dưới hoặc ghi rõ “SKU: ...”. Số liệu thử, kịch bản và giới hạn ghi tại [docs/s19-demo.md](docs/s19-demo.md); nhật ký tại progress.md. Không dùng trạng thái demo để đánh dấu toàn bộ S19 hoàn thành.
+
+---
+
+## 8. KẾ HOẠCH DEPLOY & LIVE DEMO — 20–30 NGƯỜI XEM (mục tiêu 25–26/11/2026)
+
+> Bổ sung ngày 12/11/2026 sau khi đánh giá tiến độ cùng người dùng. Mục tiêu: đưa LiveOrder lên hosting miễn phí để chạy **livestream thật** với 20–30 tài khoản được cấp, mọi người xem đã đăng nhập phải **thấy được video** và chốt được đơn. Kế hoạch này là mục tiêu vận hành, không thay đổi phạm vi S01–S19; mốc chỉ chuyển tiếp khi có bằng chứng nghiệm thu.
+
+### 8.1. Yêu cầu người dùng đã chốt (12/11/2026)
+
+- Chỉ người dùng được cấp tài khoản (BUYER/SELLER qua seed) mới truy cập được phiên demo; toàn bộ route đã có `ProtectedRoute` theo role nên yêu cầu này thỏa mãn ở cấp app.
+- Mọi người xem đã đăng nhập phải thấy được video thật của Seller, không chấp nhận ảnh placeholder trong buổi demo chính thức.
+- **Video phải nằm hoàn toàn trong app LiveOrder, không nhúng YouTube/Facebook** (bổ sung 12/11/2026): triển khai V1 LiveKit Cloud trước, nâng cấp V2 tự host trên VPS sau M5; RAG cho bản demo chốt sau khi đo M4.
+- **Chỉ có đúng 1 buổi livestream thật với 20–30 người** (buổi demo 25–26/11/2026); mọi thời điểm còn lại **tự test quy mô nhỏ 1–3 tài khoản/thiết bị**. Hệ quả: lần đầu hệ thống đón 20–30 kết nối thật là buổi demo → phải giảm rủi ro bằng mô phỏng tải Socket trước (mục 8.5, 8.6).
+- Thời gian: trong 10–14 ngày tới; mục tiêu ngày demo 25–26/11/2026. Chi phí 0đ, dùng các gói free.
+
+### 8.2. Kiến trúc hosting miễn phí (điều kiện gói free 2026)
+
+| Thành phần | Dịch vụ | Giới hạn chính | Rủi ro với 20–30 user |
+|---|---|---|---|
+| Frontend React | **Vercel Hobby** → `*.vercel.app` | Free, HTTPS sẵn | Không đáng kể |
+| Backend NestJS + Socket.io | **Render Free** | Ngủ sau 15 phút không traffic (socket tính là traffic); 512 MB RAM, 0.1 CPU; 5 GB bandwidth/tháng; 750 giờ instance/tháng | ~1 phút thức dậy khi mở link đầu tiên → vào live sớm 5–10 phút |
+| PostgreSQL | **Neon Free** (khuyến nghị, không hết hạn) | 0.5 GB, tự ngủ 5 phút, cold-start ~0.5s | Không dùng Render Free Postgres vì chỉ sống 30 ngày |
+| Phát video | **LiveKit Cloud Build — V1** (triển khai trước); nâng cấp **V2 tự host trên VPS Oracle** sau M5. YouTube/Facebook bị loại theo yêu cầu người dùng | LiveKit: 100 kết nối đồng thời, 5.000 phút-tham-gia/tháng (tích lũy), 50 GB → buổi chính 30 người × 60 phút = 1.800 phút và ~20 GB | Đủ 1 buổi chính/tháng + nhiều buổi tự test nhỏ (1–3 người × 15–30′ ≈ 15–90 phút/lần) |
+| Groq AI | API key hiện có | 429 OTPM đã giảm nhẹ (200 token, tắt reasoning) | 20–30 người hỏi Inbox đồng thời có thể vấp 429 |
+| Redis | Không deploy | docker-compose chỉ phục vụ dev; backend chưa dùng Redis adapter | Bỏ qua trong buổi demo |
+
+### 8.3. Phát video — chốt 12/11/2026: video nằm hoàn toàn trong app, không dùng nền tảng xã hội
+
+- **V1 — LiveKit Cloud Build (triển khai trước):** LiveStudio publish qua SDK LiveKit; ViewerPage subscribe bằng token backend cấp theo JWT nên chỉ tài khoản hợp lệ vào được phòng; người dùng chỉ thấy LiveOrder, không có trang ngoài nào xen vào. Quota free: 100 kết nối đồng thời, 5.000 phút WebRTC/tháng, 50 GB → 30 người × 60 phút ≈ 1.800 phút và ~20 GB, đủ 1 buổi chính + vài buổi test ngắn. Công ~1–2 buổi (Studio publish + Viewer subscribe + endpoint cấp token thuộc [KỲ], Viewer thuộc Thịnh).
+- **V2 — Tự host LiveKit server (mã nguồn mở) trên VPS Oracle Always Free (nâng cấp sau M5 nếu còn thời gian):** không lo quota, video thuộc hạ tầng của mình 100%; cần ~2–3 buổi setup TURN/TLS/port, rủi ro lịch nếu vấp lỗi hạ tầng.
+- **Vì sao không phát video qua backend Render:** 30 người × ~1,5 Mbps × 60 phút ≈ 20 GB/buổi vượt 5 GB/tháng của Render Free; CPU 0.1 không đủ encode; Socket.io chỉ chuyên chat/đơn hàng, không mang video.
+- **Thoát hiểm nếu LiveKit thất bại sát ngày demo:** tạo lại project LiveKit mới; phương án cuối cùng là demo chat + chốt đơn không video (giữ placeholder) và nói rõ hạn chế với hội đồng. Không quay lại YouTube.
+
+### 8.4. Các chặn kỹ thuật bắt buộc xử lý trước deploy (rà soát 12/11/2026)
+
+1. `ViewerPage.tsx` hiển thị ảnh Unsplash placeholder, **chưa có luồng video thật tới người xem** — blocker lớn nhất.
+2. Frontend hardcode `http://localhost:3001` tại `api/client.ts`, `hooks/useViewerLivestream.ts`, `pages/seller/LiveStudio.tsx` → chuyển sang biến môi trường (`VITE_API_URL`/`VITE_SOCKET_URL`).
+3. Backend Socket.io **không chạy được trên Vercel Hobby** (serverless không giữ WebSocket lâu dài) → backend đặt Render.
+4. `app.enableCors()` mở toàn bộ → whitelist origin frontend; `killPort()` gọi `execSync` lúc bootstrap → loại bỏ/guard theo môi trường; `start:prod` trỏ `dist/main` trong khi build tạo `dist/src/main.js` → sửa trước khi deploy; `JWT_SECRET`, `GROQ_API_KEY`, `DATABASE_URL` đặt bằng biến môi trường; camera `getUserMedia` yêu cầu HTTPS (Vercel/Render đều có TLS nên đạt).
+- Các file này gồm code [KỲ] (LiveStudio, Livestream) và [CHUNG] (client.ts, App/config); mọi sửa đổi vẫn phải lập kế hoạch nhỏ và xin xác nhận theo AGENTS.md trước khi viết code.
+
+### 8.5. Bảng mốc triển khai (tính lùi từ ngày demo)
+
+| Mốc | Thời gian dự kiến | Công việc | Phụ trách | Bằng chứng hoàn thành |
+|---|---|---|---|---|
+| **M0** | 12–13/11/2026 | Chốt nhánh `feat/seller-knowledge-ui` (commit/merge theo quyết định người dùng), chạy chuẩn bị B1–B5, tạo nhánh `feat/deploy-live-demo` | Cả hai | `main` sạch, build hai workspace xanh |
+| **M1** | 14–15/11/2026 | Tạo Neon (`prisma migrate deploy` + seed), Render service + env vars, Vercel project + `VITE_API_URL` | Kỳ lead, Thịnh hỗ trợ | URL backend trả API qua HTTPS; URL frontend mở trang đăng nhập |
+| **M2** | 15–17/11/2026 | Bỏ hardcode localhost, CORS whitelist, xử lý `killPort`/`start:prod`, cấu hình domain Socket; có plan nhỏ + duyệt trước code | Kỳ + Thịnh | Hai máy khác nhau truy cập app qua internet |
+| **M3** | 17–20/11/2026 | Tích hợp video V1 LiveKit Cloud (mục 8.3): Studio phát (publish), Viewer nhận (subscribe), endpoint cấp token theo JWT | Kỳ (Studio/token), Thịnh (Viewer) | Người ở máy khác **thấy video thật** của Seller |
+| **M4** | 21–22/11/2026 | Nghiệm thu E2E trên prod: comment chốt đơn → trừ kho → nổ đơn → QR + Groq trong Inbox | Cả hai | Video/screenshots từng luồng |
+| **M5** | 23–24/11/2026 | Tự test 1–3 thiết bị/tài khoản thật (video, chốt đơn, Inbox) + chạy **script mô phỏng ~30 kết nối Socket** gửi comment/đơn liên tục để đo socket, 429 Groq, throttle 100 req/phút/IP, cold-start Neon — mô phỏng **không phát video nên không tiêu quota LiveKit**; script nằm ngoài repo, dọn sau khi đo | Cả hai | Số liệu mô phỏng + tự test ghi lại cho báo cáo |
+| **M6** | 25/11/2026 | Tổng duyệt: kịch bản demo, seed tài khoản demo, phương án dự phòng, thiết bị camera | Cả hai | Checklist demo tick hết |
+| **Demo** | 25–26/11/2026 | Chạy buổi livestream chính thức | Cả hai | Số liệu buổi live vào báo cáo |
+
+### 8.6. Rủi ro & dự phòng
+
+| Rủi ro | Dự phòng |
+|---|---|
+| Render backend ngủ giữa buổi | Vào live sớm 10 phút; socket giữ service thức trong suốt buổi |
+| Quota LiveKit 5.000 phút-tham-gia/tháng (đồng hồ tích lũy theo tháng, không phải số người cùng lúc) | Người dùng chỉ có 1 buổi thật; tự test 1–3 người × 15–30′ chỉ tốn ~15–90 phút/lần. Ngân sách tháng: tự test ~100 + tổng duyệt ~50 + buổi chính ~1.800 (30 người × 60′) ≈ **1.950/5.000 ✓** |
+| Lần đầu hệ thống đón 20–30 kết nối thật là ngay buổi demo (không có buổi thử với số người thật) | Mô phỏng ~30 socket clients ở M5 (không tốn quota video); chuẩn bị sẵn ≥30 tài khoản seed; thống nhất với người xem giới hạn lượt hỏi AI; có phương án tắt tạm tính năng nặng nếu quá tải |
+| Groq 429 khi nhiều người hỏi | Hạn chế lượt hỏi thử; giữ thiết kế AI chỉ trong Inbox, không gọi trên chat live |
+| RAM 512 MB không đủ chạy embedding (RAG) | **Chốt sau khi đo M4:** mặc định giữ embedding local + pre-embed toàn bộ KB/Product vào Neon từ máy local trước ngày demo; nếu đo không đạt thì chuyển EmbeddingService sang API embedding, giữ path local bằng env cho báo cáo S19 offline — cả hai thuộc module ai, duyệt kế hoạch trước code |
+| LiveKit thất bại sát ngày demo | Tạo lại project LiveKit; phương án cuối cùng là demo chat + chốt đơn không video, báo rõ hạn chế |
+| Neon cold-start | Chấp nhận ~0.5s đầu; kiểm tra trước M5 |
+
+### 8.7. Tiêu chí nghiệm thu buổi demo
+
+- 20–30 tài khoản seed đăng nhập được qua domain Vercel; người ngoài không đăng nhập được vào phiên.
+- Mọi người xem thấy video Seller trực tiếp (phương án 8.3); trạng thái LIVE/OFFLINE đồng bộ đúng.
+- Comment realtime hiển thị trong 1–2 giây; comment chứa SKU + SĐT chốt được đơn, trừ kho nguyên tử, Seller thấy nổ đơn, SĐT bị che trong phòng live.
+- QR vào Inbox đúng Buyer; Groq tư vấn đúng KB; không 429 khi tải thử.
+- Có số liệu thực đo (số người tham gia, số đơn, độ trễ cảm nhận, lỗi gặp phải) đưa vào báo cáo đồ án.
