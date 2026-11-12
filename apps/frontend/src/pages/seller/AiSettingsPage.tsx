@@ -1,197 +1,293 @@
-import React, { useState, useEffect } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { isAxiosError } from 'axios';
 import {
-  Container,
-  Typography,
-  Paper,
-  Box,
-  Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TextField,
-  IconButton,
   Alert,
+  Box,
+  Chip,
+  Container,
+  Paper,
   Snackbar,
-  Grid,
+  Stack,
+  ThemeProvider,
+  Typography,
+  createTheme,
 } from '@mui/material';
-import { Delete as DeleteIcon, Add as AddIcon, AutoAwesome as AutoAwesomeIcon } from '@mui/icons-material';
+import MenuBookRoundedIcon from '@mui/icons-material/MenuBookRounded';
 import apiClient from '../../api/client';
+import { KnowledgeForm } from '../../components/knowledge-base/KnowledgeForm';
+import { KnowledgeList } from '../../components/knowledge-base/KnowledgeList';
+import type {
+  KbEntry,
+  KnowledgeDraft,
+} from '../../components/knowledge-base/types';
 
-export interface KbEntry {
-  id: string;
-  keyword: string;
-  answer: string;
-  sellerId: string;
-}
+const knowledgeTheme = createTheme({
+  palette: {
+    primary: { main: '#172d50', light: '#edf2f9', dark: '#101e35' },
+    error: { main: '#bc303b', light: '#fff1f2' },
+    background: { default: '#f5f7fb', paper: '#ffffff' },
+    text: { primary: '#19283f', secondary: '#52627a' },
+    divider: '#dde4ee',
+  },
+  shape: { borderRadius: 14 },
+  components: {
+    MuiButton: {
+      defaultProps: { disableElevation: true },
+      styleOverrides: {
+        root: { textTransform: 'none', fontWeight: 700, borderRadius: 10 },
+      },
+    },
+    MuiOutlinedInput: {
+      styleOverrides: { root: { borderRadius: 10, backgroundColor: '#fff' } },
+    },
+    MuiPaper: {
+      defaultProps: { elevation: 0 },
+      styleOverrides: { root: { backgroundImage: 'none' } },
+    },
+    MuiSkeleton: {
+      styleOverrides: {
+        root: {
+          '@media (prefers-reduced-motion: reduce)': {
+            animation: 'none',
+            '&::after': { animation: 'none' },
+          },
+        },
+      },
+    },
+    MuiCircularProgress: {
+      styleOverrides: {
+        root: {
+          '@media (prefers-reduced-motion: reduce)': {
+            animation: 'none',
+            '& svg circle': { animation: 'none' },
+          },
+        },
+      },
+    },
+  },
+});
 
-export const AiSettingsPage: React.FC = () => {
-  const [rules, setRules] = useState<KbEntry[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  
-  const [formKeyword, setFormKeyword] = useState('');
-  const [formAnswer, setFormAnswer] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [toast, setToast] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
-    open: false, message: '', severity: 'success'
-  });
+const errorMessage = (error: unknown, fallback: string) => {
+  if (isAxiosError<{ message?: string | string[] }>(error)) {
+    const message = error.response?.data?.message;
+    if (Array.isArray(message)) return message.join(', ');
+    if (typeof message === 'string') return message;
+  }
+  return fallback;
+};
 
-  const fetchRules = async () => {
+export const AiSettingsPage = () => {
+  const [entries, setEntries] = useState<KbEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [toast, setToast] = useState<{
+    message: string;
+    severity: 'success' | 'error';
+  } | null>(null);
+  const loadRequest = useRef<AbortController | null>(null);
+
+  const fetchEntries = useCallback(async () => {
+    loadRequest.current?.abort();
+    const request = new AbortController();
+    loadRequest.current = request;
     setLoading(true);
+    setLoadError('');
     try {
-      const res = await apiClient.get('/ai/knowledge');
-      setRules(res.data);
-    } catch (err) {
-      console.error(err);
-      setToast({ open: true, message: 'Lỗi tải danh sách kiến thức AI', severity: 'error' });
+      const response = await apiClient.get<KbEntry[]>('/ai/knowledge', {
+        signal: request.signal,
+      });
+      if (!request.signal.aborted) setEntries(response.data);
+    } catch (error) {
+      if (!request.signal.aborted)
+        setLoadError(
+          errorMessage(error, 'Chưa tải được kho kiến thức. Vui lòng thử lại.'),
+        );
     } finally {
-      setLoading(false);
+      if (!request.signal.aborted) setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchRules();
   }, []);
 
-  const handleAddRule = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formKeyword.trim() || !formAnswer.trim()) {
-      setToast({ open: true, message: 'Vui lòng nhập đầy đủ Tiêu đề và Nội dung kiến thức', severity: 'error' });
-      return;
-    }
-    
-    setSubmitting(true);
+  useEffect(() => {
+    void fetchEntries();
+    return () => loadRequest.current?.abort();
+  }, [fetchEntries]);
+
+  const addEntry = async (draft: KnowledgeDraft) => {
     try {
-      await apiClient.post('/ai/knowledge', {
-        keyword: formKeyword,
-        answer: formAnswer,
+      const response = await apiClient.post<KbEntry>('/ai/knowledge', draft);
+      setEntries((current) => [response.data, ...current]);
+      setToast({
+        message: 'Đã thêm kiến thức vào kho của Shop.',
+        severity: 'success',
       });
-      setFormKeyword('');
-      setFormAnswer('');
-      setToast({ open: true, message: 'Thêm kiến thức thành công', severity: 'success' });
-      fetchRules();
-    } catch (err: any) {
-      const errMsg = err.response?.data?.message || 'Lỗi thêm kiến thức';
-      setToast({ open: true, message: Array.isArray(errMsg) ? errMsg.join(', ') : errMsg, severity: 'error' });
-    } finally {
-      setSubmitting(false);
+      return true;
+    } catch (error) {
+      setToast({
+        message: errorMessage(
+          error,
+          'Chưa lưu được kiến thức. Nội dung bạn nhập vẫn được giữ lại.',
+        ),
+        severity: 'error',
+      });
+      return false;
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa kiến thức này?')) return;
+  const deleteEntry = async (id: string) => {
     try {
       await apiClient.delete(`/ai/knowledge/${id}`);
-      setToast({ open: true, message: 'Đã xóa kiến thức', severity: 'success' });
-      fetchRules();
-    } catch (err) {
-      setToast({ open: true, message: 'Lỗi xóa kiến thức', severity: 'error' });
+      setEntries((current) => current.filter((entry) => entry.id !== id));
+      setToast({ message: 'Đã xóa mục kiến thức.', severity: 'success' });
+      return true;
+    } catch (error) {
+      setToast({
+        message: errorMessage(
+          error,
+          'Chưa xóa được kiến thức. Vui lòng thử lại.',
+        ),
+        severity: 'error',
+      });
+      return false;
     }
   };
 
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 6 }}>
-      {/* Header */}
-      <Paper elevation={0} sx={{ p: 4, mb: 4, borderRadius: 3, background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)', color: '#fff' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
-          <AutoAwesomeIcon fontSize="large" />
-          <Typography variant="h4" sx={{ fontWeight: 800 }}>Cấu hình Trí tuệ Nhân tạo (AI)</Typography>
-        </Box>
-        <Typography variant="body1" sx={{ opacity: 0.9 }}>
-          Thêm bảng size, thông tin và chính sách của Shop để AI tìm kiến thức phù hợp khi tư vấn khách hàng.
-        </Typography>
-      </Paper>
-
-      <Grid container spacing={4}>
-        {/* Khung Thêm Quy Tắc */}
-        <Grid size={{ xs: 12, md: 4 }}>
-          <Paper sx={{ p: 3, borderRadius: 2, border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}>
-            <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2 }}>Thêm kiến thức mới</Typography>
-            
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Đã lưu {rules.length} mục kiến thức.
-            </Typography>
-
-            <form onSubmit={handleAddRule}>
-              <TextField
-                label="Tiêu đề"
-                placeholder="VD: Chính sách giao hàng"
-                helperText="Tối đa 100 ký tự"
-                slotProps={{ htmlInput: { maxLength: 100 } }}
-                fullWidth
-                size="small"
-                margin="normal"
-                value={formKeyword}
-                onChange={(e) => setFormKeyword(e.target.value)}
-                disabled={submitting}
-              />
-              <TextField
-                label="Nội dung kiến thức"
-                placeholder="VD: Phí giao hàng 25.000đ. Miễn phí với đơn từ 500.000đ."
-                helperText="Tối đa 1.000 ký tự"
-                slotProps={{ htmlInput: { maxLength: 1000 } }}
-                fullWidth
-                multiline
-                rows={4}
-                margin="normal"
-                value={formAnswer}
-                onChange={(e) => setFormAnswer(e.target.value)}
-                disabled={submitting}
-              />
-              <Button
-                type="submit"
-                variant="contained"
-                fullWidth
-                startIcon={<AddIcon />}
-                disabled={submitting}
-                sx={{ mt: 2, py: 1.5, fontWeight: 'bold' }}
+    <ThemeProvider theme={knowledgeTheme}>
+      <Box
+        component="main"
+        sx={{
+          bgcolor: 'background.default',
+          color: 'text.primary',
+          minHeight: 'calc(100vh - 64px)',
+          py: { xs: 3, md: 5 },
+        }}
+      >
+        <Container maxWidth="lg" sx={{ px: { xs: 2, sm: 3 } }}>
+          <Paper
+            component="header"
+            variant="outlined"
+            sx={{ p: { xs: 2.5, sm: 3.5 }, mb: 3.5 }}
+          >
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={2.5}
+              sx={{
+                alignItems: { sm: 'center' },
+                justifyContent: 'space-between',
+              }}
+            >
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: { xs: 1.5, sm: 2 },
+                }}
               >
-                Lưu kiến thức
-              </Button>
-            </form>
+                <Box
+                  sx={{
+                    display: 'grid',
+                    placeItems: 'center',
+                    bgcolor: 'primary.light',
+                    color: 'primary.main',
+                    borderRadius: 3,
+                    width: 50,
+                    height: 50,
+                    flexShrink: 0,
+                  }}
+                >
+                  <MenuBookRoundedIcon />
+                </Box>
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography
+                    component="h1"
+                    variant="h4"
+                    sx={{
+                      fontWeight: 800,
+                      fontSize: { xs: '1.65rem', sm: '2rem' },
+                      letterSpacing: '-0.025em',
+                      lineHeight: 1.25,
+                    }}
+                  >
+                    Kho kiến thức của Shop
+                  </Typography>
+                  <Typography
+                    color="text.secondary"
+                    sx={{
+                      mt: 1,
+                      maxWidth: 640,
+                      fontSize: '0.95rem',
+                      lineHeight: 1.7,
+                    }}
+                  >
+                    Quản lý bảng size, thông tin và chính sách để trợ lý tư vấn
+                    khách hàng đúng với Shop.
+                  </Typography>
+                </Box>
+              </Box>
+              <Chip
+                label={
+                  loading
+                    ? 'Đang tải kiến thức…'
+                    : loadError
+                      ? 'Chưa tải dữ liệu'
+                      : `${entries.length} mục đã lưu`
+                }
+                variant="outlined"
+                sx={{
+                  alignSelf: { xs: 'flex-start', sm: 'center' },
+                  flexShrink: 0,
+                  fontWeight: 600,
+                  borderColor: 'divider',
+                  color: 'primary.main',
+                  bgcolor: 'primary.light',
+                }}
+              />
+            </Stack>
           </Paper>
-        </Grid>
-
-        {/* Khung Danh sách Quy Tắc */}
-        <Grid size={{ xs: 12, md: 8 }}>
-          <TableContainer component={Paper} sx={{ borderRadius: 2, border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}>
-            <Table>
-              <TableHead sx={{ bgcolor: '#f8fafc' }}>
-                <TableRow>
-                  <TableCell sx={{ fontWeight: 'bold', width: '30%' }}>Tiêu đề</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold', width: '60%' }}>Nội dung kiến thức</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold', width: '10%' }} align="center">Xóa</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {loading ? (
-                  <TableRow><TableCell colSpan={3} align="center">Đang tải...</TableCell></TableRow>
-                ) : rules.length === 0 ? (
-                  <TableRow><TableCell colSpan={3} align="center" sx={{ py: 4, color: 'text.secondary' }}>Chưa có kiến thức nào.</TableCell></TableRow>
-                ) : (
-                  rules.map((rule) => (
-                    <TableRow key={rule.id} hover>
-                      <TableCell sx={{ fontWeight: 'bold', color: '#334155' }}>{rule.keyword}</TableCell>
-                      <TableCell sx={{ color: '#475569' }}>{rule.answer}</TableCell>
-                      <TableCell align="center">
-                        <IconButton color="error" onClick={() => handleDelete(rule.id)} size="small">
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </Grid>
-      </Grid>
-
-      <Snackbar open={toast.open} autoHideDuration={3000} onClose={() => setToast({ ...toast, open: false })}>
-        <Alert severity={toast.severity} sx={{ width: '100%' }}>{toast.message}</Alert>
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: 'minmax(0, 1fr)',
+                md: 'minmax(300px, 0.85fr) minmax(0, 1.55fr)',
+              },
+              alignItems: 'start',
+              gap: 3,
+            }}
+          >
+            <KnowledgeForm
+              disabled={loading || !!loadError}
+              onSubmit={addEntry}
+            />
+            <KnowledgeList
+              entries={entries}
+              loading={loading}
+              error={loadError}
+              onRetry={() => {
+                void fetchEntries();
+              }}
+              onDelete={deleteEntry}
+            />
+          </Box>
+        </Container>
+      </Box>
+      <Snackbar
+        open={!!toast}
+        autoHideDuration={5000}
+        onClose={() => setToast(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        {toast ? (
+          <Alert
+            severity={toast.severity}
+            variant="filled"
+            onClose={() => setToast(null)}
+            sx={{ width: '100%' }}
+          >
+            {toast.message}
+          </Alert>
+        ) : undefined}
       </Snackbar>
-    </Container>
+    </ThemeProvider>
   );
 };

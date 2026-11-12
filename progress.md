@@ -1,5 +1,49 @@
 # TIẾN ĐỘ DỰ ÁN: LIVEORDER CHỐT ĐƠN ENGINE
 
+## Cập nhật 12/11/2026 (tiếp) — Điều chỉnh theo mô hình "1 buổi thật + tự test"
+
+- ✅ Người dùng xác nhận: chỉ có **1 buổi livestream thật với 20–30 người** (mục tiêu 25–26/11/2026); mọi thời điểm còn lại **tự test quy mô nhỏ 1–3 tài khoản/thiết bị**. Hệ quả trực tiếp: lần đầu hệ thống đón 20–30 kết nối thật sẽ là buổi demo, không có buổi thử với số người thật trước đó.
+- Điều chỉnh `plan.md` mục 8: 8.1 thêm yêu cầu "1 buổi thật + tự test"; 8.2 cập nhật hạn mức LiveKit; 8.5 đổi M5 từ "tải thử 20–30 người thật" sang "tự test 1–3 thiết bị + script mô phỏng ~30 kết nối Socket gửi comment/đơn" — mô phỏng không phát video nên không tiêu quota LiveKit; 8.6 cập nhật ngân sách quota (~1.950/5.000) và thêm rủi ro "lần đầu đón 20–30 kết nối thật là buổi demo" kèm biện pháp: mô phỏng tải, chuẩn bị ≥30 tài khoản seed, giới hạn lượt hỏi AI, phương án tắt tạm tính năng nặng.
+- Script mô phỏng nếu triển khai sẽ nằm **ngoài repository** (như thực hành dọn dữ liệu/script tạm trước đây), không tạo file test rác trong repo; phải lập kế hoạch và xin duyệt trước khi tạo/chạy.
+- ✅ M0 bước 1 theo quyết định người dùng (commit + PR): tạo 2 commit trên `feat/seller-knowledge-ui` — `f230c3e feat(kb): implement knowledge base management UI and responsive navbar` (Navbar, AiSettingsPage, components/knowledge-base/) và `e1eaf5a docs(plan): add deploy & live demo plan v2.6 and progress logs` (plan.md, progress.md) — đã push lên origin; file `docs/Groq-RAG-LiveOrder.pptx` giữ ngoài Git theo yêu cầu. Build Backend/Frontend đã chạy xanh trong phiên hôm nay trước khi push. PR chờ người dùng tạo/merge trên GitHub (gh CLI chưa cài); sau merge mới tiếp tục pull main và tạo nhánh `feat/deploy-live-demo`.
+- [MODIFY]: `progress.md` (nhật ký này). Không sửa code, schema, dependency.
+
+---
+
+## Cập nhật 12/11/2026 (bổ sung) — Chốt video V1 LiveKit và RAG chờ đo M4
+
+- ✅ Người dùng chốt hai quyết định cho kế hoạch Deploy & Live Demo tại `plan.md` mục 8: (1) video phải nằm hoàn toàn trong app LiveOrder, **loại YouTube/Facebook Live**; triển khai trước **V1 LiveKit Cloud**, nâng cấp **V2 tự host LiveKit server trên VPS Oracle** sau M5 nếu còn thời gian; (2) RAG trên bản demo **chốt sau khi đo M4**: mặc định giữ embedding local + pre-embed toàn bộ KB/Product vào Neon từ máy local trước ngày demo, nếu RAM/CPU không đạt thì chuyển EmbeddingService sang API embedding, giữ path local bằng env cho báo cáo S19 offline.
+- Giải thích kỹ thuật đã thống nhất: Socket.io chỉ chuyên chat/đơn hàng và 30 người xem × ~1,5 Mbps × 60 phút ≈ 20 GB/buổi vượt 5 GB/tháng của Render Free nên video không đi qua backend; Groq không có API embedding nên không thể dùng Groq cho retrieval; thiết kế vector hiện có (cột `embeddingModel`/`embeddingHash`) cho phép đổi model mà không cần migration.
+- [MODIFY]: `plan.md` (cập nhật 8.1, 8.2, 8.3, 8.5, 8.6 theo quyết định), `progress.md` (nhật ký này). Không sửa code, schema, dependency; không commit/push.
+
+---
+
+## Cập nhật 12/11/2026 — Lập kế hoạch Deploy & Live Demo 20–30 người xem
+
+- ✅ Hoàn thành đánh giá tiến độ và lập kế hoạch vận hành theo yêu cầu người dùng: livestream thật với 20–30 tài khoản được cấp trên hosting miễn phí, mục tiêu demo trong 10–14 ngày tới (25–26/11/2026). Người dùng đã đồng ý ghi vào `plan.md` v2.6 (mục 8) và nhật ký này.
+- Kết quả rà soát code ngày 12/11: `ViewerPage` vẫn dùng ảnh placeholder Unsplash, **chưa có video thật tới người xem** (blocker lớn nhất); frontend hardcode `http://localhost:3001` tại `api/client.ts`, `hooks/useViewerLivestream.ts` và `pages/seller/LiveStudio.tsx`; backend Socket.io không chạy được trên Vercel Hobby nên cần host riêng hỗ trợ WebSocket; `start:prod` trỏ `dist/main` trong khi build tạo `dist/src/main.js`; CORS mở toàn bộ; `killPort()` gọi execSync khi bootstrap; Redis trong docker-compose chưa được backend sử dụng. Toàn bộ route đã có `ProtectedRoute` theo role nên yêu cầu "chỉ tài khoản được cấp xem được" thỏa mãn ở cấp app.
+- Hạ tầng free chốt: frontend Vercel Hobby; backend Render Free (ngủ sau 15 phút không traffic, socket tính là traffic); PostgreSQL Neon Free 0,5 GB không hết hạn (không dùng Render Postgres vì chỉ sống 30 ngày); video theo yêu cầu người dùng chọn **LiveKit Cloud Build** làm phương án chính (token theo JWT, 100 kết nối đồng thời, 5.000 phút WebRTC/tháng — chỉ đủ 1–2 buổi chính/tháng), nhúng YouTube/Facebook Live là phương án dự phòng; Groq vẫn là API sinh câu trả lời.
+- Sáu mốc M0–M6 ghi tại `plan.md` mục 8.5: chốt nhánh hiện tại → dựng hạ tầng → cấu hình code (bỏ hardcode, CORS, killPort, start:prod) → tích hợp video → nghiệm thu E2E trên prod → tải thử 20–30 người → tổng duyệt. Mỗi mốc chỉ chuyển tiếp khi có bằng chứng; mọi sửa code gồm file [KỲ] (LiveStudio, Livestream) và [CHUNG] (client.ts, App/config) vẫn phải lập kế hoạch nhỏ và xin xác nhận trước khi viết.
+- Tình trạng Git khi đánh giá: nhánh `feat/seller-knowledge-ui` còn thay đổi chưa commit (`Navbar.tsx`, `AiSettingsPage.tsx`, `progress.md`, thư mục `components/knowledge-base/`, file PPTX) — cần xử lý trước khi bắt đầu M0.
+- [MODIFY]: `plan.md` (nâng v2.6, bổ sung mục 8), `progress.md` (nhật ký này + dòng tổng hợp Deploy Demo). Không sửa code, schema, dependency; không chạy migration; không commit/push.
+
+---
+
+## Cập nhật 23/10/2026 — Giao diện Kho kiến thức của Shop (Dev 1)
+
+- ✅ Hoàn thành phần giao diện theo kế hoạch đã duyệt trên nhánh `feat/seller-knowledge-ui`. Đổi tên trang “Cấu hình Trí tuệ Nhân tạo (AI)” thành **Kho kiến thức của Shop**, nhãn Navbar thành **Kho kiến thức**; giữ route `/seller/ai-settings`.
+- Chuẩn bị: `git status` chỉ có file PowerPoint chưa theo dõi của người dùng; `git pull origin main` fast-forward thành công, `npm install` thành công và không đổi package/lockfile được theo dõi; tạo nhánh mới. Build Frontend baseline đạt. Bước `prisma generate` gặp EPERM khi thay query_engine-windows.dll.node, thử lại ngoài sandbox vẫn lỗi; chưa kết luận chắc tiến trình nào giữ DLL, không dừng Backend hoặc thay engine. Task chỉ sửa Frontend, không đổi schema hay chạy migration.
+- Giao diện navy/nền sáng, header gọn và số mục đã lưu; desktop chia hai cột, màn hình nhỏ một cột. Theme chỉ áp dụng trong trang KB; không đổi theme các trang khác. Giới thiệu chức năng bằng nghiệp vụ của Shop, không hiển thị vector/model hoặc trạng thái “AI đã học” khi API không cung cấp bằng chứng đó.
+- KnowledgeForm giữ bản nháp, kiểm tra rỗng sau trim, bộ đếm/giới hạn 100 và 1.000 ký tự, lỗi cạnh trường và focus trường lỗi đầu tiên. Hiển thị đang lưu, chặn gửi lặp; chỉ xóa bản nháp khi POST thành công, giữ nội dung nếu API lỗi.
+- KnowledgeList hiển thị thẻ, giữ xuống dòng và ngắt từ dài, mở rộng/thu gọn nội dung dài; tìm theo tiêu đề/nội dung không phân biệt hoa thường hoặc dấu tiếng Việt. Có trạng thái loading, tải lỗi/thử lại, kho trống và không có kết quả tìm kiếm. Xác nhận xóa bằng Dialog; hủy không gửi DELETE, xóa lỗi giữ nguyên mục và cho thử lại.
+- AiSettingsPage quản lý GET/POST/DELETE và thông báo, hủy GET khi unmount/retry để tránh phản hồi lỗi thời; cập nhật danh sách từ phản hồi mutation bằng functional state updates. API vẫn dùng keyword/answer. Component con sở hữu state giao diện của mình, không thêm hook/abstraction không cần thiết. Đã đánh giá KnowledgeList vượt khoảng 300 dòng sau format: phần dài chủ yếu là JSX thẻ và Dialog cùng trách nhiệm danh sách; không tách thêm file chỉ để giảm số dòng.
+- Sau kiểm tra 375px phát hiện Navbar [CHUNG] có sẵn tràn ngang (scrollWidth 678px). Đã xin và được người dùng đồng ý mở rộng phạm vi sửa responsive: Toolbar/nhóm nút xuống hàng, tên người dùng dài ngắt dòng; giữ nguyên route, điều kiện role và logout. Kiểm tra sau sửa toàn trang không tràn ngang ở 375px; Navbar không tràn ở 320/375/768/1.024/1.365px với SELLER/BUYER/ADMIN và tên rất dài.
+- Xác minh trên Chrome headless bằng fixture chặn API trong hồ sơ tạm riêng, không dùng phiên đăng nhập người dùng và không sửa KB thật. Đã thấy kiểm tra title cũ fail trước khi sửa, sau sửa pass; tương tự đã tái hiện Navbar tràn rồi kiểm tra lại đạt. Các thao tác đạt: title/nav, validate/focus/Tab và không POST khi rỗng, tìm không dấu, mở rộng, giới hạn ký tự, POST lỗi giữ nháp/thử lại thành công đúng payload, DELETE hủy/lỗi/thử lại, loading/error/retry/empty, bố cục điện thoại và landscape, reduced-motion. Đã xem ảnh desktop/mobile; không có runtime exception trong các tình huống kiểm tra. Chưa nghiệm thu thêm/xóa KB thật từ UI trong bước này.
+- Kiểm tra cuối: `npm run build --workspace apps/frontend` thành công; oxlint các file Frontend tác động, Prettier các file trang/component mới và `git diff --check` đạt. Bundle khoảng 751,29 kB (gzip 233,93 kB), vẫn có cảnh báo >500 kB; chưa mở rộng sang chia bundle/router. Review độc lập không thấy blocker ở luồng KB hoặc Navbar.
+- [CREATE]: `apps/frontend/src/components/knowledge-base/KnowledgeForm.tsx`, `KnowledgeList.tsx`, `types.ts`. [MODIFY]: `apps/frontend/src/pages/seller/AiSettingsPage.tsx`, `apps/frontend/src/components/common/Navbar.tsx`, `progress.md`. Không sửa Backend/API/RAG/DB/Product/Order/Parser/Live Studio; không tạo dependency/test/config mới hoặc sửa file PowerPoint. `KY_GUIDE.md` không có nên không tạo ngoài kế hoạch. Chưa stage/commit/push.
+
+---
+
 ## Cập nhật 22/10/2026 — S19 sửa AI lặp thông tin sản phẩm cũ trong lịch sử (Dev 1)
 
 - ✅ Hoàn thành bước sửa đã được yêu cầu: khi tư vấn sản phẩm, ưu tiên nguồn Product vừa đọc từ DB; giữ lịch sử để hiểu mẫu/nhu cầu/chiều cao/cân nặng. Tiếp tục trên `feat/s19-rag-demo`, giữ nguyên staging có trước, không commit/push.
@@ -299,6 +343,7 @@
 | **Phase 1** | Module AI (Groq Qwen), KbEntry & tư vấn riêng trong Inbox | Dev 1 | ✅ Hoàn thành |
 | **Phase 1** | Viewer Live UI, Buyer Inbox & Seller Inbox | Dev 1 | ✅ Hoàn thành |
 | **Phase 2** | Tích hợp Livestream, Order, VietQR & Inbox (Full Pipeline E2E) | Cả hai | 🔄 Đang thực hiện |
+| **Phase D** | Đưa hệ thống lên hosting free (Vercel/Render/Neon) + livestream thật 20–30 user — kế hoạch tại `plan.md` mục 8 | Cả hai | 🔄 Đã lập kế hoạch |
 
 *Ký hiệu: ⏳ Chưa bắt đầu | 🔄 Đang thực hiện | ✅ Hoàn thành | ❌ Lỗi*
 
