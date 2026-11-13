@@ -317,7 +317,7 @@ Tham khảo kỹ thuật: [Transformers.js — Node.js, model cache và local mo
 | Mốc | Thời gian dự kiến | Công việc | Phụ trách | Bằng chứng hoàn thành |
 |---|---|---|---|---|
 | **M0** | 12–13/11/2026 | Chốt nhánh `feat/seller-knowledge-ui` (commit/merge theo quyết định người dùng), chạy chuẩn bị B1–B5, tạo nhánh `feat/deploy-live-demo` | Cả hai | `main` sạch, build hai workspace xanh |
-| **M1** | 14–15/11/2026 | Tạo Neon (`prisma migrate deploy` + seed), Render service + env vars, Vercel project + `VITE_API_URL` | Kỳ lead, Thịnh hỗ trợ | URL backend trả API qua HTTPS; URL frontend mở trang đăng nhập |
+| **M1** | 14–15/11/2026 | Tạo Neon (`prisma migrate deploy` + seed), Render service + env vars, Vercel project + `VITE_API_URL` | Kỳ lead, Thịnh hỗ trợ | URL backend trả API qua HTTPS; URL frontend mở trang đăng nhập — **✅ hoàn thành 14/11/2026** (`liveorder-api.onrender.com`, `liveorder-six.vercel.app`, LiveKit Frankfurt `wss://liveorder-demo-qwjga2w6.livekit.cloud`) |
 | **M2** | 15–17/11/2026 | Bỏ hardcode localhost, CORS whitelist, xử lý `killPort`/`start:prod`, cấu hình domain Socket; có plan nhỏ + duyệt trước code | Kỳ + Thịnh | Hai máy khác nhau truy cập app qua internet |
 | **M3** | 17–20/11/2026 | Tích hợp video V1 LiveKit Cloud (mục 8.3): Studio phát (publish), Viewer nhận (subscribe), endpoint cấp token theo JWT | Kỳ (Studio/token), Thịnh (Viewer) | Người ở máy khác **thấy video thật** của Seller |
 | **M4** | 21–22/11/2026 | Nghiệm thu E2E trên prod: comment chốt đơn → trừ kho → nổ đơn → QR + Groq trong Inbox | Cả hai | Video/screenshots từng luồng |
