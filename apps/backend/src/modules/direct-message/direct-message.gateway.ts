@@ -9,9 +9,10 @@ import { Role } from '@prisma/client';
 import { Namespace, Socket } from 'socket.io';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
+import { createCorsOptions } from '../../core/config/cors.config';
 import { DirectMessageEvents, inboxUserRoom } from './direct-message.events';
 
-@WebSocketGateway({ namespace: '/inbox', cors: { origin: true } })
+@WebSocketGateway({ namespace: '/inbox', cors: createCorsOptions() })
 export class DirectMessageGateway
   implements OnGatewayInit, OnGatewayConnection
 {

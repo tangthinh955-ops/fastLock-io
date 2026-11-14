@@ -3,6 +3,7 @@ import { Box, Grid } from '@mui/material';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from '../../context/AuthContext';
 import apiClient from '../../api/client';
+import { SOCKET_URL } from '../../config/env';
 import { StreamControlHeader } from '../../components/stream/StreamControlHeader';
 import { WebCamPlayer } from '../../components/stream/WebCamPlayer';
 import { RecentOrdersList, type OrderNotification } from '../../components/stream/RecentOrdersList';
@@ -23,8 +24,6 @@ export const LiveStudio: React.FC = () => {
     const [recentOrders, setRecentOrders] = useState<OrderNotification[]>([]);
     const [latestOrder, setLatestOrder] = useState<OrderNotification | null>(null);
     const socketRef = useRef<Socket | null>(null);
-
-    const API_BASE = 'http://localhost:3001';
 
     useEffect(() => {
         startCamera();
@@ -70,7 +69,7 @@ export const LiveStudio: React.FC = () => {
             setCurrentStreamId(streamData.id);
             setIsStreaming(true);
 
-            const socket = io(API_BASE, {
+            const socket = io(SOCKET_URL, {
                 auth: { token },
             });
             socketRef.current = socket;

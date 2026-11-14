@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
-import apiClient from '../api/client';
+import { SOCKET_URL } from '../config/env';
 import { useAuth } from '../context/AuthContext';
 import type {
   ConversationModeEvent,
@@ -30,8 +30,7 @@ export const useInboxSocket = (
     let active = true;
     const seen = new Set<string>();
     let firstReady = true;
-    const baseURL = apiClient.defaults.baseURL ?? window.location.origin;
-    const socket = io(`${baseURL.replace(/\/$/, '')}/inbox`, {
+    const socket = io(`${SOCKET_URL}/inbox`, {
       autoConnect: false,
       auth: { token },
     });

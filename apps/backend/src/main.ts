@@ -2,6 +2,11 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { execSync } from 'child_process';
+import {
+  createCorsOptions,
+  hasConfiguredCorsOrigins,
+  shouldAutoKillPort,
+} from './core/config/cors.config';
 
 /**
  * Tự động giải phóng cổng (Port) nếu bị chiếm dụng bởi tiến trình Node rác chạy ngầm
@@ -23,12 +28,20 @@ function killPort(port: number) {
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
   const PORT = Number(process.env.PORT) || 3001;
+  const allowAutoKill = shouldAutoKillPort();
 
-  // Giải phóng cổng 3001 trước khi khởi chạy ứng dụng
-  killPort(PORT);
+  // Chỉ tự giải phóng cổng ở môi trường dev cục bộ, tắt trên production/Render
+  if (allowAutoKill) {
+    killPort(PORT);
+  }
 
   const app = await NestFactory.create(AppModule);
-  app.enableCors();
+  if (process.env.NODE_ENV === 'production' && !hasConfiguredCorsOrigins()) {
+    logger.warn(
+      'CORS_ORIGINS chưa được cấu hình ở môi trường production — mọi request trình duyệt khác origin sẽ bị chặn.',
+    );
+  }
+  app.enableCors(createCorsOptions());
 
   // Bật ValidationPipe toàn cục — Tự động kiểm tra DTO trước khi vào Controller
   app.useGlobalPipes(
@@ -43,7 +56,7 @@ async function bootstrap() {
     await app.listen(PORT);
     logger.log(`🚀 NestJS Backend đang chạy thành công tại port: ${PORT}`);
   } catch (error) {
-    if (error.code === 'EADDRINUSE') {
+    if (error.code === 'EADDRINUSE' && allowAutoKill) {
       logger.warn(`Cổng ${PORT} bị chiếm dụng. Đang tự động giải phóng...`);
       killPort(PORT);
       await new Promise((resolve) => setTimeout(resolve, 1000));
