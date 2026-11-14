@@ -13,7 +13,9 @@ import {
 import ForumOutlinedIcon from '@mui/icons-material/ForumOutlined';
 import SendIcon from '@mui/icons-material/Send';
 import { useNavigate } from 'react-router-dom';
+import { LiveVideoPlayer } from '../../components/viewer/LiveVideoPlayer';
 import { useAuth } from '../../context/AuthContext';
+import { useLiveKitViewer } from '../../hooks/useLiveKitViewer';
 import { useViewerLivestream } from '../../hooks/useViewerLivestream';
 
 export const ViewerPage: React.FC = () => {
@@ -23,6 +25,11 @@ export const ViewerPage: React.FC = () => {
     buyerId: user?.id,
     buyerName: user?.name,
     token,
+  });
+  const livekit = useLiveKitViewer({
+    livestreamId: livestream.activeStream?.id,
+    isLive: Boolean(livestream.activeStream),
+    authToken: token,
   });
   const [inputText, setInputText] = useState('');
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -42,51 +49,21 @@ export const ViewerPage: React.FC = () => {
 
   return (
     <Container maxWidth="lg" sx={{ mt: 4, height: '80vh', display: 'flex' }}>
-      <Box
-        sx={{
-          flex: 2,
-          bgcolor: '#000',
-          borderRadius: 2,
-          mr: 2,
-          position: 'relative',
-          overflow: 'hidden',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
+      <LiveVideoPlayer
+        isLive={Boolean(livestream.activeStream)}
+        title={livestream.activeStream?.title}
+        videoRef={livekit.videoRef}
+        audioRef={livekit.audioRef}
+        videoStatus={livekit.videoStatus}
+        hasVideo={livekit.hasVideo}
+        videoMutedBySeller={livekit.videoMutedBySeller}
+        muted={livekit.muted}
+        videoError={livekit.videoError}
+        onToggleMute={() => {
+          void livekit.toggleMute();
         }}
-      >
-        <Typography variant="h5" color="white" sx={{ zIndex: 10 }}>
-          📺{' '}
-          {livestream.activeStream?.title ||
-            '[CHƯA CÓ LIVESTREAM ĐANG PHÁT]'}
-        </Typography>
-        <img
-          src="https://images.unsplash.com/photo-1574634534894-89d7576c8259?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"
-          alt="livestream"
-          style={{
-            position: 'absolute',
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
-            opacity: 0.5,
-          }}
-        />
-        <Box
-          sx={{
-            position: 'absolute',
-            top: 16,
-            left: 16,
-            bgcolor: livestream.activeStream ? 'red' : '#64748b',
-            color: 'white',
-            px: 1.5,
-            py: 0.5,
-            borderRadius: 1,
-            fontWeight: 'bold',
-          }}
-        >
-          {livestream.activeStream ? 'LIVE' : 'OFFLINE'}
-        </Box>
-      </Box>
+        onRetry={livekit.retry}
+      />
 
       <Paper
         elevation={3}

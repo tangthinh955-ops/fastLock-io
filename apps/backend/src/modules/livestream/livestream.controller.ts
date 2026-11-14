@@ -3,6 +3,7 @@ import { Role } from '@prisma/client';
 import { LivestreamService } from './livestream.service';
 import { CreateLivestreamDto } from './dto/create-livestream.dto';
 import { LivestreamGateway } from './livestream.gateway';
+import { LivekitTokenService, type LivekitTokenUser } from './livekit-token.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -13,7 +14,18 @@ export class LivestreamController {
     constructor(
         private readonly livestreamService: LivestreamService,
         private readonly livestreamGateway: LivestreamGateway,
+        private readonly livekitTokenService: LivekitTokenService,
     ) { }
+
+    @Post(':id/token')
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(Role.SELLER, Role.BUYER)
+    async createLivekitToken(
+        @Param('id') id: string,
+        @CurrentUser() user: LivekitTokenUser,
+    ) {
+        return await this.livekitTokenService.createRoomToken(id, user);
+    }
 
     @Post()
     @UseGuards(JwtAuthGuard, RolesGuard)
