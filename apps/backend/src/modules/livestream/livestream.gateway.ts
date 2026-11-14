@@ -12,12 +12,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { LivestreamCommentProcessor, SendCommentDto } from './livestream-comment.processor';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
+import { createCorsOptions } from '../../core/config/cors.config';
 
 @Injectable()
 @WebSocketGateway({
-    cors: {
-        origin: '*',
-    },
+    cors: createCorsOptions(),
 })
 export class LivestreamGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @WebSocketServer()

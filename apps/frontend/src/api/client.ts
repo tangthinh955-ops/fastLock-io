@@ -1,8 +1,9 @@
 import axios from 'axios';
+import { API_URL } from '../config/env';
 
 // Tạo Axios instance kết nối tới Backend NestJS
 const apiClient = axios.create({
-  baseURL: 'http://localhost:3001',
+  baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   },

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
 import apiClient from '../api/client';
+import { SOCKET_URL } from '../config/env';
 
-const SOCKET_URL = 'http://localhost:3001';
 const COMMENT_HISTORY_LIMIT = 10;
 
 export interface ActiveLivestream {

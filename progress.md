@@ -1,5 +1,18 @@
 # TIẾN ĐỘ DỰ ÁN: LIVEORDER CHỐT ĐƠN ENGINE
 
+## Cập nhật 14/11/2026 — M1 hoàn thành: hạ tầng deploy miễn phí (Neon + Render + Vercel + LiveKit)
+
+- ✅ P1 (Neon): project `liveorder-demo`, region Singapore (ap-southeast-1), endpoint `ep-quiet-feather-b3iaqwdb`; đã lấy đủ 2 chuỗi kết nối (direct dùng migrate/seed từ máy, pooled dành cho Render).
+- ✅ P2 (Neon DB): `npx prisma migrate deploy` áp dụng đủ 5 migration (`0_init`, `add_message_source`, `add_conversation`, `add_kb_embeddings`, `add_product_embeddings`); `migrate status` báo "Database schema is up to date!"; `prisma db seed` tạo 3 tài khoản `admin@/seller@/buyer@liveorder.com` (mật khẩu chung 123456). Chuỗi kết nối được trao đổi qua file tạm ngoài repo rồi xóa sạch; `.env` local giữ nguyên `DATABASE_URL` Docker (localhost:5432).
+- ✅ P3 (Render): Web Service `liveorder-api` (region Singapore, instance Free; build `npm install && cd apps/backend && npx prisma generate && npm run build`; start `node apps/backend/dist/src/main.js`), env: `DATABASE_URL` (pooled), `JWT_SECRET`, `GROQ_API_KEY`, `NODE_VERSION=22`. Log deploy có "🚀 NestJS Backend đang chạy thành công tại port: 10000"; kiểm tra từ máy local `GET https://liveorder-api.onrender.com/products` trả HTTP 200 `[]`.
+- ✅ P4 (Vercel): import workspace `frontend` (Root Directory `apps/frontend`, env `VITE_API_URL=https://liveorder-api.onrender.com`). Deploy đầu FAIL: Node 26.13.1 + `rolldown` báo `MODULE_NOT_FOUND` — chẩn đoán: lockfile sinh trên Windows nên thiếu entry gói native `@rolldown/binding-linux-x64-gnu` (chỉ có range 1.1.5 trong optionalDependencies của rolldown, không có entry `node_modules/...` cho Linux). Fix hoàn toàn trên dashboard, không sửa repo: Install Command override `npm install && npm install --no-save @rolldown/binding-linux-x64-gnu@1.1.5` + env `NODE_VERSION=22` + Redeploy không dùng Build Cache → deploy Ready (21s), Node.js 22.x. URL `https://liveorder-six.vercel.app` mở trang Đăng nhập (HTTP 200 kiểm tra từ máy local). Login chưa hoạt động là đúng dự kiến: frontend hardcode `localhost:3001` — thuộc M2.
+- ✅ P5 (LiveKit): gói free LiveKit Cloud chỉ có region US và EU (không có Singapore) → chọn **European Union (Frankfurt)** cho độ trễ thấp nhất khả dụng với VN; project `liveorder-demo`, URL `wss://liveorder-demo-qwjga2w6.livekit.cloud`; API Key + Secret do người dùng tự lưu sổ tay (không đưa vào repo/chat); tắt tùy chọn capture agent sessions để tiết kiệm quota.
+- ✅ Đuôi M0: `npx prisma generate` chạy lại thành công sau khi người dùng tắt server dev backend (EPERM giữ DLL không còn).
+- Rà soát phục vụ M2 (chưa sửa gì): 3 chỗ hardcode `http://localhost:3001` — `api/client.ts` (dòng 5), `hooks/useViewerLivestream.ts` (dòng 5), `pages/seller/LiveStudio.tsx` (dòng 27, thuộc khu vực [KỲ]); `start:prod` trỏ `dist/main` trong khi `nest build` tạo `dist/src/main.js`; chưa có `vercel.json` SPA fallback; repo chưa từng dùng `import.meta.env` và không có file `.d.ts` nào. CORS hiện `app.enableCors()` mở toàn bộ → M2 không cần sửa CORS [KỲ].
+- [MODIFY]: `progress.md` (nhật ký này), `plan.md` (đánh dấu M1 ✅ tại bảng 8.5). Không sửa code, schema, dependency.
+
+---
+
 ## Cập nhật 12/11/2026 (tiếp) — Điều chỉnh theo mô hình "1 buổi thật + tự test"
 
 - ✅ Người dùng xác nhận: chỉ có **1 buổi livestream thật với 20–30 người** (mục tiêu 25–26/11/2026); mọi thời điểm còn lại **tự test quy mô nhỏ 1–3 tài khoản/thiết bị**. Hệ quả trực tiếp: lần đầu hệ thống đón 20–30 kết nối thật sẽ là buổi demo, không có buổi thử với số người thật trước đó.
