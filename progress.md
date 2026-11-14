@@ -1,5 +1,23 @@
 # TIẾN ĐỘ DỰ ÁN: LIVEORDER CHỐT ĐƠN ENGINE
 
+## Cập nhật 14/11/2026 (tiếp) — M2 hoàn thành: cấu hình deploy & kết nối qua Internet
+
+- ✅ **Backend CORS & runtime (`[CHUNG]` + `[BẠN]` + `[KỲ]` đã duyệt):**
+  - Tạo `apps/backend/src/core/config/cors.config.ts` và `cors.config.spec.ts` (TDD, 8/8 tests PASS): `parseCorsOrigins`, `isOriginAllowed`, `hasConfiguredCorsOrigins`, `createCorsOptions` đọc động `CORS_ORIGINS` (dev mặc định `http://localhost:5173,http://127.0.0.1:5173`; prod chặn trừ whitelist) và `shouldAutoKillPort` tắt `killPort()` trên production/Render.
+  - Cập nhật `apps/backend/package.json` (`start:prod` → `node dist/src/main.js`), `apps/backend/src/main.ts` (gắn `createCorsOptions()`, guard `killPort()`, log cảnh báo nếu prod thiếu `CORS_ORIGINS`), `apps/backend/.env.example`.
+  - Áp dụng `createCorsOptions()` cho cả 2 gateway Socket.io: `DirectMessageGateway` (`/inbox`, `[BẠN]`) và `LivestreamGateway` (default namespace, `[KỲ]`).
+- ✅ **Frontend env URL & Vercel SPA fallback (`[CHUNG]` + `[BẠN]` + `[KỲ]` đã duyệt):**
+  - Tạo `apps/frontend/src/config/env.ts` (`normalizeBaseUrl`, `resolveEnvUrls`, `API_URL`, `SOCKET_URL`), `vite-env.d.ts`, `.env.example`, và `vercel.json` (rewrite `/(.*)` → `/index.html`).
+  - Loại bỏ hardcode `http://localhost:3001` tại `api/client.ts`, `hooks/useViewerLivestream.ts`, `hooks/useInboxSocket.ts`, và `pages/seller/LiveStudio.tsx` (`[KỲ]`).
+- ✅ **Deploy & Nghiệm thu thực tế qua Internet:**
+  - PR #21 đã merge vào `origin/main` (`183d123`, từ nhánh `feat/deploy-live-demo` commit `490a5e8`).
+  - Render (`liveorder-api.onrender.com`): đã thêm `CORS_ORIGINS=https://liveorder-six.vercel.app,http://localhost:5173` (không khai báo `NODE_ENV` trong Env UI để giữ `devDependencies` lúc build và dùng `NODE_ENV=production` runtime mặc định của Render).
+  - Kiểm chứng live: `GET https://liveorder-six.vercel.app/login` trả **HTTP 200** (SPA fallback hoạt động, bundle `/assets/index-DTN1pcUQ.js` có `liveorder-api.onrender.com`); `GET https://liveorder-api.onrender.com/products` và Socket.io polling handshake trả `access-control-allow-origin: https://liveorder-six.vercel.app` + `vary: Origin` với origin Vercel và **không** cấp `access-control-allow-origin` với origin lạ (`https://evil.example.com`). Người dùng xác nhận kết nối 2 máy qua Internet đạt.
+- Kiểm tra local trước push: Jest backend `cors.config.spec.ts` + `direct-message.gateway.spec.ts` 20/20 PASS (full Jest 7/9 suites 105/107 PASS — 2 lỗi còn lại là stub `ai.controller.spec.ts` & `direct-message.controller.spec.ts` có sẵn từ trước); `oxlint` frontend 0 errors (9 warnings cũ); `build:backend` & `build:frontend` PASS.
+- `[CREATE]`/`[MODIFY]`: 15 file M2 trong commit `490a5e8` (merged `183d123`) + cập nhật `progress.md`, `plan.md`. `docs/Groq-RAG-LiveOrder.pptx` giữ ngoài Git.
+
+---
+
 ## Cập nhật 14/11/2026 — M1 hoàn thành: hạ tầng deploy miễn phí (Neon + Render + Vercel + LiveKit)
 
 - ✅ P1 (Neon): project `liveorder-demo`, region Singapore (ap-southeast-1), endpoint `ep-quiet-feather-b3iaqwdb`; đã lấy đủ 2 chuỗi kết nối (direct dùng migrate/seed từ máy, pooled dành cho Render).

@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Box, Grid } from '@mui/material';
+import { Alert, Box, Grid } from '@mui/material';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from '../../context/AuthContext';
 import apiClient from '../../api/client';
 import { SOCKET_URL } from '../../config/env';
+import { useLiveKitPublisher } from '../../hooks/useLiveKitPublisher';
 import { StreamControlHeader } from '../../components/stream/StreamControlHeader';
 import { WebCamPlayer } from '../../components/stream/WebCamPlayer';
 import { RecentOrdersList, type OrderNotification } from '../../components/stream/RecentOrdersList';
@@ -14,11 +15,20 @@ export const LiveStudio: React.FC = () => {
     const [isStreaming, setIsStreaming] = useState(false);
     const [streamTitle, setStreamTitle] = useState('PHIÊN LIVESTREAM CHỐT ĐƠN HÔM NAY 🚀');
     const [currentStreamId, setCurrentStreamId] = useState<string | null>(null);
+    const startingRef = useRef(false);
+    const studioMountedRef = useRef(true);
+    const activeStreamIdRef = useRef<string | null>(null);
 
-    const [camEnabled, setCamEnabled] = useState(true);
-    const [micEnabled, setMicEnabled] = useState(true);
-    const videoRef = useRef<HTMLVideoElement | null>(null);
-    const mediaStreamRef = useRef<MediaStream | null>(null);
+    const {
+        videoRef,
+        camEnabled,
+        micEnabled,
+        videoError,
+        toggleCamera,
+        toggleMic,
+        startPublishing,
+        stopPublishing,
+    } = useLiveKitPublisher();
 
     const [comments, setComments] = useState<CommentItem[]>([]);
     const [recentOrders, setRecentOrders] = useState<OrderNotification[]>([]);
@@ -26,46 +36,30 @@ export const LiveStudio: React.FC = () => {
     const socketRef = useRef<Socket | null>(null);
 
     useEffect(() => {
-        startCamera();
+        studioMountedRef.current = true;
         return () => {
-            stopCamera();
-            if (socketRef.current) socketRef.current.disconnect();
+            studioMountedRef.current = false;
+            activeStreamIdRef.current = null;
+            if (socketRef.current) {
+                socketRef.current.disconnect();
+                socketRef.current = null;
+            }
         };
     }, []);
 
-    const startCamera = async () => {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-            mediaStreamRef.current = stream;
-            if (videoRef.current) videoRef.current.srcObject = stream;
-        } catch (err) {
-            console.error('Khởi động WebCam thất bại:', err);
-        }
-    };
-
-    const stopCamera = () => {
-        if (mediaStreamRef.current) mediaStreamRef.current.getTracks().forEach((track) => track.stop());
-    };
-
-    const toggleCamera = () => {
-        if (mediaStreamRef.current) {
-            const track = mediaStreamRef.current.getVideoTracks()[0];
-            if (track) { track.enabled = !track.enabled; setCamEnabled(track.enabled); }
-        }
-    };
-
-    const toggleMic = () => {
-        if (mediaStreamRef.current) {
-            const track = mediaStreamRef.current.getAudioTracks()[0];
-            if (track) { track.enabled = !track.enabled; setMicEnabled(track.enabled); }
-        }
-    };
-
     const handleStartLive = async () => {
-        if (!user) return;
+        if (!user || isStreaming || startingRef.current) return;
+        startingRef.current = true;
         try {
             const res = await apiClient.post('/livestreams', { title: streamTitle });
             const streamData = res.data;
+
+            if (!studioMountedRef.current) {
+                void apiClient.patch(`/livestreams/${streamData.id}/end`).catch(() => {});
+                return;
+            }
+
+            activeStreamIdRef.current = streamData.id;
             setCurrentStreamId(streamData.id);
             setIsStreaming(true);
 
@@ -87,21 +81,33 @@ export const LiveStudio: React.FC = () => {
                 setRecentOrders((prev) => [orderData, ...prev]);
                 setTimeout(() => setLatestOrder(null), 6000);
             });
+
+            await startPublishing(streamData.id);
         } catch (err) {
-            alert('Không thể tạo phiên Live. Vui lòng kiểm tra lại Backend NestJS!');
+            if (studioMountedRef.current) {
+                alert('Không thể tạo phiên Live. Vui lòng kiểm tra lại Backend NestJS!');
+            }
+        } finally {
+            startingRef.current = false;
         }
     };
 
     const handleEndLive = async () => {
-        if (currentStreamId) {
-            try { await apiClient.patch(`/livestreams/${currentStreamId}/end`); } catch {}
+        const targetStreamId = activeStreamIdRef.current ?? currentStreamId;
+        activeStreamIdRef.current = null;
+        await stopPublishing();
+        if (targetStreamId) {
+            try { await apiClient.patch(`/livestreams/${targetStreamId}/end`); } catch {}
         }
         if (socketRef.current) {
-            socketRef.current.emit('leave_room', { livestreamId: currentStreamId });
+            socketRef.current.emit('leave_room', { livestreamId: targetStreamId });
             socketRef.current.disconnect();
+            socketRef.current = null;
         }
-        setIsStreaming(false);
-        setCurrentStreamId(null);
+        if (studioMountedRef.current) {
+            setIsStreaming(false);
+            setCurrentStreamId(null);
+        }
     };
 
     return (
@@ -111,11 +117,17 @@ export const LiveStudio: React.FC = () => {
                 onTitleChange={setStreamTitle} onStartLive={handleStartLive} onEndLive={handleEndLive}
             />
 
+            {videoError && (
+                <Alert severity="warning" sx={{ mb: 2 }}>
+                    {videoError}
+                </Alert>
+            )}
+
             <Grid container spacing={3}>
                 <Grid size={{ xs: 12, md: 8 }}>
                     <WebCamPlayer
                         videoRef={videoRef} camEnabled={camEnabled} micEnabled={micEnabled}
-                        onToggleCam={toggleCamera} onToggleMic={toggleMic}
+                        onToggleCam={() => { void toggleCamera(); }} onToggleMic={() => { void toggleMic(); }}
                     />
                     <RecentOrdersList latestOrder={latestOrder} recentOrders={recentOrders} />
                 </Grid>
