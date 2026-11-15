@@ -15,7 +15,11 @@ import {
   rememberInboxActivity,
 } from '../utils/inboxMessages';
 
-export const useSellerInbox = () => {
+interface UseSellerInboxOptions {
+  autoSelectFirst?: boolean;
+}
+
+export const useSellerInbox = ({ autoSelectFirst = true }: UseSellerInboxOptions = {}) => {
   const { user } = useAuth();
   const [customers, setCustomers] = useState<InboxContact[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(
@@ -30,6 +34,8 @@ export const useSellerInbox = () => {
     new Map<string, Pick<DirectMessage, 'id' | 'createdAt'>>(),
   );
   const contactsRequestRef = useRef(0);
+  const autoSelectFirstRef = useRef(autoSelectFirst);
+  autoSelectFirstRef.current = autoSelectFirst;
   const modeEndpoint = selectedCustomerId
     ? `/messages/seller/conversations/${selectedCustomerId}/mode`
     : null;
@@ -59,7 +65,10 @@ export const useSellerInbox = () => {
           activityRef.current,
         ),
       );
-      setSelectedCustomerId((current) => current ?? ordered[0]?.id ?? null);
+      setSelectedCustomerId(
+        (current) =>
+          current ?? (autoSelectFirstRef.current ? (ordered[0]?.id ?? null) : null),
+      );
     } catch (requestError) {
       console.error('Lỗi khi tải danh sách khách hàng:', requestError);
       if (request === contactsRequestRef.current) {
@@ -71,11 +80,18 @@ export const useSellerInbox = () => {
   }, []);
 
   useEffect(() => {
+    const requestCounter = contactsRequestRef;
     void fetchCustomers(true);
     return () => {
-      contactsRequestRef.current++;
+      requestCounter.current++;
     };
   }, [fetchCustomers]);
+
+  useEffect(() => {
+    if (autoSelectFirst && !selectedCustomerId && customers.length > 0) {
+      setSelectedCustomerId(customers[0].id);
+    }
+  }, [autoSelectFirst, selectedCustomerId, customers]);
 
   const handleMarkedRead = useCallback((customerId: string) => {
     setCustomers((currentCustomers) =>

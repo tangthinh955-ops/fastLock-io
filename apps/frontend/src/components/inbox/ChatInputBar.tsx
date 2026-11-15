@@ -1,7 +1,8 @@
 import React from 'react';
 import { Box, CircularProgress, IconButton, TextField } from '@mui/material';
-import SendIcon from '@mui/icons-material/Send';
+import SendRoundedIcon from '@mui/icons-material/SendRounded';
 import type { InboxView } from './types';
+import { surfaceTokens } from '../../theme';
 
 interface ChatInputBarProps {
   value: string;
@@ -24,13 +25,15 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
         ? 'Trợ lý AI đang trả lời...'
         : 'Nhập câu hỏi cho shop...'
       : 'Nhập tin nhắn trả lời khách hàng...';
+  const canSend = Boolean(value.trim()) && !sending;
 
   return (
     <Box
       sx={{
-        p: 2,
-        bgcolor: 'white',
-        borderTop: '1px solid #e2e8f0',
+        p: { xs: 1.25, sm: 1.75 },
+        bgcolor: 'background.paper',
+        borderTop: '1px solid',
+        borderColor: 'divider',
         display: 'flex',
         alignItems: 'flex-end',
         gap: 1,
@@ -56,13 +59,23 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = ({
       <IconButton
         color="primary"
         onClick={onSend}
-        disabled={!value.trim() || sending}
+        disabled={!canSend}
         aria-label={
           view === 'buyer' ? 'Gửi tin nhắn' : 'Gửi tin nhắn cho khách hàng'
         }
-        sx={{ mb: 0.25 }}
+        sx={{
+          bgcolor: canSend ? 'primary.main' : surfaceTokens.mutedBg,
+          color: canSend ? 'primary.contrastText' : 'text.disabled',
+          '&:hover': {
+            bgcolor: 'primary.dark',
+          },
+        }}
       >
-        {sending ? <CircularProgress size={24} /> : <SendIcon />}
+        {sending ? (
+          <CircularProgress size={20} color="inherit" />
+        ) : (
+          <SendRoundedIcon fontSize="small" />
+        )}
       </IconButton>
     </Box>
   );

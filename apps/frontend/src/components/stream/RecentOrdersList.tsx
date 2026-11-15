@@ -1,6 +1,6 @@
 import React from 'react';
-import { Box, Typography, Grid, Card, CardContent, Alert } from '@mui/material';
-import { ShoppingCart } from '@mui/icons-material';
+import { Box, Typography, Paper, Stack, Alert, Chip } from '@mui/material';
+import { ShoppingCartOutlined, CheckCircleOutlined } from '@mui/icons-material';
 
 export interface OrderNotification {
     orderId: string;
@@ -20,47 +20,114 @@ interface RecentOrdersListProps {
 
 export const RecentOrdersList: React.FC<RecentOrdersListProps> = ({ latestOrder, recentOrders }) => {
     return (
-        <Box sx={{ mt: 3 }}>
-            {latestOrder && (
-                <Alert
-                    icon={<ShoppingCart fontSize="inherit" />}
-                    severity="success"
-                    variant="filled"
-                    sx={{
-                        mb: 3,
-                        borderRadius: 3,
-                        boxShadow: '0px 0px 20px rgba(76, 175, 80, 0.8)',
-                        fontSize: '1.1rem',
-                        fontWeight: 'bold',
-                    }}
-                >
-                    🔥 🎉 NỔ ĐƠN TỰ ĐỘNG! KHÁCH HÀNG <b>{latestOrder.buyerName}</b> ({latestOrder.phone}) ĐÃ CHỐT SP: <b>{latestOrder.productName}</b> (SKU: {latestOrder.sku}) - {latestOrder.price.toLocaleString('vi-VN')} VNĐ
-                </Alert>
-            )}
+        <Paper
+            variant="outlined"
+            sx={{
+                height: { xs: 'auto', md: 'calc(100dvh - 196px)' },
+                maxHeight: { xs: 420, md: 'none' },
+                minHeight: { md: 460 },
+                display: 'flex',
+                flexDirection: 'column',
+                bgcolor: 'background.paper',
+                borderRadius: 3,
+                overflow: 'hidden',
+            }}
+        >
+            <Stack
+                direction="row"
+                spacing={1}
+                sx={{
+                    alignItems: 'center',
+                    px: 2,
+                    py: 1.5,
+                    borderBottom: 1,
+                    borderColor: 'divider',
+                }}
+            >
+                <ShoppingCartOutlined color="success" fontSize="small" />
+                <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                    Đơn hàng chốt tự động ({recentOrders.length})
+                </Typography>
+            </Stack>
 
-            <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 1 }}>
-                <ShoppingCart color="success" /> Đơn hàng chốt tự động ({recentOrders.length})
-            </Typography>
+            <Box sx={{ flexGrow: 1, overflowY: 'auto', p: 1.5 }}>
+                {latestOrder && (
+                    <Alert
+                        icon={<ShoppingCartOutlined />}
+                        severity="success"
+                        variant="outlined"
+                        sx={{
+                            mb: 1.5,
+                            borderRadius: 2,
+                            bgcolor: '#ECFDF5',
+                            borderColor: '#047857',
+                            color: '#065F46',
+                            fontSize: '0.875rem',
+                        }}
+                    >
+                        Đơn mới: <strong>{latestOrder.buyerName}</strong> ({latestOrder.phone}) đã chốt{' '}
+                        <strong>{latestOrder.productName}</strong> ({latestOrder.sku}) —{' '}
+                        {latestOrder.price.toLocaleString('vi-VN')} ₫
+                    </Alert>
+                )}
 
-            <Grid container spacing={2}>
-                {recentOrders.slice(0, 4).map((ord, idx) => (
-                    <Grid size={{ xs: 12, sm: 6 }} key={idx}>
-                        <Card sx={{ background: '#1e1e38', color: '#fff', borderLeft: '4px solid #4caf50', borderRadius: 2 }}>
-                            <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#81c784' }}>
-                                    ✅ {ord.productName} ({ord.sku})
+                {recentOrders.length === 0 ? (
+                    <Stack
+                        spacing={1}
+                        sx={{ color: 'text.secondary', py: 6, px: 2, textAlign: 'center', alignItems: 'center' }}
+                    >
+                        <ShoppingCartOutlined sx={{ fontSize: 32, color: 'text.disabled' }} />
+                        <Typography variant="body2">
+                            Chưa có đơn hàng nào được chốt trong phiên live này.
+                        </Typography>
+                    </Stack>
+                ) : (
+                    <Stack spacing={1.25}>
+                        {recentOrders.map((ord) => (
+                            <Paper
+                                key={ord.orderId}
+                                variant="outlined"
+                                sx={{
+                                    p: 1.75,
+                                    borderRadius: 2,
+                                    bgcolor: 'background.paper',
+                                    borderLeft: '4px solid #047857',
+                                }}
+                            >
+                                <Stack
+                                    direction="row"
+                                    spacing={1}
+                                    sx={{ justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.75 }}
+                                >
+                                    <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', minWidth: 0 }}>
+                                        <CheckCircleOutlined color="success" sx={{ fontSize: 18, flexShrink: 0 }} />
+                                        <Typography variant="subtitle2" sx={{ fontWeight: 700, overflowWrap: 'anywhere' }}>
+                                            {ord.productName}
+                                        </Typography>
+                                    </Stack>
+                                    <Chip
+                                        label={ord.sku}
+                                        size="small"
+                                        color="success"
+                                        variant="outlined"
+                                        sx={{ fontWeight: 700, fontSize: '0.75rem', flexShrink: 0 }}
+                                    />
+                                </Stack>
+                                <Typography variant="body2" color="text.primary" sx={{ mb: 0.5 }}>
+                                    Khách hàng: <strong>{ord.buyerName}</strong> • {ord.phone}
                                 </Typography>
-                                <Typography variant="body2">
-                                    👤 KH: {ord.buyerName} - SĐT: {ord.phone}
+                                <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                    sx={{ fontSize: '0.75rem', fontVariantNumeric: 'tabular-nums' }}
+                                >
+                                    {ord.price.toLocaleString('vi-VN')} ₫ • Đã gửi mã VietQR qua Inbox
                                 </Typography>
-                                <Typography variant="caption" sx={{ color: '#aaa' }}>
-                                    💰 Giá: {ord.price.toLocaleString('vi-VN')} VNĐ • Đã gửi mã VietQR
-                                </Typography>
-                            </CardContent>
-                        </Card>
-                    </Grid>
-                ))}
-            </Grid>
-        </Box>
+                            </Paper>
+                        ))}
+                    </Stack>
+                )}
+            </Box>
+        </Paper>
     );
 };

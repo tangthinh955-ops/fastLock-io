@@ -15,7 +15,11 @@ import {
   rememberInboxActivity,
 } from '../utils/inboxMessages';
 
-export const useBuyerInbox = () => {
+interface UseBuyerInboxOptions {
+  autoSelectFirst?: boolean;
+}
+
+export const useBuyerInbox = ({ autoSelectFirst = true }: UseBuyerInboxOptions = {}) => {
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const requestedSellerId = searchParams.get('sellerId');
@@ -29,6 +33,8 @@ export const useBuyerInbox = () => {
     new Map<string, Pick<DirectMessage, 'id' | 'createdAt'>>(),
   );
   const contactsRequestRef = useRef(0);
+  const autoSelectFirstRef = useRef(autoSelectFirst);
+  autoSelectFirstRef.current = autoSelectFirst;
   const conversationMode = useConversationMode(
     selectedShopId ? `/messages/conversations/${selectedShopId}/mode` : null,
   );
@@ -70,7 +76,7 @@ export const useBuyerInbox = () => {
           ) {
             return currentShopId;
           }
-          return ordered[0]?.id ?? null;
+          return autoSelectFirstRef.current ? (ordered[0]?.id ?? null) : null;
         });
       } catch (requestError) {
         console.error('Lỗi khi tải danh sách shop:', requestError);
@@ -84,11 +90,22 @@ export const useBuyerInbox = () => {
   );
 
   useEffect(() => {
+    const requestCounter = contactsRequestRef;
     void fetchShops(true);
     return () => {
-      contactsRequestRef.current++;
+      requestCounter.current++;
     };
   }, [fetchShops]);
+
+  useEffect(() => {
+    if (autoSelectFirst && !selectedShopId && shops.length > 0) {
+      setSelectedShopId(
+        requestedSellerId && shops.some((shop) => shop.id === requestedSellerId)
+          ? requestedSellerId
+          : shops[0].id,
+      );
+    }
+  }, [autoSelectFirst, selectedShopId, shops, requestedSellerId]);
 
   const handleMarkedRead = useCallback((shopId: string) => {
     setShops((currentShops) =>

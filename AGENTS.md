@@ -11,7 +11,7 @@
 - **Backend:** NestJS, PostgreSQL, Prisma ORM, Socket.io, Groq SDK (`groq-sdk`, Qwen 3.8 27B), Redis (Cache tuỳ chọn).
 - **Frontend:** React 19, Vite, Material UI (MUI), React Router v6.
 
-## 3. CẤU TRÚC DỰ ÁN & PHÂN CHIA QUYỀN SỞ HỮU (CHỐNG GIT CONFLICT)
+## 3. CẤU TRÚC DỰ ÁN
 
 ```text
 live-order-app/
@@ -33,28 +33,28 @@ live-order-app/
 │   │   │   │   ├── aho-corasick/
 │   │   │   │   └── redis/
 │   │   │   ├── modules/
-│   │   │   │   ├── auth/                        # [CHUNG] Đăng ký, Đăng nhập JWT, Guard
-│   │   │   │   ├── user/                        # [BẠN] Quản lý User (ADMIN role)
-│   │   │   │   ├── product/                     # [KỲ] CRUD Sản phẩm, SKU, Tồn kho
-│   │   │   │   ├── parser/                      # [KỲ] Gọi Aho-Corasick & Regex
-│   │   │   │   ├── order/                       # [KỲ] Tạo đơn hàng & Trừ kho Postgres
-│   │   │   │   ├── livestream/                  # [KỲ] Socket.io Gateway kết nối Chat Live
-│   │   │   │   ├── ai/                          # [BẠN] Groq SDK, System Prompt, KbEntry
-│   │   │   │   └── direct-message/              # [BẠN] API Nhắn Inbox & Mã VietQR
+│   │   │   │   ├── auth/                        # Đăng ký, Đăng nhập JWT, Guard
+│   │   │   │   ├── user/                        # Quản lý User (ADMIN role)
+│   │   │   │   ├── product/                     # CRUD Sản phẩm, SKU, Tồn kho
+│   │   │   │   ├── parser/                      # Gọi Aho-Corasick & Regex
+│   │   │   │   ├── order/                       # Tạo đơn hàng & Trừ kho Postgres
+│   │   │   │   ├── livestream/                  # Socket.io Gateway kết nối Chat Live
+│   │   │   │   ├── ai/                          # Groq SDK, System Prompt, KbEntry
+│   │   │   │   └── direct-message/              # API Nhắn Inbox & Mã VietQR
 │   │   └── package.json
 │   │
 │   └── frontend/                   # React 19 + Vite Web Application
 │       ├── src/
 │       │   ├── main.tsx
-│       │   ├── App.tsx             # [CHUNG] Router chính (Auth Guard)
+│       │   ├── App.tsx             # Router chính (Auth Guard)
 │       │   ├── api/
 │       │   ├── hooks/
 │       │   ├── pages/
-│       │   │   ├── admin/          # [BẠN] Dashboard ADMIN quản lý User
-│       │   │   ├── auth/           # [CHUNG] Đăng nhập / Đăng ký
-│       │   │   ├── seller/         # [KỲ] Dashboard (Products) & live-studio (WebCam)
-│       │   │   ├── viewer/         # [BẠN] BUYER xem Live + Chat Socket + mở tư vấn AI riêng
-│       │   │   └── inbox/          # [BẠN] BUYER xem Inbox nhận VietQR
+│       │   │   ├── admin/          # Dashboard ADMIN quản lý User
+│       │   │   ├── auth/           # Đăng nhập / Đăng ký
+│       │   │   ├── seller/         # Dashboard (Products) & live-studio (WebCam)
+│       │   │   ├── viewer/         # BUYER xem Live + Chat Socket + mở tư vấn AI riêng
+│       │   │   └── inbox/          # BUYER xem Inbox nhận VietQR
 │       │   ├── components/
 │       │   │   ├── common/         # Layout Navbar, Sidebar
 │       │   │   ├── product/        
@@ -64,36 +64,24 @@ live-order-app/
 ```
 
 ## 4. QUY TẮC CHO AI AGENT
-1. **Không tự ý sửa file của người kia:** Chỉ viết/sửa code thuộc phạm vi phân công của từng người.
-2. **Code tối giản:** Không sinh ra các file test rác hay file config không cần thiết.
-3. **Build sạch trước khi Push:** Bắt buộc đảm bảo `npm run build` thành công không có lỗi TypeScript.
-4. **Tạo nhánh Git riêng cho từng tính năng:** Với mỗi phiên làm việc thực hiện các chức năng khác nhau, AI phải nhắc nhở và tạo/hướng dẫn tạo 1 nhánh Git riêng theo tên chức năng/công việc đó (Ví dụ: `feat/seller-dashboard-ui`, `feat/aho-corasick-parser`, `feat/order-atomic-stock`).
-5. **Hướng dẫn quy trình chuẩn bị đầu phiên (BẮT BUỘC):** Khi bắt đầu phiên làm việc mới, AI phải chủ động hướng dẫn và hỗ trợ người dùng thực hiện đủ 5 bước chuẩn bị:
+1. **Code tối giản:** Không sinh ra các file test rác hay file config không cần thiết.
+2. **Build sạch trước khi Push:** Bắt buộc đảm bảo `npm run build` thành công không có lỗi TypeScript.
+3. **Tạo nhánh Git riêng cho từng tính năng:** Với mỗi phiên làm việc thực hiện các chức năng khác nhau, AI phải nhắc nhở và tạo/hướng dẫn tạo 1 nhánh Git riêng theo tên chức năng/công việc đó (Ví dụ: `feat/seller-dashboard-ui`, `feat/aho-corasick-parser`, `feat/order-atomic-stock`).
+4. **Hướng dẫn quy trình chuẩn bị đầu phiên (BẮT BUỘC):** Khi bắt đầu phiên làm việc mới, AI phải chủ động hướng dẫn và hỗ trợ người dùng thực hiện đủ 5 bước chuẩn bị:
    - **B1 Check Git status:** `git status` (đảm bảo không có thay đổi dở dang).
    - **B2 Pull code mới nhất:** `git pull origin main` (hỗ trợ fix merge conflict nếu có).
    - **B3 Cài gói mới:** `npm install`.
    - **B4 Generate Prisma Client:** `cd apps/backend && npx prisma generate`.
    - **B5 Tạo nhánh tính năng:** `git checkout -b feat/<ten-tinh-nang>`.
-6. **Không tự ý chỉnh sửa/tạo file code:** AI tuyệt đối không được trực tiếp tạo hoặc sửa file code trong dự án (trừ khi được người dùng yêu cầu trực tiếp). AI chỉ đưa ra mã nguồn, vị trí file, giải thích và hướng dẫn để người dùng tự thao tác thủ công.
-7. **Cập nhật file tiến độ (`progress.md`) ngay khi hoàn thành:** Ngay khi hoàn thành và kiểm tra chạy thành công bất kỳ một tính năng hoặc đầu việc nào, AI phải chủ động cập nhật trạng thái trong `progress.md` (và `KY_GUIDE.md`) sang `✅ Hoàn thành` kèm theo nhật ký chi tiết các công việc đã thực hiện.
+5. **Không tự ý chỉnh sửa/tạo file code:** AI tuyệt đối không được trực tiếp tạo hoặc sửa file code trong dự án (trừ khi được người dùng yêu cầu trực tiếp). AI chỉ đưa ra mã nguồn, vị trí file, giải thích và hướng dẫn để người dùng tự thao tác thủ công.
+6. **Cập nhật file tiến độ (`progress.md`) ngay khi hoàn thành:** Ngay khi hoàn thành và kiểm tra chạy thành công bất kỳ một tính năng hoặc đầu việc nào, AI phải chủ động cập nhật trạng thái trong `progress.md` sang `✅ Hoàn thành` kèm theo nhật ký chi tiết các công việc đã thực hiện.
 
 ### 4.1. Phạm vi sở hữu code
 
-- Chỉ chủ động tạo/sửa code thuộc phạm vi [BẠN]:
-  - Backend: user, ai, direct-message.
-  - Frontend: admin, viewer, inbox.
-- Được phép đọc code [KỲ] để hiểu dependency, interface và data flow.
-- Không được tự ý sửa code [KỲ]:
-  - product
-  - parser
-  - order
-  - livestream
-  - seller/live-studio
-- Với file [CHUNG] như auth, App.tsx, app.module.ts hoặc các file tích hợp:
-  - Được phép đọc.
-  - Nếu cần sửa phải nêu rõ lý do trong kế hoạch và chờ xác nhận.
-- Nếu task của [BẠN] bắt buộc cần thay đổi code [KỲ], phải dừng lại,
-  giải thích dependency và xin phép trước.
+- Dự án hiện do **1 thành viên duy nhất** phát triển và bảo trì, nên có toàn quyền đọc, tạo và chỉnh sửa mọi module trong toàn bộ dự án:
+  - **Backend (`apps/backend`):** `auth`, `user`, `product`, `parser`, `order`, `livestream`, `ai`, `direct-message`, cấu hình `app.module.ts`, `prisma/`, v.v.
+  - **Frontend (`apps/frontend`):** `admin`, `auth`, `seller` (Dashboard, LiveStudio, AiSettingsPage), `viewer`, `inbox`, `components/`, `hooks/`, `api/`, `App.tsx`, v.v.
+- Mọi thay đổi vẫn tuân thủ quy trình lập kế hoạch ở mục 4.2 và xin xác nhận trước khi sửa/tạo file (trừ khi được người dùng yêu cầu trực tiếp).
 
 ### 4.2. Bắt buộc lập kế hoạch trước khi sửa/thêm code
 
@@ -106,7 +94,6 @@ Với mọi task có sửa hoặc tạo code, trước tiên phải trình bày:
 3. Luồng dữ liệu cụ thể của chức năng.
 4. Dependency với module khác.
 5. Rủi ro với cấu trúc hiện tại.
-6. Có ảnh hưởng tới [KỲ] hoặc [CHUNG] hay không.
 
 Trong bước này KHÔNG được sửa file.
 
@@ -174,11 +161,10 @@ Sau khi hoàn thành:
 
 Trước khi kết luận task hoàn thành:
 
-- Chạy build phù hợp với workspace bị tác động.
-- Không tự sửa lỗi ở module ngoài phạm vi chỉ để làm build xanh.
-- Nếu build fail do code [KỲ] hoặc [CHUNG], báo rõ lỗi và dừng thay vì tự sửa.
+- Chạy build phù hợp với workspace bị tác động (`npm run build:backend`, `npm run build:frontend` hoặc `npm run build`).
+- Nếu build fail do lỗi ở module liên quan ngoài kế hoạch ban đầu, báo rõ lỗi và xin xác nhận trước khi mở rộng phạm vi sửa chữa.
 
-Mục tiêu cuối cùng là đảm bảo thay đổi của [BẠN] không tạo thêm lỗi TypeScript/build.
+Mục tiêu cuối cùng là đảm bảo toàn bộ thay đổi không tạo thêm lỗi TypeScript/build.
 
 ### 4.7. Tiêu chuẩn Kiến trúc Mã nguồn & Tính Module hóa
 
@@ -227,7 +213,7 @@ Tách component khi việc đó cải thiện rõ khả năng đọc, tái sử 
 - Độ dài dưới 20 dòng không cấm việc tách nếu phần đó thực sự được dùng chung hoặc có trách nhiệm độc lập.
 - Ưu tiên cấu trúc hiện có của dự án. Không thêm tầng trung gian hoặc dependency chỉ để phục vụ refactor.
 
-#### 6. Yêu cầu trong kế hoạch và phạm vi sở hữu
+#### 6. Yêu cầu trong kế hoạch
 
 Với tính năng giao diện mới hoặc refactor cấu trúc đáng kể, kế hoạch ở mục 4.2 phải có:
 
@@ -237,8 +223,6 @@ Với tính năng giao diện mới hoặc refactor cấu trúc đáng kể, k�
 - Phần dùng chung, nếu đã có nhu cầu cụ thể.
 
 Với thay đổi nhỏ, chỉ cần mô tả component bị tác động; không bắt buộc dựng lại toàn bộ cây.
-
-Component và hook được tách ra vẫn tuân theo quyền sở hữu của tính năng gốc. File phục vụ nhiều phạm vi sở hữu được xem là [CHUNG].
 
 Mục 4.7 không thay thế quy trình xin xác nhận ở mục 4.2–4.3. Nếu phát hiện nhu cầu refactor ngoài kế hoạch đã duyệt, chỉ đề xuất và chờ xác nhận trước khi thực hiện.
 

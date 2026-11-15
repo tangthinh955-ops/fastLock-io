@@ -2,6 +2,7 @@ import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth, type Role } from '../../context/AuthContext';
 import { CircularProgress, Box } from '@mui/material';
+import { ROLE_HOME } from '../../utils/roleConfig';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -13,7 +14,15 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowe
 
   if (isLoading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '100dvh',
+          bgcolor: 'background.default',
+        }}
+      >
         <CircularProgress />
       </Box>
     );
@@ -26,9 +35,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowe
 
   // 2. Nếu đăng nhập rồi nhưng sai Quyền (Role) -> Điều hướng về trang thích hợp với Role của họ
   if (allowedRoles && !allowedRoles.includes(user.role)) {
-    if (user.role === 'ADMIN') return <Navigate to="/admin/dashboard" replace />;
-    if (user.role === 'SELLER') return <Navigate to="/seller/dashboard" replace />;
-    return <Navigate to="/viewer" replace />;
+    return <Navigate to={ROLE_HOME[user.role] ?? ROLE_HOME.BUYER} replace />;
   }
 
   return <>{children}</>;

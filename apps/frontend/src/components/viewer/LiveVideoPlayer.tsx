@@ -5,12 +5,13 @@ import {
   CircularProgress,
   Typography,
 } from '@mui/material';
-import LiveTvIcon from '@mui/icons-material/LiveTv';
-import RefreshIcon from '@mui/icons-material/Refresh';
-import VideocamOffIcon from '@mui/icons-material/VideocamOff';
-import VolumeOffIcon from '@mui/icons-material/VolumeOff';
-import VolumeUpIcon from '@mui/icons-material/VolumeUp';
+import LiveTvRoundedIcon from '@mui/icons-material/LiveTvRounded';
+import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
+import VideocamOffRoundedIcon from '@mui/icons-material/VideocamOffRounded';
+import VolumeOffRoundedIcon from '@mui/icons-material/VolumeOffRounded';
+import VolumeUpRoundedIcon from '@mui/icons-material/VolumeUpRounded';
 import type { ViewerVideoStatus } from '../../hooks/useLiveKitViewer';
+import { surfaceTokens } from '../../theme';
 
 interface LiveVideoPlayerProps {
   isLive: boolean;
@@ -44,10 +45,14 @@ export const LiveVideoPlayer: React.FC<LiveVideoPlayerProps> = ({
   return (
     <Box
       sx={{
-        flex: 2,
-        bgcolor: '#0b1120',
-        borderRadius: 2,
-        mr: 2,
+        flex: { xs: 'none', md: 2 },
+        width: { xs: '100%', md: 'auto' },
+        aspectRatio: { xs: '16 / 9', md: 'auto' },
+        maxHeight: { xs: '36dvh', md: 'none' },
+        minWidth: 0,
+        minHeight: { xs: 200, md: 360 },
+        bgcolor: surfaceTokens.videoStageBg,
+        borderRadius: { xs: 0, md: 3 },
         position: 'relative',
         overflow: 'hidden',
         display: 'flex',
@@ -72,44 +77,68 @@ export const LiveVideoPlayer: React.FC<LiveVideoPlayerProps> = ({
       <Box
         sx={{
           position: 'absolute',
-          top: 16,
-          left: 16,
-          right: 16,
+          top: { xs: 10, md: 16 },
+          left: { xs: 10, md: 16 },
+          right: { xs: 10, md: 16 },
           display: 'flex',
           alignItems: 'center',
-          gap: 1.5,
+          gap: 1,
+          minWidth: 0,
           zIndex: 10,
           pointerEvents: 'none',
         }}
       >
         <Box
           sx={{
-            bgcolor: isLive ? '#dc2626' : '#64748b',
-            color: 'white',
-            px: 1.5,
-            py: 0.5,
-            borderRadius: 1,
-            fontWeight: 'bold',
-            fontSize: '0.875rem',
+            bgcolor: isLive ? surfaceTokens.liveRed : 'rgba(15, 23, 42, 0.8)',
+            color: '#FFFFFF',
+            px: 1.25,
+            py: 0.4,
+            borderRadius: 1.5,
+            fontWeight: 700,
+            fontSize: '0.75rem',
+            letterSpacing: '0.04em',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 0.75,
+            flexShrink: 0,
           }}
         >
+          <Box
+            component="span"
+            sx={{
+              width: 7,
+              height: 7,
+              borderRadius: '50%',
+              bgcolor: isLive ? '#FFFFFF' : '#94A3B8',
+            }}
+          />
           {isLive ? 'LIVE' : 'OFFLINE'}
         </Box>
         {title && (
-          <Typography
-            variant="subtitle1"
-            color="white"
-            noWrap
+          <Box
             sx={{
-              bgcolor: 'rgba(15, 23, 42, 0.72)',
-              px: 1.5,
-              py: 0.5,
-              borderRadius: 1,
-              fontWeight: 600,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 0.75,
+              bgcolor: 'rgba(15, 23, 42, 0.78)',
+              color: '#F8FAFC',
+              px: 1.25,
+              py: 0.4,
+              borderRadius: 1.5,
+              minWidth: 0,
+              maxWidth: '100%',
             }}
           >
-            📺 {title}
-          </Typography>
+            <LiveTvRoundedIcon sx={{ fontSize: 16, flexShrink: 0 }} />
+            <Typography
+              variant="body2"
+              noWrap
+              sx={{ fontWeight: 600, color: 'inherit' }}
+            >
+              {title}
+            </Typography>
+          </Box>
         )}
       </Box>
 
@@ -119,53 +148,60 @@ export const LiveVideoPlayer: React.FC<LiveVideoPlayerProps> = ({
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: 1.5,
-            color: 'rgba(255,255,255,0.88)',
-            px: 3,
+            gap: 1,
+            color: '#F8FAFC',
+            px: 2.5,
             textAlign: 'center',
             zIndex: 5,
+            maxWidth: 420,
           }}
         >
           {!isLive ? (
             <>
-              <LiveTvIcon sx={{ fontSize: 56, color: '#64748b' }} />
-              <Typography variant="h6">
-                [CHƯA CÓ LIVESTREAM ĐANG PHÁT]
+              <LiveTvRoundedIcon sx={{ fontSize: { xs: 36, md: 48 }, color: '#64748B' }} />
+              <Typography
+                sx={{ fontWeight: 700, fontSize: { xs: '0.95rem', md: '1.1rem' } }}
+              >
+                Chưa có phiên Livestream đang phát
               </Typography>
-              <Typography variant="body2" sx={{ color: '#94a3b8' }}>
-                Khi Seller bấm Bắt đầu Livestream, video trực tiếp sẽ tự động hiển thị tại đây.
+              <Typography
+                variant="body2"
+                sx={{ color: '#94A3B8', fontSize: { xs: '0.8rem', md: '0.875rem' } }}
+              >
+                Video trực tiếp sẽ tự động hiển thị ngay khi Shop bắt đầu phát sóng.
               </Typography>
             </>
           ) : videoStatus === 'connecting' ? (
             <>
-              <CircularProgress size={36} color="inherit" />
-              <Typography variant="body1">
-                Đang kết nối luồng video LiveKit...
+              <CircularProgress size={32} color="inherit" />
+              <Typography variant="body2" sx={{ color: '#CBD5E1' }}>
+                Đang kết nối luồng video trực tiếp...
               </Typography>
             </>
           ) : videoStatus === 'error' ? (
             <>
-              <VideocamOffIcon sx={{ fontSize: 48, color: '#f87171' }} />
-              <Typography variant="body1">
+              <VideocamOffRoundedIcon sx={{ fontSize: { xs: 36, md: 44 }, color: '#F87171' }} />
+              <Typography variant="body2" sx={{ color: '#F8FAFC' }}>
                 {videoError || 'Mất kết nối luồng video livestream.'}
               </Typography>
               <Button
                 variant="outlined"
                 color="inherit"
                 size="small"
-                startIcon={<RefreshIcon />}
+                startIcon={<RefreshRoundedIcon />}
                 onClick={onRetry}
+                sx={{ mt: 0.5, borderColor: 'rgba(255,255,255,0.4)' }}
               >
                 Thử kết nối lại
               </Button>
             </>
           ) : (
             <>
-              <VideocamOffIcon sx={{ fontSize: 48, color: '#fbbf24' }} />
-              <Typography variant="body1">
+              <VideocamOffRoundedIcon sx={{ fontSize: { xs: 36, md: 44 }, color: '#FBBF24' }} />
+              <Typography variant="body2" sx={{ color: '#E2E8F0' }}>
                 {videoMutedBySeller
-                  ? 'Seller đang tạm tắt camera.'
-                  : 'Đang chờ Seller bật luồng video...'}
+                  ? 'Shop đang tạm tắt camera.'
+                  : 'Đang chờ Shop bật luồng video...'}
               </Typography>
             </>
           )}
@@ -176,10 +212,12 @@ export const LiveVideoPlayer: React.FC<LiveVideoPlayerProps> = ({
         <Box
           sx={{
             position: 'absolute',
-            bottom: 16,
-            right: 16,
+            bottom: { xs: 10, md: 16 },
+            right: { xs: 10, md: 16 },
+            left: { xs: 10, md: 'auto' },
             display: 'flex',
             alignItems: 'center',
+            justifyContent: 'flex-end',
             gap: 1,
             zIndex: 10,
           }}
@@ -188,11 +226,12 @@ export const LiveVideoPlayer: React.FC<LiveVideoPlayerProps> = ({
             <Typography
               variant="caption"
               sx={{
-                bgcolor: 'rgba(185, 28, 28, 0.85)',
-                color: 'white',
+                bgcolor: 'rgba(153, 27, 27, 0.92)',
+                color: '#FFFFFF',
                 px: 1.25,
                 py: 0.5,
                 borderRadius: 1,
+                minWidth: 0,
               }}
             >
               {videoError}
@@ -202,9 +241,10 @@ export const LiveVideoPlayer: React.FC<LiveVideoPlayerProps> = ({
             variant="contained"
             size="small"
             color={muted ? 'warning' : 'success'}
-            startIcon={muted ? <VolumeOffIcon /> : <VolumeUpIcon />}
+            startIcon={muted ? <VolumeOffRoundedIcon /> : <VolumeUpRoundedIcon />}
             onClick={onToggleMute}
-            sx={{ fontWeight: 'bold' }}
+            aria-label={muted ? 'Bật âm thanh livestream' : 'Tắt âm thanh livestream'}
+            sx={{ fontWeight: 700, flexShrink: 0 }}
           >
             {muted ? 'Bật tiếng' : 'Tắt tiếng'}
           </Button>

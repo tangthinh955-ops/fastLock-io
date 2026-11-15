@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Alert, Box, Grid } from '@mui/material';
+import { Alert, Box, Container, Grid } from '@mui/material';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from '../../context/AuthContext';
 import apiClient from '../../api/client';
@@ -13,7 +13,7 @@ import { LiveChatSidebar, type CommentItem } from '../../components/stream/LiveC
 export const LiveStudio: React.FC = () => {
     const { user, token } = useAuth();
     const [isStreaming, setIsStreaming] = useState(false);
-    const [streamTitle, setStreamTitle] = useState('PHIÊN LIVESTREAM CHỐT ĐƠN HÔM NAY 🚀');
+    const [streamTitle, setStreamTitle] = useState('Phiên Livestream chốt đơn hôm nay');
     const [currentStreamId, setCurrentStreamId] = useState<string | null>(null);
     const startingRef = useRef(false);
     const studioMountedRef = useRef(true);
@@ -83,7 +83,7 @@ export const LiveStudio: React.FC = () => {
             });
 
             await startPublishing(streamData.id);
-        } catch (err) {
+        } catch {
             if (studioMountedRef.current) {
                 alert('Không thể tạo phiên Live. Vui lòng kiểm tra lại Backend NestJS!');
             }
@@ -111,31 +111,49 @@ export const LiveStudio: React.FC = () => {
     };
 
     return (
-        <Box sx={{ p: 3, backgroundColor: '#0f0f1e', minHeight: '100vh', color: '#ffffff' }}>
-            <StreamControlHeader
-                isStreaming={isStreaming} streamTitle={streamTitle}
-                onTitleChange={setStreamTitle} onStartLive={handleStartLive} onEndLive={handleEndLive}
-            />
+        <Box
+            sx={{
+                bgcolor: 'background.default',
+                minHeight: { xs: 'calc(100dvh - 56px)', md: 'calc(100dvh - 64px)' },
+                color: 'text.primary',
+                py: { xs: 2, md: 3 },
+            }}
+        >
+            <Container maxWidth="xl" sx={{ px: { xs: 2, sm: 3 } }}>
+                <StreamControlHeader
+                    isStreaming={isStreaming}
+                    streamTitle={streamTitle}
+                    onTitleChange={setStreamTitle}
+                    onStartLive={handleStartLive}
+                    onEndLive={handleEndLive}
+                />
 
-            {videoError && (
-                <Alert severity="warning" sx={{ mb: 2 }}>
-                    {videoError}
-                </Alert>
-            )}
+                {videoError && (
+                    <Alert severity="warning" sx={{ mb: 2, borderRadius: 2 }}>
+                        {videoError}
+                    </Alert>
+                )}
 
-            <Grid container spacing={3}>
-                <Grid size={{ xs: 12, md: 8 }}>
-                    <WebCamPlayer
-                        videoRef={videoRef} camEnabled={camEnabled} micEnabled={micEnabled}
-                        onToggleCam={() => { void toggleCamera(); }} onToggleMic={() => { void toggleMic(); }}
-                    />
-                    <RecentOrdersList latestOrder={latestOrder} recentOrders={recentOrders} />
+                <Grid container spacing={2.5} sx={{ alignItems: 'flex-start' }}>
+                    <Grid size={{ xs: 12, lg: 6 }}>
+                        <WebCamPlayer
+                            videoRef={videoRef}
+                            camEnabled={camEnabled}
+                            micEnabled={micEnabled}
+                            onToggleCam={() => { void toggleCamera(); }}
+                            onToggleMic={() => { void toggleMic(); }}
+                        />
+                    </Grid>
+
+                    <Grid size={{ xs: 12, md: 6, lg: 3 }}>
+                        <RecentOrdersList latestOrder={latestOrder} recentOrders={recentOrders} />
+                    </Grid>
+
+                    <Grid size={{ xs: 12, md: 6, lg: 3 }}>
+                        <LiveChatSidebar comments={comments} />
+                    </Grid>
                 </Grid>
-
-                <Grid size={{ xs: 12, md: 4 }}>
-                    <LiveChatSidebar comments={comments} />
-                </Grid>
-            </Grid>
+            </Container>
         </Box>
     );
 };
