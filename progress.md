@@ -1,5 +1,36 @@
 # TIẾN ĐỘ DỰ ÁN: LIVEORDER CHỐT ĐƠN ENGINE
 
+## Cập nhật 15/11/2026 (tiếp) — M4 hoàn thành: nghiệm thu E2E Production & đo RAG trên Render Free (512 MB RAM)
+
+- ✅ **Đo thực tế RAG local (`Xenova/multilingual-e5-small` q8) trên Render `512 MB RAM` / `0.1 CPU`:**
+  - Nạp sẵn 3 mục Knowledge Base cho shop `seller@liveorder.com` qua `POST /ai/knowledge`: `Bảng size Áo thun SP01`, `Chính sách giao hàng & phí ship`, `Chính sách đổi trả & thanh toán`.
+  - Kết quả đo thực tế (không bị OOM/restart; `GET /products` ngay sau embed trả `200` trong `201 ms`):
+    - Render cold-start (`GET /products`): `32.623 ms` (`200`).
+    - Lần nạp model HuggingFace + embed KB #1: `33.713 ms` (`201`).
+    - Embed KB #2 & KB #3 (model đã trong RAM): `3.587 ms` (`201`) & `5.304 ms` (`201`).
+    - Truy vấn AI #1 (exact SKU `SP01` + cân nặng): `11.775 ms` (`201`), trả đúng tồn kho sống (`8`) + giá `200.000đ` + `size L`, khớp Socket `/inbox`.
+    - Truy vấn AI #2 (semantic không SKU, lần đầu backfill `ProductEmbedding` cho `SP01`): `33.113 ms` (`201`).
+    - Truy vấn AI #3 (warm, vector KB & Product đã có trong Neon): **`1.729 ms`** (`201`), trả đúng `1-2 ngày`, ship `25.000đ` / freeship đơn từ `300.000đ`.
+  - **Kết luận phương án demo:** Giữ nguyên cơ chế RAG local (`@huggingface/transformers`) theo [plan.md mục 8.6](plan.md); trước buổi demo 5–10 phút chỉ cần đánh thức Render và gửi thử 1 câu Inbox để nạp sẵn model vào RAM.
+- ✅ **Nghiệm thu E2E toàn trình trên Production (`https://liveorder-api.onrender.com`, nhánh `feat/m4-prod-e2e-rag`, không tiêu phút LiveKit):**
+  - **Luồng A (Bình luận thường):** `"Áo đẹp quá shop ơi"` phát `comment_received` với `isOrder: false`, không trừ kho, không gọi AI.
+  - **Luồng B (Chốt đơn tự động & VietQR):** `"Chốt SP01 0912345678"` bóc `SP01`, trừ kho nguyên tử (`9 → 8`), phát `new_order` che SĐT (`0912***678`), phát `comment_received` (`isOrder: true`, `orderSuccess: true`), và gửi tin nhắn `SYSTEM` chứa link `https://img.vietqr.io/...` tới Socket `/inbox` của Buyer.
+  - **Hoàn kho Atomic & Dọn trạng thái:** Hủy đơn test (`PATCH /orders/:id/status` → `CANCELLED`) trả kho về `9`, kết thúc phiên live (`activeStreams = 0`).
+  - **Luồng C (Human Takeover):** Chuyển `ChatMode.HUMAN` → Buyer nhắn nhận `aiMessage === null` (AI im lặng) → khôi phục `ChatMode.AI` (`version: 5`).
+- `[MODIFY]`: `plan.md`, `progress.md`. Không sửa code ứng dụng/schema; giữ nguyên 3 mục KB mẫu trong Neon DB cho buổi demo.
+
+---
+
+## Cập nhật 15/11/2026 — M3 hoàn thành: tích hợp Video V1 LiveKit Cloud & nghiệm thu 2 máy
+
+- ✅ **Code & PR M3 (`feat/livekit-video-v1` → merge `main` PR #22 `36514f6`):**
+  - Backend `[KỲ]`: cài `livekit-server-sdk@2.19.3`, thêm `LivekitTokenService` (`livekit-token.service.ts`) & `POST /livestreams/:id/token` (`Seller` chủ phòng `canPublish: true`, `Buyer` chỉ subscribe; báo HTTP 503 khi thiếu `LIVEKIT_*`), pass `8/8` Jest specs (`livekit-token.service.spec.ts`, `livestream.controller.spec.ts`).
+  - Frontend `[KỲ]` & `[BẠN]`: cài `livekit-client@2.24.1`, `useLiveKitPublisher.ts` + `livekitPublisherSession.ts` + `LiveStudio.tsx` (`[KỲ]`) publish tối đa ~1,2 Mbps; `useLiveKitViewer.ts` + `livekitViewerAudio.ts` + `LiveVideoPlayer.tsx` + `ViewerPage.tsx` (`[BẠN]`) subscribe video và giữ mute mặc định cho tới khi Buyer bật tiếng.
+- ✅ **Xử lý sự cố & Nghiệm thu thực tế:**
+  - Chẩn đoán lỗi `401 invalid token` trên LiveKit Cloud (`liveorder-demo-qwjga2w6.livekit.cloud`): giá trị `LIVEKIT_API_SECRET` dán nhầm bị dính đuôi URL (86 ký tự thay vì 43 ký tự); sau khi cắt sạch 43 ký tự chuẩn trên Render & local `.env`, token trả `200 OK` và người dùng xác nhận video 2 máy qua Internet hoạt động ổn định.
+
+---
+
 ## Cập nhật 14/11/2026 (tiếp) — M2 hoàn thành: cấu hình deploy & kết nối qua Internet
 
 - ✅ **Backend CORS & runtime (`[CHUNG]` + `[BẠN]` + `[KỲ]` đã duyệt):**
