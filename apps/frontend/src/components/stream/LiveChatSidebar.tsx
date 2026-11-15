@@ -1,6 +1,6 @@
 import React from 'react';
-import { Paper, Typography, Divider, List, ListItem, ListItemAvatar, Avatar, ListItemText, Box, Chip } from '@mui/material';
-import { Person } from '@mui/icons-material';
+import { Paper, Typography, Stack, Avatar, Box, Chip } from '@mui/material';
+import { PersonOutlined, ChatBubbleOutlined } from '@mui/icons-material';
 
 export interface CommentItem {
     id: string;
@@ -19,65 +19,100 @@ interface LiveChatSidebarProps {
 export const LiveChatSidebar: React.FC<LiveChatSidebarProps> = ({ comments }) => {
     return (
         <Paper
-            elevation={4}
+            variant="outlined"
             sx={{
-                p: 2,
-                height: '75vh',
+                height: { xs: 360, md: 'calc(100dvh - 196px)' },
+                minHeight: { md: 460 },
                 display: 'flex',
                 flexDirection: 'column',
-                background: '#1a1a2e',
+                bgcolor: 'background.paper',
                 borderRadius: 3,
-                border: '1px solid rgba(255, 255, 255, 0.1)',
+                overflow: 'hidden',
             }}
         >
-            <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                💬 Bình luận Trực tiếp ({comments.length})
-            </Typography>
-            <Divider sx={{ borderColor: 'rgba(255,255,255,0.1)', mb: 2 }} />
+            <Stack
+                direction="row"
+                spacing={1}
+                sx={{
+                    alignItems: 'center',
+                    px: 2,
+                    py: 1.5,
+                    borderBottom: 1,
+                    borderColor: 'divider',
+                }}
+            >
+                <ChatBubbleOutlined fontSize="small" color="primary" />
+                <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                    Bình luận trực tiếp ({comments.length})
+                </Typography>
+            </Stack>
 
-            <List sx={{ flexGrow: 1, overflowY: 'auto', pr: 1 }}>
+            <Box sx={{ flexGrow: 1, overflowY: 'auto', p: 1.5 }}>
                 {comments.length === 0 ? (
-                    <Box sx={{ textAlign: 'center', color: '#888', mt: 5 }}>
-                        Chưa có bình luận nào...
-                    </Box>
+                    <Stack spacing={1} sx={{ color: 'text.secondary', py: 6, textAlign: 'center', alignItems: 'center' }}>
+                        <ChatBubbleOutlined sx={{ fontSize: 32, color: 'text.disabled' }} />
+                        <Typography variant="body2">Chưa có bình luận nào...</Typography>
+                    </Stack>
                 ) : (
-                    comments.map((c) => (
-                        <ListItem
-                            key={c.id}
-                            alignItems="flex-start"
-                            sx={{
-                                mb: 1.5,
-                                borderRadius: 2,
-                                background: c.isOrder ? 'rgba(76, 175, 80, 0.15)' : 'rgba(255,255,255,0.05)',
-                                border: c.isOrder ? '1px solid #4caf50' : 'none',
-                            }}
-                        >
-                            <ListItemAvatar>
-                                <Avatar sx={{ bgcolor: c.isOrder ? '#4caf50' : '#3f51b5' }}>
-                                    <Person />
-                                </Avatar>
-                            </ListItemAvatar>
-                            <ListItemText
-                                primary={
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                        <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#fff' }}>
-                                            {c.buyerName}
+                    <Stack spacing={1.25}>
+                        {comments.map((c) => (
+                            <Box
+                                key={c.id}
+                                sx={{
+                                    p: 1.5,
+                                    borderRadius: 2,
+                                    bgcolor: c.isOrder ? '#ECFDF5' : 'background.default',
+                                    border: '1px solid',
+                                    borderColor: c.isOrder ? '#A7F3D0' : 'divider',
+                                }}
+                            >
+                                <Stack direction="row" spacing={1.25} sx={{ alignItems: 'flex-start' }}>
+                                    <Avatar
+                                        sx={{
+                                            width: 32,
+                                            height: 32,
+                                            bgcolor: c.isOrder ? 'success.main' : 'primary.main',
+                                            flexShrink: 0,
+                                        }}
+                                    >
+                                        <PersonOutlined fontSize="small" />
+                                    </Avatar>
+                                    <Box sx={{ minWidth: 0, flex: 1 }}>
+                                        <Stack
+                                            direction="row"
+                                            spacing={1}
+                                            useFlexGap
+                                            sx={{ alignItems: 'center', flexWrap: 'wrap' }}
+                                        >
+                                            <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                                                {c.buyerName}
+                                            </Typography>
+                                            {c.isOrder && (
+                                                <Chip
+                                                    label={`SKU: ${c.sku}`}
+                                                    color="success"
+                                                    size="small"
+                                                    sx={{ height: 22, fontSize: '0.75rem', fontWeight: 700 }}
+                                                />
+                                            )}
+                                        </Stack>
+                                        <Typography
+                                            variant="body2"
+                                            sx={{
+                                                color: c.isOrder ? '#065F46' : 'text.secondary',
+                                                mt: 0.25,
+                                                overflowWrap: 'anywhere',
+                                            }}
+                                        >
+                                            {c.content}
                                         </Typography>
-                                        {c.isOrder && (
-                                            <Chip label={`SKU: ${c.sku}`} color="success" size="small" sx={{ height: 20, fontSize: '0.7rem' }} />
-                                        )}
                                     </Box>
-                                }
-                                secondary={
-                                    <Typography variant="body2" sx={{ color: c.isOrder ? '#a5d6a7' : '#ddd', mt: 0.5 }}>
-                                        {c.content}
-                                    </Typography>
-                                }
-                            />
-                        </ListItem>
-                    ))
+                                </Stack>
+                            </Box>
+                        ))}
+                    </Stack>
                 )}
-            </List>
+            </Box>
         </Paper>
     );
 };

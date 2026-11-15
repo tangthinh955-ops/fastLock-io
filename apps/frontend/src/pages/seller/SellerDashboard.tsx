@@ -177,26 +177,35 @@ export const SellerDashboard: React.FC = () => {
   );
 
   return (
-    <Container maxWidth="xl" sx={{ mt: 4, mb: 6 }}>
+    <Container
+      maxWidth="xl"
+      sx={{
+        py: { xs: 2.5, md: 4 },
+        px: { xs: 2, sm: 3 },
+      }}
+    >
       {/* Navigation Tabs */}
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 4 }}>
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: { xs: 2.5, md: 3 } }}>
         <Tabs
           value={currentTab}
           onChange={(_, val) => setCurrentTab(val)}
           textColor="primary"
           indicatorColor="primary"
+          variant="scrollable"
+          scrollButtons="auto"
+          allowScrollButtonsMobile
         >
           <Tab
             icon={<Inventory2OutlinedIcon />}
             iconPosition="start"
-            label="Quản lý Sản phẩm & Tồn kho"
-            sx={{ fontWeight: 600, fontSize: '0.95rem', py: 1.5 }}
+            label="Sản phẩm & Tồn kho"
+            sx={{ fontWeight: 600, fontSize: '0.9375rem', minHeight: 48, py: 1 }}
           />
           <Tab
             icon={<ReceiptLongOutlinedIcon />}
             iconPosition="start"
-            label="Quản lý Đơn hàng Livestream"
-            sx={{ fontWeight: 600, fontSize: '0.95rem', py: 1.5 }}
+            label="Đơn hàng Livestream"
+            sx={{ fontWeight: 600, fontSize: '0.9375rem', minHeight: 48, py: 1 }}
           />
         </Tabs>
       </Box>

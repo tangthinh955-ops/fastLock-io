@@ -10,7 +10,12 @@ import {
     InputAdornment,
     Button,
     CircularProgress,
+    Stack,
 } from '@mui/material';
+import {
+    EditOutlined as EditOutlinedIcon,
+    AddCircleOutlined as AddCircleOutlineIcon,
+} from '@mui/icons-material';
 import type { Product } from '../../pages/seller/SellerDashboard';
 
 interface ProductFormModalProps {
@@ -51,14 +56,37 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     onSubmit,
 }) => {
     return (
-        <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-            <DialogTitle sx={{ fontWeight: 'bold', borderBottom: '1px solid #e2e8f0', pb: 2 }}>
-                {editingProduct ? `✏️ Cập nhật Sản Phẩm: ${editingProduct.sku}` : '➕ Thêm Sản Phẩm Mới'}
+        <Dialog
+            open={open}
+            onClose={onClose}
+            maxWidth="sm"
+            fullWidth
+            slotProps={{
+                paper: {
+                    sx: {
+                        mx: { xs: 1.5, sm: 3 },
+                        width: '100%',
+                        borderRadius: 3,
+                    },
+                },
+            }}
+        >
+            <DialogTitle sx={{ fontWeight: 700, borderBottom: 1, borderColor: 'divider', py: 2, px: { xs: 2.5, sm: 3 } }}>
+                <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                    {editingProduct ? (
+                        <EditOutlinedIcon color="primary" fontSize="small" />
+                    ) : (
+                        <AddCircleOutlineIcon color="primary" fontSize="small" />
+                    )}
+                    <span>
+                        {editingProduct ? `Cập nhật sản phẩm: ${editingProduct.sku}` : 'Thêm sản phẩm mới'}
+                    </span>
+                </Stack>
             </DialogTitle>
             <form onSubmit={onSubmit}>
-                <DialogContent sx={{ pt: 3 }}>
+                <DialogContent sx={{ pt: 2.5, px: { xs: 2.5, sm: 3 } }}>
                     {formError && (
-                        <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
+                        <Alert severity="error" sx={{ mb: 2.5, borderRadius: 2 }}>
                             {formError}
                         </Alert>
                     )}
@@ -84,7 +112,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                                 placeholder="Áo Polo Nam Cao Cấp"
                             />
                         </Grid>
-                        <Grid size={6}>
+                        <Grid size={{ xs: 12, sm: 6 }}>
                             <TextField
                                 label="Giá bán (VNĐ)"
                                 type="number"
@@ -95,12 +123,12 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                                 placeholder="199000"
                                 slotProps={{
                                     input: {
-                                        endAdornment: <InputAdornment position="end">đ</InputAdornment>,
+                                        endAdornment: <InputAdornment position="end">₫</InputAdornment>,
                                     },
                                 }}
                             />
                         </Grid>
-                        <Grid size={6}>
+                        <Grid size={{ xs: 12, sm: 6 }}>
                             <TextField
                                 label="Số lượng tồn kho"
                                 type="number"
@@ -122,8 +150,8 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                         </Grid>
                     </Grid>
                 </DialogContent>
-                <DialogActions sx={{ p: 2.5, borderTop: '1px solid #e2e8f0' }}>
-                    <Button onClick={onClose} color="inherit">
+                <DialogActions sx={{ px: { xs: 2.5, sm: 3 }, py: 2, borderTop: 1, borderColor: 'divider', gap: 1 }}>
+                    <Button onClick={onClose} color="inherit" sx={{ minHeight: 44, px: 2 }}>
                         Hủy
                     </Button>
                     <Button
@@ -131,7 +159,8 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                         variant="contained"
                         color="primary"
                         disabled={submitting}
-                        startIcon={submitting ? <CircularProgress size={20} color="inherit" /> : null}
+                        startIcon={submitting ? <CircularProgress size={18} color="inherit" /> : null}
+                        sx={{ minHeight: 44, px: 2.5, fontWeight: 700 }}
                     >
                         {submitting ? 'Đang lưu...' : editingProduct ? 'Cập nhật' : 'Tạo sản phẩm'}
                     </Button>

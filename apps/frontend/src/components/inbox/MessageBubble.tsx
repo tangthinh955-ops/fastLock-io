@@ -1,7 +1,12 @@
 import React from 'react';
-import { Box, Paper, Typography } from '@mui/material';
+import { Box, Paper, Stack, Typography } from '@mui/material';
+import CheckCircleOutlineRoundedIcon from '@mui/icons-material/CheckCircleOutlineRounded';
+import PersonOutlinedIcon from '@mui/icons-material/PersonOutlined';
 import QrCode2OutlinedIcon from '@mui/icons-material/QrCode2Outlined';
-import type { DirectMessage, InboxView } from './types';
+import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined';
+import StorefrontOutlinedIcon from '@mui/icons-material/StorefrontOutlined';
+import type { DirectMessage, InboxView, MessageSource } from './types';
+import { surfaceTokens } from '../../theme';
 
 interface MessageBubbleProps {
   message: DirectMessage;
@@ -9,181 +14,207 @@ interface MessageBubbleProps {
   view: InboxView;
 }
 
+const getSourcePresentation = (
+  source: MessageSource,
+  senderName: string,
+  isOwnMessage: boolean,
+) => {
+  switch (source) {
+    case 'BUYER':
+      return {
+        label: isOwnMessage ? 'Bạn' : senderName,
+        icon: <PersonOutlinedIcon sx={{ fontSize: 14 }} />,
+        labelColor: isOwnMessage
+          ? surfaceTokens.primaryMain
+          : surfaceTokens.textSecondary,
+        bgcolor: isOwnMessage ? surfaceTokens.primarySoft : surfaceTokens.cardBg,
+        borderColor: isOwnMessage
+          ? surfaceTokens.primaryBorder
+          : surfaceTokens.borderSubtle,
+      };
+    case 'SELLER':
+      return {
+        label: isOwnMessage ? `${senderName} · Bạn` : `${senderName} · Nhân viên Shop`,
+        icon: <StorefrontOutlinedIcon sx={{ fontSize: 14 }} />,
+        labelColor: isOwnMessage
+          ? surfaceTokens.primaryMain
+          : surfaceTokens.textPrimary,
+        bgcolor: isOwnMessage ? surfaceTokens.primarySoft : surfaceTokens.cardBg,
+        borderColor: isOwnMessage
+          ? surfaceTokens.primaryBorder
+          : surfaceTokens.borderStrong,
+      };
+    case 'AI':
+      return {
+        label: `${senderName} · Trợ lý AI`,
+        icon: <SmartToyOutlinedIcon sx={{ fontSize: 14 }} />,
+        labelColor: surfaceTokens.aiText,
+        bgcolor: surfaceTokens.aiSoft,
+        borderColor: surfaceTokens.aiBorder,
+      };
+    case 'SYSTEM':
+      return {
+        label: `${senderName} · Hệ thống`,
+        icon: <CheckCircleOutlineRoundedIcon sx={{ fontSize: 14 }} />,
+        labelColor: surfaceTokens.warningText,
+        bgcolor: surfaceTokens.systemSoft,
+        borderColor: surfaceTokens.warningSoft,
+      };
+    default:
+      return {
+        label: senderName,
+        icon: null,
+        labelColor: surfaceTokens.textSecondary,
+        bgcolor: surfaceTokens.cardBg,
+        borderColor: surfaceTokens.borderSubtle,
+      };
+  }
+};
+
 export const MessageBubble: React.FC<MessageBubbleProps> = ({
   message,
   currentUserId,
   view,
 }) => {
   const isOwnMessage = message.senderId === currentUserId;
-  const senderLabel = (() => {
-    switch (message.source) {
-      case 'BUYER':
-        return isOwnMessage ? 'Bạn' : message.sender.name;
-      case 'SELLER':
-        return `${message.sender.name} · Nhân viên Shop`;
-      case 'AI':
-        return `${message.sender.name} · Trợ lý AI`;
-      case 'SYSTEM':
-        return `${message.sender.name} · Hệ thống`;
-      default:
-        return message.sender.name;
-    }
-  })();
-
-  if (view === 'seller') {
-    return (
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: isOwnMessage ? 'flex-end' : 'flex-start',
-        }}
-      >
-        <Paper
-          variant="outlined"
-          sx={{
-            p: 1.5,
-            maxWidth: '75%',
-            bgcolor: isOwnMessage ? '#eff6ff' : 'white',
-          }}
-        >
-          <Typography variant="caption" sx={{ fontWeight: 700 }}>
-            {senderLabel}
-          </Typography>
-          <Typography
-            sx={{
-              mt: 0.5,
-              color: '#1e293b',
-              fontSize: '0.95rem',
-              lineHeight: 1.5,
-              whiteSpace: 'pre-wrap',
-            }}
-          >
-            {message.content}
-          </Typography>
-          {message.qrUrl && (
-            <Typography
-              variant="caption"
-              color="primary"
-              sx={{ display: 'block', mt: 0.5 }}
-            >
-              Tin nhắn này có kèm mã VietQR.
-            </Typography>
-          )}
-          <Typography
-            variant="caption"
-            sx={{
-              display: 'block',
-              mt: 1,
-              textAlign: 'right',
-              color: '#94a3b8',
-              fontSize: '0.72rem',
-            }}
-          >
-            {new Date(message.createdAt).toLocaleString('vi-VN')}
-          </Typography>
-        </Paper>
-      </Box>
-    );
-  }
+  const alignRight =
+    view === 'buyer'
+      ? isOwnMessage
+      : message.source === 'SELLER' || message.source === 'AI' || message.source === 'SYSTEM'
+        ? isOwnMessage
+        : false;
+  const style = getSourcePresentation(
+    message.source,
+    message.sender.name,
+    isOwnMessage,
+  );
 
   return (
     <Box
       sx={{
         display: 'flex',
-        justifyContent: isOwnMessage ? 'flex-end' : 'flex-start',
+        justifyContent: alignRight ? 'flex-end' : 'flex-start',
       }}
     >
       <Paper
-        elevation={0}
+        variant="outlined"
         sx={{
-          p: 2,
-          maxWidth: { xs: '85%', md: '70%' },
-          bgcolor: isOwnMessage ? '#eff6ff' : 'white',
-          border: '1px solid',
-          borderColor: isOwnMessage ? '#bfdbfe' : '#e2e8f0',
-          borderRadius: isOwnMessage
+          p: { xs: 1.5, sm: 2 },
+          maxWidth: { xs: '88%', sm: '76%', md: '70%' },
+          minWidth: 0,
+          bgcolor: style.bgcolor,
+          borderColor: style.borderColor,
+          borderRadius: alignRight
             ? '16px 16px 4px 16px'
             : '16px 16px 16px 4px',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
         }}
       >
-        <Typography
-          variant="caption"
-          sx={{
-            fontWeight: 700,
-            color: isOwnMessage ? '#1d4ed8' : '#475569',
-            display: 'block',
-            mb: 0.5,
-          }}
+        <Stack
+          direction="row"
+          spacing={0.5}
+          sx={{ alignItems: 'center', color: style.labelColor, mb: 0.5 }}
         >
-          {senderLabel}
-        </Typography>
+          {style.icon}
+          <Typography
+            variant="caption"
+            sx={{ fontWeight: 700, color: 'inherit' }}
+          >
+            {style.label}
+          </Typography>
+        </Stack>
+
         <Typography
           sx={{
-            color: '#1e293b',
+            color: 'text.primary',
             fontSize: '0.95rem',
             lineHeight: 1.55,
             whiteSpace: 'pre-wrap',
+            overflowWrap: 'anywhere',
           }}
         >
           {message.content}
         </Typography>
-        {message.qrUrl && (
-          <Box
-            sx={{
-              mt: 2,
-              p: 2,
-              bgcolor: '#f8fafc',
-              borderRadius: 2,
-              border: '1px dashed #94a3b8',
-              textAlign: 'center',
-            }}
-          >
+
+        {message.qrUrl &&
+          (view === 'seller' ? (
             <Box
               sx={{
-                display: 'flex',
+                mt: 1.25,
+                px: 1.5,
+                py: 1,
+                borderRadius: 2,
+                bgcolor: surfaceTokens.cardBg,
+                border: `1px solid ${surfaceTokens.borderSubtle}`,
+                display: 'inline-flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                gap: 1,
-                mb: 1.5,
-                color: '#1e3a8a',
+                gap: 0.75,
+                color: surfaceTokens.textSecondary,
               }}
             >
-              <QrCode2OutlinedIcon />
-              <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                MÃ THANH TOÁN VIETQR
+              <QrCode2OutlinedIcon fontSize="small" color="primary" />
+              <Typography variant="caption" sx={{ fontWeight: 600, color: 'inherit' }}>
+                Đã đính kèm mã thanh toán VietQR cho khách hàng
               </Typography>
             </Box>
+          ) : (
             <Box
-              component="img"
-              src={message.qrUrl}
-              alt="Mã thanh toán VietQR"
               sx={{
-                width: 220,
-                maxWidth: '100%',
-                borderRadius: 1.5,
-                bgcolor: 'white',
-                p: 1,
-                boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                mt: 1.75,
+                p: { xs: 1.5, sm: 2 },
+                bgcolor: surfaceTokens.cardBg,
+                borderRadius: 2.5,
+                border: `1px dashed ${surfaceTokens.borderStrong}`,
+                textAlign: 'center',
               }}
-            />
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{ display: 'block', mt: 1, fontStyle: 'italic' }}
             >
-              Mở app ngân hàng quét mã để thanh toán đơn hàng
-            </Typography>
-          </Box>
-        )}
+              <Stack
+                direction="row"
+                spacing={0.75}
+                sx={{
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  mb: 1.25,
+                  color: 'primary.main',
+                }}
+              >
+                <QrCode2OutlinedIcon fontSize="small" />
+                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                  Mã thanh toán VietQR
+                </Typography>
+              </Stack>
+              <Box
+                component="img"
+                src={message.qrUrl}
+                alt="Mã thanh toán VietQR"
+                sx={{
+                  width: '100%',
+                  maxWidth: 220,
+                  height: 'auto',
+                  display: 'block',
+                  mx: 'auto',
+                  borderRadius: 1.5,
+                  bgcolor: '#FFFFFF',
+                  p: 0.75,
+                  border: `1px solid ${surfaceTokens.borderSubtle}`,
+                }}
+              />
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ display: 'block', mt: 1 }}
+              >
+                Mở ứng dụng ngân hàng và quét mã để thanh toán đơn hàng.
+              </Typography>
+            </Box>
+          ))}
+
         <Typography
           variant="caption"
           sx={{
             display: 'block',
-            mt: 1.2,
+            mt: 1,
             textAlign: 'right',
-            color: '#94a3b8',
-            fontSize: '0.72rem',
+            color: surfaceTokens.textSecondary,
           }}
         >
           {new Date(message.createdAt).toLocaleString('vi-VN', {

@@ -1,114 +1,95 @@
-import React from 'react';
-import { Box, Container, Paper, Typography } from '@mui/material';
+import React, { useState } from 'react';
+import { useMediaQuery, useTheme } from '@mui/material';
+import { useSearchParams } from 'react-router-dom';
 import { ChatHeader } from '../../components/inbox/ChatHeader';
 import { ChatInputBar } from '../../components/inbox/ChatInputBar';
-import { InboxPageHeader } from '../../components/inbox/InboxPageHeader';
+import {
+  InboxSplitLayout,
+  getConversationModeDisplay,
+} from '../../components/inbox/InboxSplitLayout';
 import { MessageList } from '../../components/inbox/MessageList';
 import { ShopSidebar } from '../../components/inbox/ShopSidebar';
 import { useAuth } from '../../context/AuthContext';
 import { useBuyerInbox } from '../../hooks/useBuyerInbox';
 
 export const InboxPage: React.FC = () => {
+  const theme = useTheme();
+  const isDesktop = useMediaQuery(theme.breakpoints.up('md'), { noSsr: true });
   const { user } = useAuth();
-  const inbox = useBuyerInbox();
+  const [searchParams] = useSearchParams();
+  const [mobilePane, setMobilePane] = useState<'list' | 'chat'>(() =>
+    searchParams.get('sellerId') ? 'chat' : 'list',
+  );
+  const inbox = useBuyerInbox({ autoSelectFirst: isDesktop });
   const { conversation } = inbox;
   const { status, loading: loadingMode } = inbox.conversationMode;
-  const modeLabel = loadingMode
-    ? 'Đang tải chế độ...'
-    : status
-      ? status.mode === 'AI'
-        ? 'AI đang hỗ trợ'
-        : 'Shop trực tiếp hỗ trợ'
-      : 'Chưa xác định chế độ';
+  const { isAiMode, modeLabel } = getConversationModeDisplay(status, loadingMode);
+
+  const handleSelectShop = (shopId: string) => {
+    inbox.setSelectedShopId(shopId);
+    setMobilePane('chat');
+    requestAnimationFrame(() => {
+      conversation.chatEndRef.current?.scrollIntoView({ behavior: 'auto' });
+    });
+  };
+
+  const handleBackToList = () => {
+    setMobilePane('list');
+    if (!isDesktop) {
+      inbox.setSelectedShopId(null);
+    }
+  };
 
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-      <Paper
-        elevation={2}
-        sx={{
-          borderRadius: 3,
-          overflow: 'hidden',
-          border: '1px solid #e2e8f0',
-        }}
-      >
-        <InboxPageHeader
-          title="Hộp thư Trao đổi & Đơn hàng"
-          description="Xem nội dung tư vấn sản phẩm và hóa đơn thanh toán VietQR từ các Shop"
+    <InboxSplitLayout
+      headerTitle="Hộp thư Trao đổi & Đơn hàng"
+      headerDescription="Xem nội dung tư vấn sản phẩm và mã thanh toán VietQR từ các Shop"
+      mobilePane={mobilePane}
+      hasError={Boolean(inbox.error)}
+      emptyMessage={inbox.error || 'Chọn một kênh để xem nội dung trao đổi.'}
+      sidebar={
+        <ShopSidebar
+          shops={inbox.shops}
+          selectedShopId={inbox.selectedShopId}
+          loading={inbox.loadingShops}
+          disabled={inbox.sending}
+          onSelect={handleSelectShop}
         />
-
-        <Box
-          sx={{
-            display: 'flex',
-            flexDirection: { xs: 'column', md: 'row' },
-            minHeight: '65vh',
-            height: { md: '65vh' },
-            bgcolor: '#f8fafc',
-          }}
-        >
-          <ShopSidebar
-            shops={inbox.shops}
-            selectedShopId={inbox.selectedShopId}
-            loading={inbox.loadingShops}
-            disabled={inbox.sending}
-            onSelect={inbox.setSelectedShopId}
-          />
-
-          <Box
-            sx={{
-              flex: 1,
-              minHeight: 0,
-              display: 'flex',
-              flexDirection: 'column',
-            }}
-          >
-            {inbox.selectedShop ? (
-              <>
-                <ChatHeader
-                  name={inbox.selectedShop.name}
-                  statusText={modeLabel}
-                  badgeLabel="Kênh chính thức"
-                />
-                <MessageList
-                  messages={conversation.messages}
-                  currentUserId={user?.id}
-                  view="buyer"
-                  loading={conversation.loadingMessages}
-                  loadingMore={conversation.loadingMore}
-                  hasMore={conversation.hasMore}
-                  error={inbox.error}
-                  scrollContainerRef={conversation.scrollContainerRef}
-                  chatEndRef={conversation.chatEndRef}
-                  onScroll={conversation.handleScroll}
-                  onLoadMore={conversation.loadMore}
-                />
-                <ChatInputBar
-                  value={inbox.inputText}
-                  sending={inbox.sending}
-                  view="buyer"
-                  onChange={inbox.setInputText}
-                  onSend={inbox.handleSendMessage}
-                />
-              </>
-            ) : (
-              <Box
-                sx={{
-                  flex: 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  p: 4,
-                }}
-              >
-                <Typography color={inbox.error ? 'error' : 'text.secondary'}>
-                  {inbox.error ||
-                    'Chọn một kênh bên trái để xem nội dung trao đổi.'}
-                </Typography>
-              </Box>
-            )}
-          </Box>
-        </Box>
-      </Paper>
-    </Container>
+      }
+      chatContent={
+        inbox.selectedShop ? (
+          <>
+            <ChatHeader
+              name={inbox.selectedShop.name}
+              statusText={modeLabel}
+              isAiMode={isAiMode}
+              badgeLabel="Kênh chính thức"
+              onBack={handleBackToList}
+            />
+            <MessageList
+              messages={conversation.messages}
+              currentUserId={user?.id}
+              view="buyer"
+              loading={conversation.loadingMessages}
+              loadingMore={conversation.loadingMore}
+              hasMore={conversation.hasMore}
+              error={inbox.error}
+              scrollContainerRef={conversation.scrollContainerRef}
+              chatEndRef={conversation.chatEndRef}
+              onScroll={conversation.handleScroll}
+              onLoadMore={conversation.loadMore}
+            />
+            <ChatInputBar
+              value={inbox.inputText}
+              sending={inbox.sending}
+              view="buyer"
+              onChange={inbox.setInputText}
+              onSend={inbox.handleSendMessage}
+            />
+          </>
+        ) : null
+      }
+    />
   );
 };
 

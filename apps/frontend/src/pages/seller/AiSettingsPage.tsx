@@ -8,9 +8,7 @@ import {
   Paper,
   Snackbar,
   Stack,
-  ThemeProvider,
   Typography,
-  createTheme,
 } from '@mui/material';
 import MenuBookRoundedIcon from '@mui/icons-material/MenuBookRounded';
 import apiClient from '../../api/client';
@@ -20,52 +18,6 @@ import type {
   KbEntry,
   KnowledgeDraft,
 } from '../../components/knowledge-base/types';
-
-const knowledgeTheme = createTheme({
-  palette: {
-    primary: { main: '#172d50', light: '#edf2f9', dark: '#101e35' },
-    error: { main: '#bc303b', light: '#fff1f2' },
-    background: { default: '#f5f7fb', paper: '#ffffff' },
-    text: { primary: '#19283f', secondary: '#52627a' },
-    divider: '#dde4ee',
-  },
-  shape: { borderRadius: 14 },
-  components: {
-    MuiButton: {
-      defaultProps: { disableElevation: true },
-      styleOverrides: {
-        root: { textTransform: 'none', fontWeight: 700, borderRadius: 10 },
-      },
-    },
-    MuiOutlinedInput: {
-      styleOverrides: { root: { borderRadius: 10, backgroundColor: '#fff' } },
-    },
-    MuiPaper: {
-      defaultProps: { elevation: 0 },
-      styleOverrides: { root: { backgroundImage: 'none' } },
-    },
-    MuiSkeleton: {
-      styleOverrides: {
-        root: {
-          '@media (prefers-reduced-motion: reduce)': {
-            animation: 'none',
-            '&::after': { animation: 'none' },
-          },
-        },
-      },
-    },
-    MuiCircularProgress: {
-      styleOverrides: {
-        root: {
-          '@media (prefers-reduced-motion: reduce)': {
-            animation: 'none',
-            '& svg circle': { animation: 'none' },
-          },
-        },
-      },
-    },
-  },
-});
 
 const errorMessage = (error: unknown, fallback: string) => {
   if (isAxiosError<{ message?: string | string[] }>(error)) {
@@ -152,14 +104,14 @@ export const AiSettingsPage = () => {
   };
 
   return (
-    <ThemeProvider theme={knowledgeTheme}>
+    <>
       <Box
         component="main"
         sx={{
           bgcolor: 'background.default',
           color: 'text.primary',
-          minHeight: 'calc(100vh - 64px)',
-          py: { xs: 3, md: 5 },
+          minHeight: { xs: 'calc(100dvh - 56px)', md: 'calc(100dvh - 64px)' },
+          py: { xs: 2.5, md: 4 },
         }}
       >
         <Container maxWidth="lg" sx={{ px: { xs: 2, sm: 3 } }}>
@@ -288,6 +240,6 @@ export const AiSettingsPage = () => {
           </Alert>
         ) : undefined}
       </Snackbar>
-    </ThemeProvider>
+    </>
   );
 };

@@ -1,6 +1,7 @@
 import React from 'react';
-import { Avatar, Box, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import ForumOutlinedIcon from '@mui/icons-material/ForumOutlined';
+import { surfaceTokens } from '../../theme';
 
 interface InboxPageHeaderProps {
   title: string;
@@ -13,29 +14,43 @@ export const InboxPageHeader: React.FC<InboxPageHeaderProps> = ({
 }) => (
   <Box
     sx={{
-      p: 3,
-      background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
-      color: 'white',
+      px: { xs: 2, sm: 3 },
+      py: { xs: 1.75, sm: 2.25 },
+      bgcolor: 'background.paper',
+      borderBottom: '1px solid',
+      borderColor: 'divider',
       display: 'flex',
       alignItems: 'center',
-      gap: 2,
+      gap: 1.75,
     }}
   >
-    <Avatar
+    <Box
       sx={{
-        bgcolor: 'rgba(255, 255, 255, 0.12)',
-        width: 52,
-        height: 52,
-        border: '1px solid rgba(255, 255, 255, 0.2)',
+        width: 44,
+        height: 44,
+        borderRadius: 2.5,
+        bgcolor: surfaceTokens.primarySoft,
+        color: 'primary.main',
+        display: 'grid',
+        placeItems: 'center',
+        flexShrink: 0,
       }}
     >
-      <ForumOutlinedIcon sx={{ color: '#60a5fa', fontSize: 30 }} />
-    </Avatar>
-    <Box>
-      <Typography variant="h5" sx={{ fontWeight: 700, letterSpacing: 0.5 }}>
+      <ForumOutlinedIcon />
+    </Box>
+    <Box sx={{ minWidth: 0 }}>
+      <Typography
+        component="h1"
+        variant="h6"
+        sx={{
+          fontWeight: 700,
+          fontSize: { xs: '1.05rem', sm: '1.25rem' },
+          color: 'text.primary',
+        }}
+      >
         {title}
       </Typography>
-      <Typography variant="body2" sx={{ opacity: 0.85, mt: 0.3 }}>
+      <Typography variant="body2" color="text.secondary">
         {description}
       </Typography>
     </Box>

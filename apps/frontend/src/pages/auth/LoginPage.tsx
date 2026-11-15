@@ -1,20 +1,42 @@
 import React, { useState } from 'react';
 import {
-  Container,
-  Paper,
-  Typography,
-  TextField,
-  Button,
-  Box,
   Alert,
+  Box,
+  Button,
+  Container,
   Divider,
-  Stack,
   IconButton,
   InputAdornment,
+  Paper,
+  Stack,
+  TextField,
+  Typography,
 } from '@mui/material';
-import { Visibility, VisibilityOff } from '@mui/icons-material';
+import BoltRoundedIcon from '@mui/icons-material/BoltRounded';
+import Visibility from '@mui/icons-material/Visibility';
+import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth, type Role } from '../../context/AuthContext';
+import { surfaceTokens } from '../../theme';
+import { ROLE_HOME } from '../../utils/roleConfig';
+
+const QUICK_FILL_ACCOUNTS = [
+  {
+    label: 'Dùng thử: Chủ Shop (Seller)',
+    email: 'seller@liveorder.com',
+    color: 'warning' as const,
+  },
+  {
+    label: 'Dùng thử: Khách hàng (Buyer)',
+    email: 'buyer@liveorder.com',
+    color: 'primary' as const,
+  },
+  {
+    label: 'Dùng thử: Quản trị (Admin)',
+    email: 'admin@liveorder.com',
+    color: 'error' as const,
+  },
+];
 
 export const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -33,14 +55,14 @@ export const LoginPage: React.FC = () => {
 
     try {
       await login(email, password);
-      const savedUser = JSON.parse(localStorage.getItem('user') || '{}');
-      if (savedUser.role === 'ADMIN') navigate('/admin/dashboard');
-      else if (savedUser.role === 'SELLER') navigate('/seller/dashboard');
-      else navigate('/viewer');
-    } catch (err: any) {
+      const savedUser = JSON.parse(localStorage.getItem('user') || '{}') as { role?: Role };
+      const targetRoute = savedUser.role ? ROLE_HOME[savedUser.role] : ROLE_HOME.BUYER;
+      navigate(targetRoute ?? ROLE_HOME.BUYER);
+    } catch (err: unknown) {
+      const apiErr = err as { response?: { data?: { message?: string } } };
       setError(
-        err.response?.data?.message ||
-        'Đăng nhập thất bại. Vui lòng kiểm tra thông tin và đảm bảo Backend đã chạy!'
+        apiErr.response?.data?.message ||
+          'Đăng nhập thất bại. Vui lòng kiểm tra thông tin và đảm bảo Backend đã chạy.',
       );
     } finally {
       setLoading(false);
@@ -53,78 +75,147 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <Container maxWidth="xs" sx={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <Paper elevation={6} sx={{ p: 4, width: '100%', borderRadius: 3, textAlign: 'center' }}>
-        <Typography variant="h5" color="primary" gutterBottom sx={{ fontWeight: 'bold' }}>
-          ⚡ LiveOrder Login
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          Hệ thống Chốt đơn Livestream tự động
-        </Typography>
+    <Box
+      sx={{
+        flex: 1,
+        minHeight: '100dvh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        bgcolor: 'background.default',
+        px: 2,
+        py: 4,
+      }}
+    >
+      <Container maxWidth="xs" disableGutters>
+        <Paper
+          variant="outlined"
+          sx={{
+            p: { xs: 3, sm: 4 },
+            width: '100%',
+            borderRadius: 4,
+            borderColor: 'divider',
+            bgcolor: 'background.paper',
+          }}
+        >
+          <Stack spacing={1} sx={{ alignItems: 'center', textAlign: 'center', mb: 3 }}>
+            <Box
+              sx={{
+                width: 44,
+                height: 44,
+                borderRadius: 2.5,
+                bgcolor: 'primary.main',
+                color: 'primary.contrastText',
+                display: 'grid',
+                placeItems: 'center',
+                mb: 0.5,
+              }}
+            >
+              <BoltRoundedIcon />
+            </Box>
+            <Typography
+              component="h1"
+              variant="h5"
+              sx={{ fontWeight: 800, color: 'text.primary' }}
+            >
+              Đăng nhập LiveOrder
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Hệ thống Chốt đơn Livestream &amp; Tư vấn AI
+            </Typography>
+          </Stack>
 
-        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+          {error && (
+            <Alert severity="error" role="alert" sx={{ mb: 2.5, borderRadius: 2 }}>
+              {error}
+            </Alert>
+          )}
 
-        <Box component="form" onSubmit={handleSubmit}>
-          <TextField
-            fullWidth
-            label="Email"
-            variant="outlined"
-            margin="normal"
-            value={email}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
-            required
-          />
-          <TextField
-            fullWidth
-            label="Mật khẩu"
-            type={showPassword ? 'text' : 'password'}
-            variant="outlined"
-            margin="normal"
-            value={password}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
-            required
-            slotProps={{
-              input: {
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      aria-label="toggle password visibility"
-                      onClick={() => setShowPassword(!showPassword)}
-                      edge="end"
-                    >
-                      {showPassword ? <VisibilityOff /> : <Visibility />}
-                    </IconButton>
-                  </InputAdornment>
-                ),
-              },
+          <Box component="form" onSubmit={handleSubmit}>
+            <Stack spacing={2}>
+              <TextField
+                fullWidth
+                label="Email"
+                type="email"
+                autoComplete="email"
+                variant="outlined"
+                value={email}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setEmail(e.target.value)
+                }
+                required
+              />
+              <TextField
+                fullWidth
+                label="Mật khẩu"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="current-password"
+                variant="outlined"
+                value={password}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setPassword(e.target.value)
+                }
+                required
+                slotProps={{
+                  input: {
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                          onClick={() => setShowPassword(!showPassword)}
+                          edge="end"
+                        >
+                          {showPassword ? <VisibilityOff /> : <Visibility />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  },
+                }}
+              />
+              <Button
+                type="submit"
+                fullWidth
+                variant="contained"
+                size="large"
+                disabled={loading}
+                sx={{ mt: 0.5, minHeight: 48, fontWeight: 700 }}
+              >
+                {loading ? 'Đang xác thực...' : 'Đăng nhập'}
+              </Button>
+            </Stack>
+          </Box>
+
+          <Divider sx={{ my: 3, color: 'text.secondary', fontSize: '0.75rem' }}>
+            Tài khoản dùng thử nhanh
+          </Divider>
+
+          <Box
+            sx={{
+              p: 1.5,
+              borderRadius: 2.5,
+              bgcolor: surfaceTokens.pageBg,
+              border: '1px solid',
+              borderColor: 'divider',
             }}
-          />
-          <Button
-            type="submit"
-            fullWidth
-            variant="contained"
-            size="large"
-            disabled={loading}
-            sx={{ mt: 2, py: 1.2, fontWeight: 'bold' }}
           >
-            {loading ? 'Đang xác thực...' : 'ĐĂNG NHẬP'}
-          </Button>
-        </Box>
-
-        <Divider sx={{ my: 3 }}>HOẶC TEST NHANH</Divider>
-
-        <Stack spacing={1}>
-          <Button variant="outlined" color="warning" size="small" onClick={() => handleQuickFill('seller@liveorder.com')}>
-            Điền nhanh: CHỦ SHOP SELLER
-          </Button>
-          <Button variant="outlined" color="info" size="small" onClick={() => handleQuickFill('buyer@liveorder.com')}>
-            Điền nhanh: KHÁCH HÀNG BUYER
-          </Button>
-          <Button variant="outlined" color="error" size="small" onClick={() => handleQuickFill('admin@liveorder.com')}>
-            Điền nhanh: SYSTEM ADMIN
-          </Button>
-        </Stack>
-      </Paper>
-    </Container>
+            <Stack spacing={1}>
+              {QUICK_FILL_ACCOUNTS.map((account) => (
+                <Button
+                  key={account.email}
+                  variant="outlined"
+                  color={account.color}
+                  size="small"
+                  fullWidth
+                  onClick={() => handleQuickFill(account.email)}
+                  sx={{ minHeight: 44, justifyContent: 'center' }}
+                >
+                  {account.label}
+                </Button>
+              ))}
+            </Stack>
+          </Box>
+        </Paper>
+      </Container>
+    </Box>
   );
 };

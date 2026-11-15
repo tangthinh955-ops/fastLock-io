@@ -1,6 +1,6 @@
 import React from 'react';
-import { Paper, Grid, Box, Chip, TextField, Button } from '@mui/material';
-import { PlayArrow, Stop } from '@mui/icons-material';
+import { Paper, Stack, Chip, TextField, Button } from '@mui/material';
+import { PlayArrow, Stop, FiberManualRecord } from '@mui/icons-material';
 
 interface StreamControlHeaderProps {
     isStreaming: boolean;
@@ -19,65 +19,68 @@ export const StreamControlHeader: React.FC<StreamControlHeaderProps> = ({
 }) => {
     return (
         <Paper
-            elevation={3}
+            variant="outlined"
             sx={{
-                p: 2,
-                mb: 3,
-                background: 'rgba(26, 26, 46, 0.9)',
-                backdropFilter: 'blur(10px)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
+                p: { xs: 2, sm: 2.5 },
+                mb: 2.5,
+                bgcolor: 'background.paper',
                 borderRadius: 3,
             }}
         >
-            <Grid container spacing={2} sx={{ alignItems: 'center' }}>
-                <Grid size={{ xs: 12, md: 5 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <Chip
-                            label={isStreaming ? '🔴 ĐANG PHÁT LIVE' : '⚪ CHỜ PHÁT SÓNG'}
-                            color={isStreaming ? 'error' : 'default'}
-                            sx={{ fontWeight: 'bold', px: 1 }}
-                        />
-                        <TextField
-                            fullWidth
-                            variant="outlined"
-                            size="small"
-                            disabled={isStreaming}
-                            value={streamTitle}
-                            onChange={(e) => onTitleChange(e.target.value)}
-                            sx={{
-                                input: { color: '#fff' },
-                                '& .MuiOutlinedInput-root': {
-                                    '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' },
-                                },
-                            }}
-                        />
-                    </Box>
-                </Grid>
+            <Stack
+                direction={{ xs: 'column', md: 'row' }}
+                spacing={1.5}
+                sx={{ alignItems: { xs: 'stretch', md: 'center' }, justifyContent: 'space-between' }}
+            >
+                <Stack
+                    direction={{ xs: 'column', sm: 'row' }}
+                    spacing={1.5}
+                    sx={{ alignItems: { xs: 'flex-start', sm: 'center' }, flex: 1, minWidth: 0 }}
+                >
+                    <Chip
+                        icon={<FiberManualRecord sx={{ fontSize: 12 }} />}
+                        label={isStreaming ? 'Đang phát Live' : 'Chờ phát sóng'}
+                        color={isStreaming ? 'error' : 'default'}
+                        variant={isStreaming ? 'filled' : 'outlined'}
+                        sx={{ fontWeight: 700, flexShrink: 0 }}
+                    />
+                    <TextField
+                        fullWidth
+                        label="Tiêu đề phiên livestream"
+                        variant="outlined"
+                        size="small"
+                        disabled={isStreaming}
+                        value={streamTitle}
+                        onChange={(e) => onTitleChange(e.target.value)}
+                    />
+                </Stack>
 
-                <Grid size={{ xs: 12, md: 7 }} sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+                <Stack direction="row" sx={{ flexShrink: 0 }}>
                     {!isStreaming ? (
                         <Button
+                            fullWidth
                             variant="contained"
                             color="error"
                             startIcon={<PlayArrow />}
                             onClick={onStartLive}
-                            sx={{ borderRadius: 2, px: 4, fontWeight: 'bold' }}
+                            sx={{ minHeight: 44, borderRadius: 2, px: 3, fontWeight: 700 }}
                         >
                             Bắt đầu Livestream
                         </Button>
                     ) : (
                         <Button
+                            fullWidth
                             variant="outlined"
-                            color="warning"
+                            color="error"
                             startIcon={<Stop />}
                             onClick={onEndLive}
-                            sx={{ borderRadius: 2, px: 4, fontWeight: 'bold' }}
+                            sx={{ minHeight: 44, borderRadius: 2, px: 3, fontWeight: 700 }}
                         >
                             Kết thúc Live
                         </Button>
                     )}
-                </Grid>
-            </Grid>
+                </Stack>
+            </Stack>
         </Paper>
     );
 };

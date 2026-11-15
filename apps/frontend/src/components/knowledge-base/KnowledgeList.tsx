@@ -90,7 +90,7 @@ export const KnowledgeList = ({
           id="knowledge-list-heading"
           component="h2"
           variant="h6"
-          sx={{ fontWeight: 750 }}
+          sx={{ fontWeight: 700 }}
         >
           Kiến thức đã lưu
         </Typography>
@@ -129,7 +129,7 @@ export const KnowledgeList = ({
                   aria-label="Xóa nội dung tìm kiếm"
                   onClick={() => setSearch('')}
                   edge="end"
-                  sx={{ minWidth: 40, minHeight: 40 }}
+                  sx={{ minWidth: 44, minHeight: 44 }}
                 >
                   <CloseRoundedIcon fontSize="small" />
                 </IconButton>
@@ -225,7 +225,7 @@ export const KnowledgeList = ({
                   <Typography
                     component="h3"
                     variant="subtitle1"
-                    sx={{ fontWeight: 750, pt: 0.75, overflowWrap: 'anywhere' }}
+                    sx={{ fontWeight: 700, pt: 0.75, overflowWrap: 'anywhere' }}
                   >
                     {entry.keyword}
                   </Typography>
@@ -285,7 +285,7 @@ export const KnowledgeList = ({
                         <ExpandMoreRoundedIcon />
                       )
                     }
-                    sx={{ mt: 1.5, ml: -0.75, minHeight: 40 }}
+                    sx={{ mt: 1.5, ml: -0.75, minHeight: 44 }}
                   >
                     {expanded ? 'Thu gọn' : 'Xem đầy đủ'}
                   </Button>
@@ -306,7 +306,7 @@ export const KnowledgeList = ({
         fullWidth
         maxWidth="xs"
       >
-        <DialogTitle id="knowledge-delete-title" sx={{ fontWeight: 750 }}>
+        <DialogTitle id="knowledge-delete-title" sx={{ fontWeight: 700 }}>
           Xóa mục kiến thức?
         </DialogTitle>
         <DialogContent>
@@ -323,7 +323,7 @@ export const KnowledgeList = ({
           )}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
-          <Button disabled={deleting} onClick={() => setDeleteTarget(null)}>
+          <Button disabled={deleting} onClick={() => setDeleteTarget(null)} sx={{ minHeight: 44 }}>
             Giữ lại
           </Button>
           <Button
@@ -331,6 +331,7 @@ export const KnowledgeList = ({
             color="error"
             disabled={deleting}
             onClick={confirmDelete}
+            sx={{ minHeight: 44 }}
             startIcon={
               deleting ? (
                 <CircularProgress size={16} color="inherit" />

@@ -1,6 +1,7 @@
 import React from 'react';
-import { Paper, Typography, Box, IconButton } from '@mui/material';
+import { Paper, Typography, Stack, IconButton, Tooltip } from '@mui/material';
 import { Videocam, VideocamOff, Mic, MicOff } from '@mui/icons-material';
+import { surfaceTokens } from '../../theme';
 
 interface WebCamPlayerProps {
     videoRef: React.RefObject<HTMLVideoElement | null>;
@@ -19,17 +20,19 @@ export const WebCamPlayer: React.FC<WebCamPlayerProps> = ({
 }) => {
     return (
         <Paper
-            elevation={4}
+            variant="outlined"
             sx={{
                 position: 'relative',
                 borderRadius: 3,
                 overflow: 'hidden',
-                backgroundColor: '#000',
+                bgcolor: surfaceTokens.videoStageBg,
                 aspectRatio: '16/9',
+                maxHeight: { xs: '42dvh', md: 'none' },
+                width: '100%',
                 display: 'flex',
                 justifyContent: 'center',
                 alignItems: 'center',
-                border: '2px solid rgba(255, 255, 255, 0.1)',
+                borderColor: 'divider',
             }}
         >
             <video
@@ -46,30 +49,67 @@ export const WebCamPlayer: React.FC<WebCamPlayerProps> = ({
             />
 
             {!camEnabled && (
-                <Typography variant="h6" sx={{ position: 'absolute', color: '#ff9800' }}>
-                    Camera đã tắt
-                </Typography>
+                <Stack
+                    spacing={1}
+                    sx={{ position: 'absolute', pointerEvents: 'none', px: 2, textAlign: 'center', alignItems: 'center' }}
+                >
+                    <VideocamOff sx={{ fontSize: 36, color: '#F59E0B' }} />
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#F8FAFC' }}>
+                        Camera đã tắt
+                    </Typography>
+                </Stack>
             )}
 
-            <Box
+            <Stack
+                direction="row"
+                spacing={1.5}
                 sx={{
                     position: 'absolute',
-                    bottom: 16,
-                    display: 'flex',
-                    gap: 2,
-                    background: 'rgba(0, 0, 0, 0.6)',
-                    p: 1,
-                    borderRadius: 5,
-                    backdropFilter: 'blur(5px)',
+                    bottom: 14,
+                    px: 1.25,
+                    py: 0.75,
+                    borderRadius: 999,
+                    bgcolor: 'rgba(15, 23, 42, 0.86)',
+                    border: '1px solid rgba(255, 255, 255, 0.16)',
+                    backdropFilter: 'blur(8px)',
                 }}
             >
-                <IconButton onClick={onToggleCam} color={camEnabled ? 'primary' : 'error'}>
-                    {camEnabled ? <Videocam /> : <VideocamOff />}
-                </IconButton>
-                <IconButton onClick={onToggleMic} color={micEnabled ? 'primary' : 'error'}>
-                    {micEnabled ? <Mic /> : <MicOff />}
-                </IconButton>
-            </Box>
+                <Tooltip title={camEnabled ? 'Tắt camera' : 'Bật camera'}>
+                    <IconButton
+                        onClick={onToggleCam}
+                        aria-label={camEnabled ? 'Tắt camera' : 'Bật camera'}
+                        sx={{
+                            width: 44,
+                            height: 44,
+                            color: '#FFFFFF',
+                            bgcolor: camEnabled ? 'rgba(255, 255, 255, 0.14)' : '#DC2626',
+                            '&:hover': {
+                                bgcolor: camEnabled ? 'rgba(255, 255, 255, 0.24)' : '#B91C1C',
+                            },
+                        }}
+                    >
+                        {camEnabled ? <Videocam /> : <VideocamOff />}
+                    </IconButton>
+                </Tooltip>
+
+                <Tooltip title={micEnabled ? 'Tắt micro' : 'Bật micro'}>
+                    <IconButton
+                        onClick={onToggleMic}
+                        aria-label={micEnabled ? 'Tắt micro' : 'Bật micro'}
+                        sx={{
+                            width: 44,
+                            height: 44,
+                            color: '#FFFFFF',
+                            bgcolor: micEnabled ? 'rgba(255, 255, 255, 0.14)' : '#DC2626',
+                            '&:hover': {
+                                bgcolor: micEnabled ? 'rgba(255, 255, 255, 0.24)' : '#B91C1C',
+                            },
+                        }}
+                    >
+                        {micEnabled ? <Mic /> : <MicOff />}
+                    </IconButton>
+                </Tooltip>
+            </Stack>
         </Paper>
     );
 };

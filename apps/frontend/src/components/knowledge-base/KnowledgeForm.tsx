@@ -67,7 +67,7 @@ export const KnowledgeForm = ({ disabled, onSubmit }: KnowledgeFormProps) => {
         id="knowledge-form-heading"
         component="h2"
         variant="h6"
-        sx={{ fontWeight: 750 }}
+        sx={{ fontWeight: 700 }}
       >
         Thêm kiến thức mới
       </Typography>

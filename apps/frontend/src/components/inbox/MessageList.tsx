@@ -40,24 +40,23 @@ export const MessageList: React.FC<MessageListProps> = ({
     onScroll={onScroll}
     sx={{
       flex: 1,
-      p: 3,
+      p: { xs: 1.5, sm: 2.5 },
       display: 'flex',
       flexDirection: 'column',
-      gap: 2,
+      gap: 1.75,
       overflowY: 'auto',
       minHeight: 0,
-      maxHeight: { xs: '50vh', md: 'none' },
-      bgcolor: view === 'buyer' ? '#f8fafc' : undefined,
+      bgcolor: '#F8FAFC',
     }}
   >
     {error && <Alert severity="error">{error}</Alert>}
 
     {loading ? (
       <Box sx={{ display: 'flex', justifyContent: 'center', p: 6 }}>
-        <CircularProgress sx={{ color: '#2563eb' }} />
+        <CircularProgress />
       </Box>
     ) : messages.length === 0 ? (
-      <Box sx={{ textAlign: 'center', mt: view === 'buyer' ? 8 : 6 }}>
+      <Box sx={{ textAlign: 'center', my: 'auto', px: 2 }}>
         <Typography color="text.secondary" sx={{ fontSize: '0.95rem' }}>
           {view === 'buyer'
             ? 'Chưa có tin nhắn nào trong cuộc trò chuyện này.'
@@ -66,8 +65,8 @@ export const MessageList: React.FC<MessageListProps> = ({
         {view === 'buyer' && (
           <Typography
             variant="caption"
-            color="text.disabled"
-            sx={{ display: 'block', mt: 0.5 }}
+            color="text.secondary"
+            sx={{ display: 'block', mt: 0.75 }}
           >
             Các phản hồi của AI và mã thanh toán VietQR sẽ hiển thị tại đây.
           </Typography>
@@ -76,16 +75,15 @@ export const MessageList: React.FC<MessageListProps> = ({
     ) : (
       <>
         {hasMore && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 1 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 0.5 }}>
             <Button
               size="small"
               variant="text"
               onClick={onLoadMore}
               disabled={loadingMore}
-              sx={{ color: '#2563eb' }}
             >
               {loadingMore ? (
-                <CircularProgress size={20} sx={{ color: '#2563eb' }} />
+                <CircularProgress size={20} />
               ) : (
                 'Tải tin nhắn cũ'
               )}
@@ -97,8 +95,7 @@ export const MessageList: React.FC<MessageListProps> = ({
             variant="caption"
             align="center"
             sx={{
-              color: '#94a3b8',
-              fontStyle: 'italic',
+              color: '#64748B',
               display: 'block',
               my: 0.5,
             }}
