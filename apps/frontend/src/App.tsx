@@ -1,19 +1,43 @@
 import React from 'react';
-import { Box, CssBaseline, ThemeProvider } from '@mui/material';
+import { Box, CircularProgress, CssBaseline, ThemeProvider } from '@mui/material';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ProtectedRoute } from './components/common/ProtectedRoute';
 import { Navbar } from './components/common/Navbar';
 import { appTheme } from './theme';
 
-import { LoginPage } from './pages/auth/LoginPage';
-import { AdminDashboard } from './pages/admin/AdminDashboard';
-import { SellerDashboard } from './pages/seller/SellerDashboard';
-import { LiveStudio } from './pages/seller/LiveStudio';
-import { AiSettingsPage } from './pages/seller/AiSettingsPage';
-import { ViewerPage } from './pages/viewer/ViewerPage';
-import { InboxPage } from './pages/inbox/InboxPage';
-import { SellerInboxPage } from './pages/inbox/SellerInboxPage';
+const LoginPage = React.lazy(() =>
+  import('./pages/auth/LoginPage').then((m) => ({ default: m.LoginPage })),
+);
+const AdminDashboard = React.lazy(() =>
+  import('./pages/admin/AdminDashboard').then((m) => ({
+    default: m.AdminDashboard,
+  })),
+);
+const SellerDashboard = React.lazy(() =>
+  import('./pages/seller/SellerDashboard').then((m) => ({
+    default: m.SellerDashboard,
+  })),
+);
+const LiveStudio = React.lazy(() =>
+  import('./pages/seller/LiveStudio').then((m) => ({ default: m.LiveStudio })),
+);
+const AiSettingsPage = React.lazy(() =>
+  import('./pages/seller/AiSettingsPage').then((m) => ({
+    default: m.AiSettingsPage,
+  })),
+);
+const ViewerPage = React.lazy(() =>
+  import('./pages/viewer/ViewerPage').then((m) => ({ default: m.ViewerPage })),
+);
+const InboxPage = React.lazy(() =>
+  import('./pages/inbox/InboxPage').then((m) => ({ default: m.InboxPage })),
+);
+const SellerInboxPage = React.lazy(() =>
+  import('./pages/inbox/SellerInboxPage').then((m) => ({
+    default: m.SellerInboxPage,
+  })),
+);
 
 export const App: React.FC = () => {
   return (
@@ -40,76 +64,92 @@ export const App: React.FC = () => {
                 flexDirection: 'column',
               }}
             >
-              <Routes>
-                {/* Trang Đăng nhập công khai */}
-                <Route path="/login" element={<LoginPage />} />
+              <React.Suspense
+                fallback={
+                  <Box
+                    sx={{
+                      flex: 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      py: 8,
+                    }}
+                  >
+                    <CircularProgress size={36} />
+                  </Box>
+                }
+              >
+                <Routes>
+                  {/* Trang Đăng nhập công khai */}
+                  <Route path="/login" element={<LoginPage />} />
 
-                {/* Route dành riêng cho ADMIN */}
-                <Route
-                  path="/admin/dashboard"
-                  element={
-                    <ProtectedRoute allowedRoles={['ADMIN']}>
-                      <AdminDashboard />
-                    </ProtectedRoute>
-                  }
-                />
+                  {/* Route dành riêng cho ADMIN */}
+                  <Route
+                    path="/admin/dashboard"
+                    element={
+                      <ProtectedRoute allowedRoles={['ADMIN']}>
+                        <AdminDashboard />
+                      </ProtectedRoute>
+                    }
+                  />
 
-                {/* Route dành riêng cho SELLER */}
-                <Route
-                  path="/seller/dashboard"
-                  element={
-                    <ProtectedRoute allowedRoles={['SELLER']}>
-                      <SellerDashboard />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/seller/live-studio"
-                  element={
-                    <ProtectedRoute allowedRoles={['SELLER']}>
-                      <LiveStudio />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/seller/ai-settings"
-                  element={
-                    <ProtectedRoute allowedRoles={['SELLER']}>
-                      <AiSettingsPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/seller/inbox"
-                  element={
-                    <ProtectedRoute allowedRoles={['SELLER']}>
-                      <SellerInboxPage />
-                    </ProtectedRoute>
-                  }
-                />
+                  {/* Route dành riêng cho SELLER */}
+                  <Route
+                    path="/seller/dashboard"
+                    element={
+                      <ProtectedRoute allowedRoles={['SELLER']}>
+                        <SellerDashboard />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/seller/live-studio"
+                    element={
+                      <ProtectedRoute allowedRoles={['SELLER']}>
+                        <LiveStudio />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/seller/ai-settings"
+                    element={
+                      <ProtectedRoute allowedRoles={['SELLER']}>
+                        <AiSettingsPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/seller/inbox"
+                    element={
+                      <ProtectedRoute allowedRoles={['SELLER']}>
+                        <SellerInboxPage />
+                      </ProtectedRoute>
+                    }
+                  />
 
-                {/* Route dành riêng cho BUYER */}
-                <Route
-                  path="/viewer"
-                  element={
-                    <ProtectedRoute allowedRoles={['BUYER']}>
-                      <ViewerPage />
-                    </ProtectedRoute>
-                  }
-                />
+                  {/* Route dành riêng cho BUYER */}
+                  <Route
+                    path="/viewer"
+                    element={
+                      <ProtectedRoute allowedRoles={['BUYER']}>
+                        <ViewerPage />
+                      </ProtectedRoute>
+                    }
+                  />
 
-                <Route
-                  path="/inbox"
-                  element={
-                    <ProtectedRoute allowedRoles={['BUYER']}>
-                      <InboxPage />
-                    </ProtectedRoute>
-                  }
-                />
+                  <Route
+                    path="/inbox"
+                    element={
+                      <ProtectedRoute allowedRoles={['BUYER']}>
+                        <InboxPage />
+                      </ProtectedRoute>
+                    }
+                  />
 
-                {/* Mặc định chuyển về /login */}
-                <Route path="*" element={<Navigate to="/login" replace />} />
-              </Routes>
+                  {/* Mặc định chuyển về /login */}
+                  <Route path="*" element={<Navigate to="/login" replace />} />
+                </Routes>
+              </React.Suspense>
             </Box>
           </Box>
         </BrowserRouter>

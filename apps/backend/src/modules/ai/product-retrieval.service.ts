@@ -24,7 +24,7 @@ const MAX_PRODUCTS = 2;
 // Development-set threshold; short names can still produce close candidates.
 const MIN_SIMILARITY = 0.82;
 const BACKFILL_BATCH_SIZE = 16;
-const TIMEOUT_MS = 30000;
+const TIMEOUT_MS = 60000;
 
 @Injectable()
 export class ProductRetrievalService {

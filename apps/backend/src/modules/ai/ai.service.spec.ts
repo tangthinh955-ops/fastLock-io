@@ -260,6 +260,9 @@ describe('AiService conversation context', () => {
       );
       expect(findMany).not.toHaveBeenCalled();
       expect(mockCreate).not.toHaveBeenCalled();
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining('Embedding unavailable'),
+      );
     } finally {
       warn.mockRestore();
     }
