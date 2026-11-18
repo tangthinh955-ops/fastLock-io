@@ -119,9 +119,10 @@ export class AiService {
           used += cost;
           if (sources.length === 3) break;
         }
-      } catch {
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : String(error);
         this.logger.warn(
-          'RAG unavailable; no unbounded full-KB fallback was sent to Groq.',
+          `RAG unavailable (${detail}); no unbounded full-KB fallback was sent to Groq.`,
         );
         return 'Dạ Shop đang kiểm tra lại dữ liệu tư vấn. Anh/Chị thử lại sau một chút hoặc đợi nhân viên Shop hỗ trợ nhé.';
       }
@@ -241,9 +242,10 @@ export class AiService {
     });
     try {
       await this.retrieval.indexEntry(sellerId, saved.id);
-    } catch {
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
       this.logger.warn(
-        `Knowledge ${saved.id} saved; embedding will be retried on retrieval.`,
+        `Knowledge ${saved.id} saved (${detail}); embedding will be retried on retrieval.`,
       );
     }
     return saved;

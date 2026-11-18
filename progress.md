@@ -1,5 +1,35 @@
 # TIẾN ĐỘ DỰ ÁN: LIVEORDER CHỐT ĐƠN ENGINE
 
+## Cập nhật 18/11/2026 — Hoàn thành M5 & M6: Mô phỏng tải 30 Socket, Seed 30 tài khoản Demo, Warm-up RAG & Code-Splitting Frontend (`feat/m5-m6-demo-readiness`)
+
+- ✅ **M5 — Mô phỏng tải 30 Buyer Socket.io đồng thời (không dùng LiveKit/WebRTC, 0 phút quota video):**
+  - Chạy script kiểm thử ngoài repo (`m5-socket-load-test.mjs`) nhắm vào Backend `http://localhost:3001`:
+    - **Đăng nhập (`POST /auth/login`):** `31/31` HTTP `200` (`seller@liveorder.com` + `buyer01..buyer30@liveorder.com`), `0` lỗi HTTP `429` (dưới ngưỡng `ThrottlerGuard` 100 req/phút/IP).
+    - **Kết nối & Vào phòng:** Livestream `/` connect `30/30` (`min 58.54 ms`, `p50 62.70 ms`, `p95 70.72 ms`, `max 71.22 ms`); `join_room` (`room_joined`) `30/30` (`min 20.56 ms`, `p50 25.21 ms`, `p95 51.62 ms`, `max 51.91 ms`); `/inbox` (`inbox_ready`) `30/30`.
+    - **Chat Flood 30 client đồng thời (`"Áo đẹp quá shop ơi"`):** Seller nhận `30/30` (`min 108.33 ms`, `p50 142.41 ms`, `p95 166.79 ms`, `max 167.37 ms`); fanout toàn phòng `900/900` (`100%`, `min 109.15 ms`, `p50 143.84 ms`, `p95 167.45 ms`, `max 168.76 ms`); `0` false-positive order.
+    - **Order Race 15 client đồng thời chốt `SP01` (tồn kho tạm đặt `5`, `"Chốt SP01 0912345678"`):** tạo đúng **`5/15`** đơn hàng (`stockAfterRace = 0`, `0` oversell); `5/5` sự kiện `new_order` che SĐT thành `0912***678` (`min 85.03 ms`, `p50 143.08 ms`, `p95 201.77 ms`, `max 201.77 ms`); `5/5` tin `SYSTEM` chứa link `img.vietqr.io` tới `/inbox` (`min 112.32 ms`, `p50 165.54 ms`, `p95 229.76 ms`, `max 229.76 ms`).
+    - **Dọn dữ liệu & Hoàn kho:** hủy 5 đơn test (`PATCH /orders/:id/status` → `CANCELLED`), xác minh hoàn kho nguyên tử `0 → 5`, khôi phục tồn kho gốc `SP01` (`0`), kết thúc livestream (`ENDED`), ngắt toàn bộ socket.
+- ✅ **M6 — Chuẩn hóa Seed 33 tài khoản Demo (`apps/backend/prisma/seed.ts`):**
+  - Cập nhật [seed.ts](apps/backend/prisma/seed.ts): giữ nguyên 3 tài khoản lõi (`admin@liveorder.com`, `seller@liveorder.com`, `buyer@liveorder.com`, bỏ ghi đè `id` trong `update` để bảo toàn FK hiện hữu), bổ sung **30 tài khoản Buyer demo** deterministic UUID v4 (`buyer01@liveorder.com` .. `buyer30@liveorder.com`, `a0000000-0000-4000-8000-000000000101`..`130`, `Khách Demo 01`..`30`, mật khẩu chung `123456`).
+  - Upsert 3 sản phẩm demo (`SP01`, `SP02`, `SP03`, `update: {}`) gắn `seller.id` và tạo 3 mục Knowledge Base mặc định (`Bảng size áo`, `Chính sách phí ship & thời gian giao hàng`, `Chính sách đổi trả & thanh toán VietQR`) khi `kbEntry.count === 0`.
+  - Chạy `cd apps/backend && npx ts-node prisma/seed.ts` thành công (exit 0): xác nhận đủ 33 tài khoản + 3 sản phẩm + 5 KB entries hiện hữu của Seller.
+- ✅ **Ổn định RAG Warm-up & Timeout trên Server cấu hình thấp (`apps/backend/src/modules/ai/`):**
+  - [embedding.service.ts](apps/backend/src/modules/ai/embedding.service.ts): triển khai `OnModuleInit` + `Logger`, tự kích hoạt `void this.warmup()` nền khi `process.env.NODE_ENV !== 'test'`, dùng chung `ensureExtractor()` (`this.extractor`) và `this.queue` với `embed()` để không nạp trùng model vào RAM, bắt lỗi warm-up qua `this.logger.warn`.
+  - Nâng timeout truy xuất từ `30000` ms lên **`60000` ms** tại [product-retrieval.service.ts](apps/backend/src/modules/ai/product-retrieval.service.ts) (`TIMEOUT_MS`) và [knowledge-retrieval.service.ts](apps/backend/src/modules/ai/knowledge-retrieval.service.ts) (`RETRIEVAL_TIMEOUT_MS`) nhằm tránh timeout khi cold-start model (~33,7s trên Render Free).
+  - [ai.service.ts](apps/backend/src/modules/ai/ai.service.ts) & [ai.service.spec.ts](apps/backend/src/modules/ai/ai.service.spec.ts): log chi tiết lỗi `(${detail})` ở `generateReply` và `addKnowledgeBase`; bổ sung assertion `expect(warn).toHaveBeenCalledWith(expect.stringContaining('Embedding unavailable'))`.
+- ✅ **Tối ưu Code-Splitting Frontend (`apps/frontend/src/App.tsx`):**
+  - Chuyển toàn bộ 8 page (`LoginPage`, `AdminDashboard`, `SellerDashboard`, `LiveStudio`, `AiSettingsPage`, `ViewerPage`, `InboxPage`, `SellerInboxPage`) sang `React.lazy(...)` và bọc `<Routes>` trong `<React.Suspense>` với `CircularProgress` fallback, giữ nguyên toàn bộ Provider, `Navbar`, `ProtectedRoute` và phân quyền route.
+  - **So sánh bundle (`vite build`):**
+    - Trước: bundle đơn khối `1,339.19 kB` (`gzip: 387.96 kB`).
+    - Sau: entry chính `index-D-2AS7YY.js` còn **`271.47 kB`** (`gzip: 87.44 kB`, giảm **79,7%**), tách thành 8 chunk theo route (`InboxPage` `4.05 kB`, `LoginPage` `4.17 kB`, `SellerInboxPage` `4.74 kB`, `AdminDashboard` `14.31 kB`, `LiveStudio` `16.25 kB`, `ViewerPage` `16.34 kB`, `AiSettingsPage` `17.71 kB`, `SellerDashboard` `54.05 kB`) và các vendor chunk tách riêng (`livekit-client.esm-Dny0O4x5.js` `540.70 kB`, `client-BT61l2Ym.js` `190.28 kB`, v.v.).
+- ✅ **Kiểm chứng tổng thể trên nhánh `feat/m5-m6-demo-readiness`:**
+  - `npm test --workspace apps/backend` (8 suite nghiệp vụ AI / DirectMessage / Order / Livestream): **8/8 suites, 105/105 tests PASS** (AI `48/48`, DirectMessage `41/41`, Order `8/8`, Livestream `8/8`); 2 stub controller scaffold cũ (`ai.controller.spec.ts`, `direct-message.controller.spec.ts`) giữ nguyên trạng.
+  - `npm run lint -w apps/frontend`: **0 errors** (8 warnings cũ ngoài phạm vi).
+  - `npm run build:backend` & `npm run build:frontend` (`tsc -b && vite build`, 8.92s): **PASS** (exit 0).
+  - `[MODIFY]`: `apps/backend/prisma/seed.ts`, `apps/backend/src/modules/ai/ai.service.ts`, `apps/backend/src/modules/ai/embedding.service.ts`, `apps/backend/src/modules/ai/product-retrieval.service.ts`, `apps/backend/src/modules/ai/knowledge-retrieval.service.ts`, `apps/backend/src/modules/ai/ai.service.spec.ts`, `apps/frontend/src/App.tsx`, `plan.md`, `progress.md`. Không tạo file test tạm trong repo (`docs/Groq-RAG-LiveOrder.pptx` giữ nguyên ngoài Git).
+
+---
+
 ## Cập nhật 16/11/2026 — Thiết kế lại toàn bộ giao diện Frontend chuẩn Responsive Mobile & PC (`feat/ui-redesign-responsive`)
 
 - ✅ **Thiết lập hệ thống thiết kế thống nhất (MUI Theme + Typography tiếng Việt):**

@@ -20,7 +20,7 @@ const CONTEXT_CHARACTER_LIMIT = 4000;
 // Initial value calibrated on a small development set, not a universal threshold.
 const MIN_SIMILARITY = 0.82;
 const BACKFILL_BATCH_SIZE = 16;
-const RETRIEVAL_TIMEOUT_MS = 30000;
+const RETRIEVAL_TIMEOUT_MS = 60000;
 
 @Injectable()
 export class KnowledgeRetrievalService {
