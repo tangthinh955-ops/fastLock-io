@@ -10,12 +10,20 @@ export interface User {
   role: Role;
 }
 
+export interface RegisterPayload {
+  name: string;
+  email: string;
+  password: string;
+  role?: 'BUYER' | 'SELLER';
+}
+
 interface AuthContextType {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, pass: string) => Promise<void>;
+  register: (payload: RegisterPayload) => Promise<void>;
   logout: () => void;
 }
 
@@ -43,15 +51,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(false);
   }, []);
 
+  const applyAuthSession = (accessToken: string, sessionUser: User) => {
+    setToken(accessToken);
+    setUser(sessionUser);
+
+    localStorage.setItem('token', accessToken);
+    localStorage.setItem('user', JSON.stringify(sessionUser));
+  };
+
   const login = async (email: string, pass: string) => {
     const res = await apiClient.post('/auth/login', { email, password: pass });
     const { access_token, user: loggedUser } = res.data;
+    applyAuthSession(access_token, loggedUser);
+  };
 
-    setToken(access_token);
-    setUser(loggedUser);
-
-    localStorage.setItem('token', access_token);
-    localStorage.setItem('user', JSON.stringify(loggedUser));
+  const register = async (payload: RegisterPayload) => {
+    const res = await apiClient.post('/auth/register', payload);
+    const { access_token, user: registeredUser } = res.data;
+    applyAuthSession(access_token, registeredUser);
   };
 
   const logout = () => {
@@ -69,6 +86,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isAuthenticated: !!token,
         isLoading,
         login,
+        register,
         logout,
       }}
     >

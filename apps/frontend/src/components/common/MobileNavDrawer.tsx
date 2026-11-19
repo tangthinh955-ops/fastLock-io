@@ -31,7 +31,7 @@ export const getNavItemStyle = (isActive: boolean, isLive?: boolean) => {
   if (isActive) {
     return {
       bgcolor: isLive ? surfaceTokens.liveRedSoft : surfaceTokens.primarySoft,
-      color: isLive ? surfaceTokens.liveRed : 'primary.main',
+      color: isLive ? surfaceTokens.liveRedText : 'primary.main',
       iconColor: isLive ? surfaceTokens.liveRed : 'primary.main',
       hoverBgcolor: isLive ? surfaceTokens.liveRedSoft : surfaceTokens.primarySoft,
     };

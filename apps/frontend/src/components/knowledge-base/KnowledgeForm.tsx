@@ -61,7 +61,7 @@ export const KnowledgeForm = ({ disabled, onSubmit }: KnowledgeFormProps) => {
       component="section"
       aria-labelledby="knowledge-form-heading"
       variant="outlined"
-      sx={{ p: { xs: 2.5, sm: 3 }, position: { md: 'sticky' }, top: 24 }}
+      sx={{ p: { xs: 2.5, sm: 3 }, position: { md: 'sticky' }, top: { md: 88 } }}
     >
       <Typography
         id="knowledge-form-heading"

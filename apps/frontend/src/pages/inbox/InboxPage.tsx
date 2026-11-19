@@ -16,7 +16,7 @@ export const InboxPage: React.FC = () => {
   const theme = useTheme();
   const isDesktop = useMediaQuery(theme.breakpoints.up('md'), { noSsr: true });
   const { user } = useAuth();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [mobilePane, setMobilePane] = useState<'list' | 'chat'>(() =>
     searchParams.get('sellerId') ? 'chat' : 'list',
   );
@@ -27,6 +27,7 @@ export const InboxPage: React.FC = () => {
 
   const handleSelectShop = (shopId: string) => {
     inbox.setSelectedShopId(shopId);
+    setSearchParams({ sellerId: shopId }, { replace: true });
     setMobilePane('chat');
     requestAnimationFrame(() => {
       conversation.chatEndRef.current?.scrollIntoView({ behavior: 'auto' });
@@ -35,6 +36,7 @@ export const InboxPage: React.FC = () => {
 
   const handleBackToList = () => {
     setMobilePane('list');
+    setSearchParams({}, { replace: true });
     if (!isDesktop) {
       inbox.setSelectedShopId(null);
     }

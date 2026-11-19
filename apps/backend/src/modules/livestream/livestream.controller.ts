@@ -34,7 +34,12 @@ export class LivestreamController {
         @CurrentUser('userId') sellerId: string,
         @Body() dto: CreateLivestreamDto,
     ) {
+        const endedStreamIds =
+            await this.livestreamService.endActiveStreamsForSeller(sellerId);
         const stream = await this.livestreamService.createStream(sellerId, dto);
+        for (const oldId of endedStreamIds) {
+            this.livestreamGateway.notifyStreamEnded(oldId);
+        }
         this.livestreamGateway.notifyStreamStarted(stream);
         return stream;
     }
@@ -54,6 +59,11 @@ export class LivestreamController {
     @Get('active')
     async getAllActiveStreams() {
         return await this.livestreamService.getAllActiveStreams();
+    }
+
+    @Get('shops')
+    async getShopsWithLiveStatus() {
+        return await this.livestreamService.getShopsWithLiveStatus();
     }
 
     @Get('active/seller/:sellerId')

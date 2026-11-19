@@ -9,9 +9,8 @@ export class AuthController {
   constructor(private authService: AuthService) {}
 
   // POST /auth/login
-  // @Throttle ghi đè giới hạn toàn cục: chỉ cho 5 lần/phút thay vì 100
-  // Lý do: Chặn kẻ tấn công thử brute force mật khẩu hàng loạt
-  @Throttle({ default: { ttl: 60000, limit: 5 } })
+  // @Throttle ghi đè giới hạn toàn cục: cho phép 60 lần/phút (đủ cho nhiều máy demo dùng chung Wi-Fi)
+  @Throttle({ default: { ttl: 60000, limit: 60 } })
   @HttpCode(HttpStatus.OK)
   @Post('login')
   login(@Body() loginDto: LoginDto) {
@@ -19,8 +18,8 @@ export class AuthController {
   }
 
   // POST /auth/register
-  // Tương tự: Chặn tạo hàng loạt tài khoản rác (spam accounts)
-  @Throttle({ default: { ttl: 60000, limit: 5 } })
+  // Cho phép 60 lần/phút để nhiều user demo cùng đăng ký trên một mạng
+  @Throttle({ default: { ttl: 60000, limit: 60 } })
   @Post('register')
   register(@Body() registerDto: RegisterDto) {
     return this.authService.register(registerDto);

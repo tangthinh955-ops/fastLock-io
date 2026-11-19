@@ -53,6 +53,7 @@ export class LivestreamCommentProcessor {
                     this.logger.warn(`Bình luận chứa SKU & SĐT nhưng buyer chưa đăng nhập: livestreamId=${livestreamId}`);
                     server.to(livestreamId).emit('comment_received', {
                         id: `comment-${Date.now()}`,
+                        livestreamId,
                         buyerName: buyerName || 'Khách vãng lai',
                         content: commentText,
                         isOrder: false,
@@ -91,6 +92,7 @@ export class LivestreamCommentProcessor {
 
                         server.to(livestreamId).emit('comment_received', {
                             id: `comment-${Date.now()}`,
+                            livestreamId,
                             buyerName: buyerName || 'Khách hàng',
                             content: commentText,
                             isOrder: true,
@@ -99,14 +101,20 @@ export class LivestreamCommentProcessor {
                             createdAt: new Date(),
                         });
 
-                        await this.directMessageService.sendOrderMessage(
-                            sellerId,
-                            buyerId,
-                            order.totalAmount,
-                            order.id,
-                            product.name,
-                            product.sku,
-                        );
+                        try {
+                            await this.directMessageService.sendOrderMessage(
+                                sellerId,
+                                buyerId,
+                                order.totalAmount,
+                                order.id,
+                                product.name,
+                                product.sku,
+                            );
+                        } catch (dmErr) {
+                            this.logger.error(
+                                `Lỗi gửi tin nhắn VietQR: ${dmErr instanceof Error ? dmErr.message : String(dmErr)}`,
+                            );
+                        }
                         return;
                     } catch (orderErr) {
                         this.logger.error(`Lỗi khi tạo đơn hàng: ${orderErr.message}`);
@@ -116,6 +124,7 @@ export class LivestreamCommentProcessor {
 
             server.to(livestreamId).emit('comment_received', {
                 id: `comment-${Date.now()}`,
+                livestreamId,
                 buyerName: buyerName || 'Khách hàng',
                 content: commentText,
                 isOrder: false,

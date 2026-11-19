@@ -23,6 +23,8 @@ import { surfaceTokens } from '../../theme';
 
 interface LiveCommentPanelProps {
   activeStream: ActiveLivestream | null;
+  shopName?: string;
+  canConsult?: boolean;
   loading: boolean;
   connected: boolean;
   error: string;
@@ -38,6 +40,8 @@ interface LiveCommentPanelProps {
 
 export const LiveCommentPanel: React.FC<LiveCommentPanelProps> = ({
   activeStream,
+  shopName,
+  canConsult = false,
   loading,
   connected,
   error,
@@ -104,7 +108,9 @@ export const LiveCommentPanel: React.FC<LiveCommentPanelProps> = ({
                 ? `${activeStream.seller.name} · ${connected ? 'Đã kết nối' : 'Đang kết nối...'}`
                 : loading
                   ? 'Đang tải livestream...'
-                  : 'Hiện chưa có shop phát sóng'}
+                  : shopName
+                    ? `${shopName} · Hiện đang OFFLINE`
+                    : 'Hiện chưa có shop phát sóng'}
             </Typography>
           </Box>
 
@@ -112,7 +118,7 @@ export const LiveCommentPanel: React.FC<LiveCommentPanelProps> = ({
             variant="outlined"
             size="small"
             startIcon={<ForumOutlinedIcon fontSize="small" />}
-            disabled={!activeStream}
+            disabled={!activeStream && !canConsult}
             onClick={onOpenConsult}
             sx={{
               flexShrink: 0,

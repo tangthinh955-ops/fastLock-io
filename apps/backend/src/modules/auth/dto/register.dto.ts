@@ -1,6 +1,6 @@
 // File: auth/dto/register.dto.ts
 // DTO cho chức năng Đăng ký tài khoản mới
-import { IsEmail, IsString, MinLength, IsOptional } from 'class-validator';
+import { IsEmail, IsIn, IsOptional, IsString, MinLength } from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class RegisterDto {
@@ -17,4 +17,10 @@ export class RegisterDto {
   @IsString({ message: 'Tên phải là chuỗi ký tự!' })
   @IsOptional() // Không bắt buộc phải điền tên
   name?: string;
+
+  @IsOptional()
+  @IsIn(['BUYER', 'SELLER'], {
+    message: 'Vai trò đăng ký chỉ được là BUYER hoặc SELLER!',
+  })
+  role?: 'BUYER' | 'SELLER';
 }

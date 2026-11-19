@@ -22,7 +22,7 @@ export interface Product {
 
 export const SellerDashboard: React.FC = () => {
   const { user } = useAuth();
-  const sellerId = user?.id || 'a0000000-0000-4000-8000-000000000002';
+  const sellerId = user?.id ?? '';
 
   const [currentTab, setCurrentTab] = useState<number>(0);
 
@@ -55,6 +55,10 @@ export const SellerDashboard: React.FC = () => {
   });
 
   const fetchProducts = useCallback(async () => {
+    if (!sellerId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const res = await apiClient.get('/products', { params: { sellerId } });

@@ -11,6 +11,7 @@ import { LivekitTokenService } from './livekit-token.service';
 
 describe('LivestreamController', () => {
   const createRoomToken = jest.fn();
+  const getShopsWithLiveStatus = jest.fn();
   let controller: LivestreamController;
 
   beforeEach(() => {
@@ -20,16 +21,49 @@ describe('LivestreamController', () => {
       roomName: 'stream-1',
       canPublish: false,
     });
+    getShopsWithLiveStatus.mockReset().mockResolvedValue([
+      {
+        id: 'seller-1',
+        name: 'Shop Live',
+        email: 'seller1@liveorder.com',
+        productCount: 3,
+        isLive: true,
+        activeStream: {
+          id: 'stream-1',
+          title: 'Flash Sale Tối Nay',
+          sellerId: 'seller-1',
+          startedAt: new Date('2026-11-18T14:00:00.000Z'),
+          seller: { id: 'seller-1', name: 'Shop Live' },
+        },
+      },
+      {
+        id: 'seller-2',
+        name: 'Shop Offline',
+        email: 'seller2@liveorder.com',
+        productCount: 1,
+        isLive: false,
+        activeStream: null,
+      },
+    ]);
 
     controller = new (LivestreamController as unknown as new (
       livestreamService: LivestreamService,
       livestreamGateway: LivestreamGateway,
       livekitTokenService: LivekitTokenService,
     ) => LivestreamController)(
-      {} as LivestreamService,
+      { getShopsWithLiveStatus } as unknown as LivestreamService,
       {} as LivestreamGateway,
       { createRoomToken } as unknown as LivekitTokenService,
     );
+  });
+
+  it('ủy quyền getShopsWithLiveStatus sang LivestreamService', async () => {
+    const result = await controller.getShopsWithLiveStatus();
+
+    expect(getShopsWithLiveStatus).toHaveBeenCalledTimes(1);
+    expect(result).toHaveLength(2);
+    expect(result[0]).toMatchObject({ id: 'seller-1', isLive: true });
+    expect(result[1]).toMatchObject({ id: 'seller-2', isLive: false, activeStream: null });
   });
 
   it('ủy quyền createLivekitToken sang LivekitTokenService với user hiện tại', async () => {
