@@ -1,13 +1,19 @@
 import React from 'react';
 import { Box, CircularProgress, CssBaseline, ThemeProvider } from '@mui/material';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { ProtectedRoute } from './components/common/ProtectedRoute';
 import { Navbar } from './components/common/Navbar';
 import { appTheme } from './theme';
+import { ROLE_HOME } from './utils/roleConfig';
 
 const LoginPage = React.lazy(() =>
   import('./pages/auth/LoginPage').then((m) => ({ default: m.LoginPage })),
+);
+const RegisterPage = React.lazy(() =>
+  import('./pages/auth/RegisterPage').then((m) => ({
+    default: m.RegisterPage,
+  })),
 );
 const AdminDashboard = React.lazy(() =>
   import('./pages/admin/AdminDashboard').then((m) => ({
@@ -38,6 +44,15 @@ const SellerInboxPage = React.lazy(() =>
     default: m.SellerInboxPage,
   })),
 );
+
+const HomeRedirect: React.FC = () => {
+  const { user, isAuthenticated, isLoading } = useAuth();
+  if (isLoading) return null;
+  if (isAuthenticated && user) {
+    return <Navigate to={ROLE_HOME[user.role] ?? ROLE_HOME.BUYER} replace />;
+  }
+  return <Navigate to="/login" replace />;
+};
 
 export const App: React.FC = () => {
   return (
@@ -80,8 +95,9 @@ export const App: React.FC = () => {
                 }
               >
                 <Routes>
-                  {/* Trang Đăng nhập công khai */}
+                  {/* Trang Đăng nhập & Đăng ký công khai */}
                   <Route path="/login" element={<LoginPage />} />
+                  <Route path="/register" element={<RegisterPage />} />
 
                   {/* Route dành riêng cho ADMIN */}
                   <Route
@@ -146,8 +162,9 @@ export const App: React.FC = () => {
                     }
                   />
 
-                  {/* Mặc định chuyển về /login */}
-                  <Route path="*" element={<Navigate to="/login" replace />} />
+                  {/* Điều hướng trang chủ & fallback theo trạng thái đăng nhập */}
+                  <Route path="/" element={<HomeRedirect />} />
+                  <Route path="*" element={<HomeRedirect />} />
                 </Routes>
               </React.Suspense>
             </Box>

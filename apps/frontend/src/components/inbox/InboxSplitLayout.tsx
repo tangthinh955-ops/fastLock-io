@@ -26,6 +26,7 @@ interface InboxSplitLayoutProps {
   sidebar: React.ReactNode;
   chatContent: React.ReactNode | null;
   emptyMessage: string;
+  emptyAction?: React.ReactNode;
   hasError?: boolean;
 }
 
@@ -36,6 +37,7 @@ export const InboxSplitLayout: React.FC<InboxSplitLayoutProps> = ({
   sidebar,
   chatContent,
   emptyMessage,
+  emptyAction,
   hasError = false,
 }) => {
   return (
@@ -83,11 +85,27 @@ export const InboxSplitLayout: React.FC<InboxSplitLayoutProps> = ({
                 xs: mobilePane === 'list' ? 'flex' : 'none',
                 md: 'flex',
               },
+              flexDirection: {
+                xs: !chatContent && emptyAction ? 'column' : 'row',
+                md: 'row',
+              },
               width: { xs: '100%', md: 'auto' },
               minHeight: 0,
             }}
           >
             {sidebar}
+            {!chatContent && emptyAction && (
+              <Box
+                sx={{
+                  display: { xs: 'flex', md: 'none' },
+                  justifyContent: 'center',
+                  px: 2,
+                  pb: 3,
+                }}
+              >
+                {emptyAction}
+              </Box>
+            )}
           </Box>
 
           <Box
@@ -107,8 +125,10 @@ export const InboxSplitLayout: React.FC<InboxSplitLayoutProps> = ({
                 sx={{
                   flex: 1,
                   display: 'flex',
+                  flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  gap: 2,
                   p: 4,
                   textAlign: 'center',
                 }}
@@ -116,6 +136,7 @@ export const InboxSplitLayout: React.FC<InboxSplitLayoutProps> = ({
                 <Typography color={hasError ? 'error' : 'text.secondary'}>
                   {emptyMessage}
                 </Typography>
+                {emptyAction}
               </Box>
             )}
           </Box>

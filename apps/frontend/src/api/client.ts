@@ -22,10 +22,18 @@ apiClient.interceptors.request.use((config: any) => {
 apiClient.interceptors.response.use(
   (response: any) => response,
   (error: any) => {
-    if (error.response?.status === 401) {
+    const requestUrl = String(error?.config?.url ?? '');
+    const isAuthRequest =
+      requestUrl.includes('/auth/login') || requestUrl.includes('/auth/register');
+    if (error.response?.status === 401 && !isAuthRequest) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      window.location.href = '/login';
+      if (
+        window.location.pathname !== '/login' &&
+        window.location.pathname !== '/register'
+      ) {
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }

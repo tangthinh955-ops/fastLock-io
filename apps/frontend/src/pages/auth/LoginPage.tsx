@@ -78,13 +78,12 @@ export const LoginPage: React.FC = () => {
     <Box
       sx={{
         flex: 1,
-        minHeight: '100dvh',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         bgcolor: 'background.default',
         px: 2,
-        py: 4,
+        py: { xs: 3, sm: 4 },
       }}
     >
       <Container maxWidth="xs" disableGutters>
@@ -185,7 +184,30 @@ export const LoginPage: React.FC = () => {
             </Stack>
           </Box>
 
-          <Divider sx={{ my: 3, color: 'text.secondary', fontSize: '0.75rem' }}>
+          <Stack
+            direction="row"
+            spacing={0.5}
+            sx={{
+              mt: 2,
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexWrap: 'wrap',
+            }}
+          >
+            <Typography variant="body2" color="text.secondary">
+              Chưa có tài khoản?
+            </Typography>
+            <Button
+              type="button"
+              variant="text"
+              onClick={() => navigate('/register')}
+              sx={{ minHeight: 44, fontWeight: 700 }}
+            >
+              Đăng ký tài khoản mới
+            </Button>
+          </Stack>
+
+          <Divider sx={{ mt: 2, mb: 2.5, color: 'text.secondary', fontSize: '0.75rem' }}>
             Tài khoản dùng thử nhanh
           </Divider>
 

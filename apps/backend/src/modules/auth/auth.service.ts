@@ -68,13 +68,13 @@ export class AuthService {
     // saltRounds = 10 là chuẩn phổ biến (tốc độ vs bảo mật cân bằng)
     const hashedPassword = await bcrypt.hash(dto.password, 10);
 
-    // 3. Tạo user mới trong Database
+    // 3. Tạo user mới trong Database (không bao giờ cho phép tự đăng ký ADMIN)
     const newUser = await this.prisma.user.create({
       data: {
         email: dto.email,
         password: hashedPassword,
         name: dto.name || dto.email.split('@')[0], // Nếu không điền tên → dùng phần trước @
-        role: 'BUYER', // Mặc định tài khoản mới là BUYER
+        role: dto.role === 'SELLER' ? 'SELLER' : 'BUYER', // Chỉ cho phép BUYER hoặc SELLER (mặc định BUYER)
       },
     });
 

@@ -80,7 +80,9 @@ export const Navbar: React.FC = () => {
   const location = useLocation();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  if (!user) return null;
+  const isAuthPage =
+    location.pathname === '/login' || location.pathname === '/register';
+  if (!user || isAuthPage) return null;
 
   const navItems = ROLE_NAV_ITEMS[user.role] ?? [];
   const activeItem = navItems.find((item) => location.pathname === item.path);

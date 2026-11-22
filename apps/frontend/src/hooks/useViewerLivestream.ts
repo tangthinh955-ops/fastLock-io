@@ -9,14 +9,25 @@ export interface ActiveLivestream {
   id: string;
   title: string;
   sellerId: string;
+  startedAt?: string;
   seller: {
     id: string;
     name: string;
   };
 }
 
+export interface ShopLiveItem {
+  id: string;
+  name: string;
+  email: string;
+  productCount: number;
+  isLive: boolean;
+  activeStream: ActiveLivestream | null;
+}
+
 export interface LivestreamComment {
   id: string;
+  livestreamId?: string;
   buyerName: string;
   content: string;
   isOrder?: boolean;
@@ -29,6 +40,7 @@ interface UseViewerLivestreamOptions {
   buyerId?: string;
   buyerName?: string;
   token?: string | null;
+  selectedSellerId?: string | null;
 }
 
 const getHistoryKey = (livestreamId: string) =>
@@ -47,11 +59,32 @@ const readCommentHistory = (livestreamId: string): LivestreamComment[] => {
   }
 };
 
+const sortShops = (items: ShopLiveItem[]): ShopLiveItem[] =>
+  [...items].sort((a, b) => {
+    if (a.isLive !== b.isLive) {
+      return a.isLive ? -1 : 1;
+    }
+    if (a.isLive && b.isLive) {
+      const timeA = a.activeStream?.startedAt
+        ? new Date(a.activeStream.startedAt).getTime()
+        : 0;
+      const timeB = b.activeStream?.startedAt
+        ? new Date(b.activeStream.startedAt).getTime()
+        : 0;
+      if (timeA !== timeB) {
+        return timeB - timeA;
+      }
+    }
+    return a.name.localeCompare(b.name, 'vi');
+  });
+
 export const useViewerLivestream = ({
   buyerId,
   buyerName,
   token,
+  selectedSellerId = null,
 }: UseViewerLivestreamOptions) => {
+  const [shops, setShops] = useState<ShopLiveItem[]>([]);
   const [activeStream, setActiveStream] = useState<ActiveLivestream | null>(
     null,
   );
@@ -62,6 +95,11 @@ export const useViewerLivestream = ({
   const [error, setError] = useState('');
   const socketRef = useRef<Socket | null>(null);
   const activeStreamRef = useRef<ActiveLivestream | null>(null);
+  const selectedSellerIdRef = useRef<string | null>(selectedSellerId ?? null);
+  const prevSelectedSellerIdRef = useRef<string | null>(selectedSellerId ?? null);
+  const shopsRef = useRef<ShopLiveItem[]>([]);
+  selectedSellerIdRef.current = selectedSellerId ?? null;
+  shopsRef.current = shops;
 
   const selectActiveStream = useCallback((stream: ActiveLivestream | null) => {
     setActiveStream((currentStream) =>
@@ -73,12 +111,24 @@ export const useViewerLivestream = ({
     setLoading(true);
     setError('');
     try {
-      const response = await apiClient.get<ActiveLivestream[]>(
-        '/livestreams/active',
+      const response = await apiClient.get<ShopLiveItem[]>(
+        '/livestreams/shops',
       );
-      selectActiveStream(response.data[0] ?? null);
+      const sortedShops = sortShops(response.data);
+      shopsRef.current = sortedShops;
+      setShops(sortedShops);
+
+      const currentSellerId = selectedSellerIdRef.current;
+      if (currentSellerId) {
+        const matchedShop = sortedShops.find(
+          (shop) => shop.id === currentSellerId,
+        );
+        selectActiveStream(matchedShop?.activeStream ?? null);
+      } else {
+        selectActiveStream(null);
+      }
     } catch (requestError) {
-      console.error('Lỗi khi tải livestream đang phát:', requestError);
+      console.error('Lỗi khi tải danh sách phòng livestream:', requestError);
       setError('Không thể tải thông tin livestream.');
     } finally {
       setLoading(false);
@@ -88,6 +138,29 @@ export const useViewerLivestream = ({
   useEffect(() => {
     void loadActiveStream();
   }, [loadActiveStream]);
+
+  useEffect(() => {
+    const previousSellerId = prevSelectedSellerIdRef.current;
+    const nextSellerId = selectedSellerId ?? null;
+    prevSelectedSellerIdRef.current = nextSellerId;
+    selectedSellerIdRef.current = nextSellerId;
+
+    setError('');
+    setComments([]);
+
+    if (!nextSellerId) {
+      selectActiveStream(null);
+      if (previousSellerId) {
+        void loadActiveStream();
+      }
+      return;
+    }
+
+    const matchedShop = shopsRef.current.find(
+      (shop) => shop.id === nextSellerId,
+    );
+    selectActiveStream(matchedShop?.activeStream ?? null);
+  }, [loadActiveStream, selectActiveStream, selectedSellerId]);
 
   useEffect(() => {
     activeStreamRef.current = activeStream;
@@ -139,12 +212,58 @@ export const useViewerLivestream = ({
     );
 
     socket.on('stream_started', (stream: ActiveLivestream) => {
-      setError('');
-      selectActiveStream(stream);
+      const streamWithTimestamp: ActiveLivestream = {
+        ...stream,
+        startedAt: stream.startedAt ?? new Date().toISOString(),
+      };
+
+      setShops((currentShops) => {
+        const exists = currentShops.some((shop) => shop.id === stream.sellerId);
+        const nextShops = exists
+          ? currentShops.map((shop) =>
+              shop.id === stream.sellerId
+                ? { ...shop, isLive: true, activeStream: streamWithTimestamp }
+                : shop,
+            )
+          : [
+              ...currentShops,
+              {
+                id: stream.sellerId,
+                name: stream.seller?.name || 'Cửa hàng',
+                email: '',
+                productCount: 0,
+                isLive: true,
+                activeStream: streamWithTimestamp,
+              },
+            ];
+        return sortShops(nextShops);
+      });
+
+      if (selectedSellerIdRef.current === stream.sellerId) {
+        setError('');
+        selectActiveStream(streamWithTimestamp);
+      }
     });
 
     socket.on('stream_ended', (data: { livestreamId?: string }) => {
-      if (data.livestreamId !== activeStreamRef.current?.id) return;
+      if (data.livestreamId) {
+        setShops((currentShops) =>
+          sortShops(
+            currentShops.map((shop) =>
+              shop.activeStream?.id === data.livestreamId
+                ? { ...shop, isLive: false, activeStream: null }
+                : shop,
+            ),
+          ),
+        );
+      }
+
+      if (
+        !data.livestreamId ||
+        data.livestreamId !== activeStreamRef.current?.id
+      ) {
+        return;
+      }
 
       setRoomJoined(false);
       setError('Phiên livestream đã kết thúc.');
@@ -154,6 +273,7 @@ export const useViewerLivestream = ({
     socket.on('comment_received', (comment: LivestreamComment) => {
       const livestreamId = activeStreamRef.current?.id;
       if (!livestreamId) return;
+      if (comment.livestreamId && comment.livestreamId !== livestreamId) return;
 
       setComments((currentComments) => {
         const nextComments = [...currentComments, comment].slice(
@@ -219,7 +339,11 @@ export const useViewerLivestream = ({
     [activeStream, buyerId, buyerName, roomJoined, socketConnected],
   );
 
+  const selectedShop = shops.find((s) => s.id === selectedSellerId) ?? null;
+
   return {
+    shops,
+    selectedShop,
     activeStream,
     comments,
     loading,

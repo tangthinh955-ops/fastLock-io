@@ -12,6 +12,7 @@ interface MessageBubbleProps {
   message: DirectMessage;
   currentUserId?: string;
   view: InboxView;
+  compact?: boolean;
 }
 
 const getSourcePresentation = (
@@ -75,6 +76,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   message,
   currentUserId,
   view,
+  compact = false,
 }) => {
   const isOwnMessage = message.senderId === currentUserId;
   const alignRight =
@@ -99,8 +101,8 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
       <Paper
         variant="outlined"
         sx={{
-          p: { xs: 1.5, sm: 2 },
-          maxWidth: { xs: '88%', sm: '76%', md: '70%' },
+          p: compact ? 1.5 : { xs: 1.5, sm: 2 },
+          maxWidth: compact ? '88%' : { xs: '88%', sm: '76%', md: '70%' },
           minWidth: 0,
           bgcolor: style.bgcolor,
           borderColor: style.borderColor,

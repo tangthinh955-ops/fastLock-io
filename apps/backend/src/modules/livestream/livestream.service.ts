@@ -7,13 +7,25 @@ export class LivestreamService {
     constructor(private readonly prisma: PrismaService) { }
 
     /**
-     * Bắt đầu một phiên Livestream mới cho Seller
+     * Kết thúc toàn bộ phiên Livestream đang LIVE của Seller và trả về danh sách ID đã đóng
      */
-    async createStream(sellerId: string, dto: CreateLivestreamDto) {
-        // Tự động kết thúc các phiên live cũ đang bật của Seller này (nếu có)
-        await this.prisma.livestream.updateMany({
+    async endActiveStreamsForSeller(sellerId: string): Promise<string[]> {
+        const activeStreams = await this.prisma.livestream.findMany({
             where: {
                 sellerId,
+                status: 'LIVE',
+            },
+            select: { id: true },
+        });
+
+        if (activeStreams.length === 0) {
+            return [];
+        }
+
+        const endedIds = activeStreams.map((stream) => stream.id);
+        await this.prisma.livestream.updateMany({
+            where: {
+                id: { in: endedIds },
                 status: 'LIVE',
             },
             data: {
@@ -21,6 +33,16 @@ export class LivestreamService {
                 endedAt: new Date(),
             },
         });
+
+        return endedIds;
+    }
+
+    /**
+     * Bắt đầu một phiên Livestream mới cho Seller
+     */
+    async createStream(sellerId: string, dto: CreateLivestreamDto) {
+        // Tự động kết thúc các phiên live cũ đang bật của Seller này (nếu có)
+        await this.endActiveStreamsForSeller(sellerId);
 
         // Tạo phiên live mới với status LIVE
         return await this.prisma.livestream.create({
@@ -106,6 +128,74 @@ export class LivestreamService {
                 },
             },
             orderBy: { startedAt: 'desc' },
+        });
+    }
+
+    /**
+     * Lấy danh sách tất cả các Shop (SELLER) kèm trạng thái LIVE/OFFLINE
+     */
+    async getShopsWithLiveStatus() {
+        const sellers = await this.prisma.user.findMany({
+            where: { role: 'SELLER' },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                _count: { select: { products: true } },
+                livestreams: {
+                    where: { status: 'LIVE' },
+                    orderBy: { startedAt: 'desc' },
+                    take: 1,
+                    select: {
+                        id: true,
+                        title: true,
+                        status: true,
+                        sellerId: true,
+                        startedAt: true,
+                    },
+                },
+            },
+        });
+
+        const shops = sellers.map((seller) => {
+            const live = seller.livestreams[0] ?? null;
+            return {
+                id: seller.id,
+                name: seller.name,
+                email: seller.email,
+                productCount: seller._count.products,
+                isLive: Boolean(live),
+                activeStream: live
+                    ? {
+                          id: live.id,
+                          title: live.title,
+                          sellerId: seller.id,
+                          startedAt: live.startedAt,
+                          seller: {
+                              id: seller.id,
+                              name: seller.name,
+                          },
+                      }
+                    : null,
+            };
+        });
+
+        return shops.sort((a, b) => {
+            if (a.isLive !== b.isLive) {
+                return a.isLive ? -1 : 1;
+            }
+            if (a.isLive && b.isLive) {
+                const aTime = a.activeStream?.startedAt
+                    ? new Date(a.activeStream.startedAt).getTime()
+                    : 0;
+                const bTime = b.activeStream?.startedAt
+                    ? new Date(b.activeStream.startedAt).getTime()
+                    : 0;
+                if (bTime !== aTime) {
+                    return bTime - aTime;
+                }
+            }
+            return a.name.localeCompare(b.name);
         });
     }
 
