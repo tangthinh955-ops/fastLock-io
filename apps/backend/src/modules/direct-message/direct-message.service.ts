@@ -74,10 +74,19 @@ export class DirectMessageService {
     return status;
   }
 
-  // Chỉ trả thông tin cần thiết để hiển thị danh sách shop trong Inbox.
-  async getShops(buyerId: string) {
+  // Chỉ trả thông tin cần thiết để hiển thị danh sách shop đã tương tác trong Inbox.
+  async getShops(buyerId: string, includeSellerId?: string) {
+    const requestedSellerId = includeSellerId?.trim() || undefined;
     const shops = await this.prisma.user.findMany({
-      where: { role: Role.SELLER },
+      where: {
+        role: Role.SELLER,
+        OR: [
+          { messagesSent: { some: { receiverId: buyerId } } },
+          { messagesRecv: { some: { senderId: buyerId } } },
+          { sellerConversations: { some: { buyerId } } },
+          ...(requestedSellerId ? [{ id: requestedSellerId }] : []),
+        ],
+      },
       select: {
         id: true,
         name: true,

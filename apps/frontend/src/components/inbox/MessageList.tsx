@@ -20,6 +20,7 @@ interface MessageListProps {
   chatEndRef: RefObject<HTMLDivElement | null>;
   onScroll: UIEventHandler<HTMLDivElement>;
   onLoadMore: () => void;
+  compact?: boolean;
 }
 
 export const MessageList: React.FC<MessageListProps> = ({
@@ -34,16 +35,17 @@ export const MessageList: React.FC<MessageListProps> = ({
   chatEndRef,
   onScroll,
   onLoadMore,
+  compact = false,
 }) => (
   <Box
     ref={scrollContainerRef}
     onScroll={onScroll}
     sx={{
       flex: 1,
-      p: { xs: 1.5, sm: 2.5 },
+      p: compact ? 1.5 : { xs: 1.5, sm: 2.5 },
       display: 'flex',
       flexDirection: 'column',
-      gap: 1.75,
+      gap: compact ? 1.25 : 1.75,
       overflowY: 'auto',
       minHeight: 0,
       bgcolor: '#F8FAFC',
@@ -109,6 +111,7 @@ export const MessageList: React.FC<MessageListProps> = ({
             message={message}
             currentUserId={currentUserId}
             view={view}
+            compact={compact}
           />
         ))}
       </>

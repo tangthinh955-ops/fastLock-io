@@ -26,11 +26,17 @@ import { UpdateConversationModeDto } from './dto/update-conversation-mode.dto';
 export class DirectMessageController {
   constructor(private readonly messageService: DirectMessageService) {}
 
-  // Danh sách shop để Buyer bắt đầu tư vấn, kể cả khi chưa có đơn hàng.
+  // Danh sách shop đã tương tác với Buyer (hoặc được chỉ định qua includeSellerId để bắt đầu tư vấn).
   @Get('shops')
   @Roles(Role.BUYER)
-  async getShops(@Req() req: any) {
-    return this.messageService.getShops(req.user.userId);
+  async getShops(
+    @Req() req: any,
+    @Query('includeSellerId') includeSellerId?: string,
+  ) {
+    return this.messageService.getShops(
+      req.user.userId,
+      includeSellerId?.trim() || undefined,
+    );
   }
 
   // Danh sách Buyer đã từng trao đổi với Seller đang đăng nhập.

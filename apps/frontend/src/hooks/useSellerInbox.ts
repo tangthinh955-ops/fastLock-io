@@ -36,6 +36,10 @@ export const useSellerInbox = ({ autoSelectFirst = true }: UseSellerInboxOptions
   const contactsRequestRef = useRef(0);
   const autoSelectFirstRef = useRef(autoSelectFirst);
   autoSelectFirstRef.current = autoSelectFirst;
+  const selectedCustomerIdRef = useRef<string | null>(selectedCustomerId);
+  selectedCustomerIdRef.current = selectedCustomerId;
+  const customersRef = useRef<InboxContact[]>(customers);
+  customersRef.current = customers;
   const modeEndpoint = selectedCustomerId
     ? `/messages/seller/conversations/${selectedCustomerId}/mode`
     : null;
@@ -115,21 +119,41 @@ export const useSellerInbox = ({ autoSelectFirst = true }: UseSellerInboxOptions
       return;
     const buyerId =
       message.senderId === user.id ? message.receiverId : message.senderId;
+    const isIncomingFromBuyer = message.senderId === buyerId;
+    const isActiveCustomer = buyerId === selectedCustomerIdRef.current;
     rememberInboxActivity(activityRef.current, buyerId, message);
     setCustomers((current) => {
       const known = current.some((customer) => customer.id === buyerId);
-      const entries =
-        !known && message.senderId === buyerId
-          ? [
-              ...current,
-              { id: buyerId, name: message.sender.name, unreadCount: 0 },
-            ]
-          : current;
+      let entries = current;
+      if (!known && isIncomingFromBuyer) {
+        entries = [
+          ...current,
+          {
+            id: buyerId,
+            name: message.sender.name,
+            unreadCount: isActiveCustomer ? 0 : 1,
+          },
+        ];
+      } else if (known && isIncomingFromBuyer && !isActiveCustomer) {
+        entries = current.map((customer) =>
+          customer.id === buyerId
+            ? { ...customer, unreadCount: customer.unreadCount + 1 }
+            : customer,
+        );
+      }
       return orderInboxContacts(entries, activityRef.current);
     });
-    if (!customers.some((customer) => customer.id === buyerId))
+    if (!customersRef.current.some((customer) => customer.id === buyerId)) {
       void fetchCustomers();
-    if (buyerId === selectedCustomerId) conversation.appendMessages(message);
+    }
+    if (isActiveCustomer) {
+      conversation.appendMessages(message);
+      if (isIncomingFromBuyer) {
+        void apiClient
+          .patch(`/messages/seller/conversations/${buyerId}/read`)
+          .catch(() => {});
+      }
+    }
   };
   const socket = useInboxSocket(
     handleNewMessage,
@@ -139,7 +163,10 @@ export const useSellerInbox = ({ autoSelectFirst = true }: UseSellerInboxOptions
       void conversationMode.refresh();
     },
     (status) => {
-      if (status.sellerId === user?.id && status.buyerId === selectedCustomerId)
+      if (
+        status.sellerId === user?.id &&
+        status.buyerId === selectedCustomerIdRef.current
+      )
         conversationMode.applyStatus(status);
     },
   );

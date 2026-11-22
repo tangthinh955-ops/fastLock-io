@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { useMediaQuery, useTheme } from '@mui/material';
-import { useSearchParams } from 'react-router-dom';
+import { Button, useMediaQuery, useTheme } from '@mui/material';
+import LiveTvOutlinedIcon from '@mui/icons-material/LiveTvOutlined';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ChatHeader } from '../../components/inbox/ChatHeader';
 import { ChatInputBar } from '../../components/inbox/ChatInputBar';
 import {
@@ -16,6 +17,7 @@ export const InboxPage: React.FC = () => {
   const theme = useTheme();
   const isDesktop = useMediaQuery(theme.breakpoints.up('md'), { noSsr: true });
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [mobilePane, setMobilePane] = useState<'list' | 'chat'>(() =>
     searchParams.get('sellerId') ? 'chat' : 'list',
@@ -24,6 +26,7 @@ export const InboxPage: React.FC = () => {
   const { conversation } = inbox;
   const { status, loading: loadingMode } = inbox.conversationMode;
   const { isAiMode, modeLabel } = getConversationModeDisplay(status, loadingMode);
+  const isEmptyShops = !inbox.loadingShops && !inbox.error && inbox.shops.length === 0;
 
   const handleSelectShop = (shopId: string) => {
     inbox.setSelectedShopId(shopId);
@@ -48,7 +51,25 @@ export const InboxPage: React.FC = () => {
       headerDescription="Xem nội dung tư vấn sản phẩm và mã thanh toán VietQR từ các Shop"
       mobilePane={mobilePane}
       hasError={Boolean(inbox.error)}
-      emptyMessage={inbox.error || 'Chọn một kênh để xem nội dung trao đổi.'}
+      emptyMessage={
+        inbox.error ||
+        (isEmptyShops
+          ? 'Bạn chưa có cuộc trò chuyện nào với Shop. Hãy vào phòng Livestream của Shop để nhắn tư vấn AI hoặc chốt đơn.'
+          : 'Chọn một kênh để xem nội dung trao đổi.')
+      }
+      emptyAction={
+        isEmptyShops ? (
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<LiveTvOutlinedIcon />}
+            onClick={() => navigate('/viewer')}
+            sx={{ minHeight: 44, borderRadius: 2, fontWeight: 700 }}
+          >
+            Khám phá Shop & Phòng Live
+          </Button>
+        ) : undefined
+      }
       sidebar={
         <ShopSidebar
           shops={inbox.shops}

@@ -177,7 +177,9 @@ export const LiveCommentPanel: React.FC<LiveCommentPanelProps> = ({
         sx={{
           flex: 1,
           minHeight: 0,
-          p: { xs: 1.5, md: 2 },
+          pt: { xs: 1.5, md: 2 },
+          px: { xs: 1.5, md: 2 },
+          pb: { xs: 9.5, md: 9.5 },
           overflowY: 'auto',
           bgcolor: surfaceTokens.pageBg,
           display: 'flex',

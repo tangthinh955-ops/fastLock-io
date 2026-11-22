@@ -15,6 +15,7 @@ export const LiveStudio: React.FC = () => {
     const [isStreaming, setIsStreaming] = useState(false);
     const [streamTitle, setStreamTitle] = useState('Phiên Livestream chốt đơn hôm nay');
     const [currentStreamId, setCurrentStreamId] = useState<string | null>(null);
+    const [streamError, setStreamError] = useState<string>('');
     const startingRef = useRef(false);
     const studioMountedRef = useRef(true);
     const activeStreamIdRef = useRef<string | null>(null);
@@ -136,6 +137,7 @@ export const LiveStudio: React.FC = () => {
     const handleStartLive = async () => {
         if (!user || isStreaming || startingRef.current) return;
         startingRef.current = true;
+        setStreamError('');
         try {
             const res = await apiClient.post('/livestreams', { title: streamTitle });
             const streamData = res.data;
@@ -154,7 +156,7 @@ export const LiveStudio: React.FC = () => {
             await startPublishing(streamData.id);
         } catch {
             if (studioMountedRef.current) {
-                alert('Không thể tạo phiên Live. Vui lòng kiểm tra lại Backend NestJS!');
+                setStreamError('Không thể tạo phiên Live. Vui lòng kiểm tra lại kết nối máy chủ Backend!');
             }
         } finally {
             startingRef.current = false;
@@ -196,6 +198,16 @@ export const LiveStudio: React.FC = () => {
                     onStartLive={handleStartLive}
                     onEndLive={handleEndLive}
                 />
+
+                {streamError && (
+                    <Alert
+                        severity="error"
+                        onClose={() => setStreamError('')}
+                        sx={{ mb: 2, borderRadius: 2 }}
+                    >
+                        {streamError}
+                    </Alert>
+                )}
 
                 {videoError && (
                     <Alert severity="warning" sx={{ mb: 2, borderRadius: 2 }}>

@@ -35,6 +35,10 @@ export const useBuyerInbox = ({ autoSelectFirst = true }: UseBuyerInboxOptions =
   const contactsRequestRef = useRef(0);
   const autoSelectFirstRef = useRef(autoSelectFirst);
   autoSelectFirstRef.current = autoSelectFirst;
+  const selectedShopIdRef = useRef<string | null>(selectedShopId);
+  selectedShopIdRef.current = selectedShopId;
+  const shopsRef = useRef<InboxContact[]>(shops);
+  shopsRef.current = shops;
   const conversationMode = useConversationMode(
     selectedShopId ? `/messages/conversations/${selectedShopId}/mode` : null,
   );
@@ -45,7 +49,11 @@ export const useBuyerInbox = ({ autoSelectFirst = true }: UseBuyerInboxOptions =
       if (initial) setLoadingShops(true);
       setShopsError('');
       try {
-        const response = await apiClient.get<InboxContact[]>('/messages/shops');
+        const response = await apiClient.get<InboxContact[]>('/messages/shops', {
+          params: requestedSellerId
+            ? { includeSellerId: requestedSellerId }
+            : undefined,
+        });
         if (request !== contactsRequestRef.current) return;
 
         const ordered = orderInboxContacts(response.data, activityRef.current);
@@ -129,20 +137,43 @@ export const useBuyerInbox = ({ autoSelectFirst = true }: UseBuyerInboxOptions =
       return;
     const shopId =
       message.senderId === user.id ? message.receiverId : message.senderId;
+    const isIncomingFromShop = message.senderId === shopId;
+    const isActiveShop = shopId === selectedShopIdRef.current;
     rememberInboxActivity(activityRef.current, shopId, message);
-    setShops((current) => orderInboxContacts(current, activityRef.current));
-    if (!shops.some((shop) => shop.id === shopId)) void fetchShops();
-    if (shopId === selectedShopId) conversation.appendMessages(message);
+    setShops((current) =>
+      orderInboxContacts(
+        current.map((shop) =>
+          isIncomingFromShop && !isActiveShop && shop.id === shopId
+            ? { ...shop, unreadCount: shop.unreadCount + 1 }
+            : shop,
+        ),
+        activityRef.current,
+      ),
+    );
+    if (!shopsRef.current.some((shop) => shop.id === shopId)) {
+      void fetchShops();
+    }
+    if (isActiveShop) {
+      conversation.appendMessages(message);
+      if (isIncomingFromShop) {
+        void apiClient
+          .patch(`/messages/conversations/${shopId}/read`)
+          .catch(() => {});
+      }
+    }
   };
   const socket = useInboxSocket(
     handleNewMessage,
     () => {
-      void fetchShops(!selectedShopId);
+      void fetchShops(!selectedShopIdRef.current);
       void conversation.refreshLatest();
       void conversationMode.refresh();
     },
     (status) => {
-      if (status.buyerId === user?.id && status.sellerId === selectedShopId)
+      if (
+        status.buyerId === user?.id &&
+        status.sellerId === selectedShopIdRef.current
+      )
         conversationMode.applyStatus(status);
     },
   );

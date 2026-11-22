@@ -3,6 +3,7 @@ import { Box, Button, Chip, Container, Stack, Typography } from '@mui/material';
 import SwapHorizRoundedIcon from '@mui/icons-material/SwapHorizRounded';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { LiveCommentPanel } from '../../components/viewer/LiveCommentPanel';
+import { LiveShopChatWidget } from '../../components/viewer/LiveShopChatWidget';
 import { LiveVideoPlayer } from '../../components/viewer/LiveVideoPlayer';
 import { ShopLiveDirectory } from '../../components/viewer/ShopLiveDirectory';
 import { useAuth } from '../../context/AuthContext';
@@ -14,6 +15,7 @@ export const ViewerPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedSellerId = searchParams.get('sellerId');
+  const chatParam = searchParams.get('chat');
   const { user, token } = useAuth();
   const livestream = useViewerLivestream({
     buyerId: user?.id,
@@ -27,6 +29,11 @@ export const ViewerPage: React.FC = () => {
     authToken: token,
   });
   const [inputText, setInputText] = useState('');
+  const [chatWidgetOpen, setChatWidgetOpen] = useState<boolean>(
+    () => searchParams.get('chat') === 'open',
+  );
+  const prevSellerIdRef = useRef<string | null>(selectedSellerId);
+  const prevChatParamRef = useRef<string | null>(chatParam);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -34,7 +41,24 @@ export const ViewerPage: React.FC = () => {
   }, [selectedSellerId]);
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (!selectedSellerId) {
+      setChatWidgetOpen(false);
+    } else if (chatParam === 'open') {
+      setChatWidgetOpen(true);
+    } else if (
+      prevSellerIdRef.current !== selectedSellerId ||
+      prevChatParamRef.current === 'open'
+    ) {
+      setChatWidgetOpen(false);
+    }
+    prevSellerIdRef.current = selectedSellerId;
+    prevChatParamRef.current = chatParam;
+  }, [selectedSellerId, chatParam]);
+
+  useEffect(() => {
+    if (livestream.comments.length > 0) {
+      chatEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
   }, [livestream.comments]);
 
   const handleSendMessage = () => {
@@ -87,7 +111,7 @@ export const ViewerPage: React.FC = () => {
           error={livestream.error}
           onRefresh={livestream.loadActiveStream}
           onSelectShop={(id) => setSearchParams({ sellerId: id })}
-          onOpenConsult={(id) => navigate(`/inbox?sellerId=${id}`)}
+          onOpenConsult={(id) => setSearchParams({ sellerId: id, chat: 'open' })}
         />
       ) : (
         <>
@@ -215,10 +239,28 @@ export const ViewerPage: React.FC = () => {
               onInputChange={setInputText}
               onSend={handleSendMessage}
               onRetry={livestream.loadActiveStream}
-              onOpenConsult={() => navigate(`/inbox?sellerId=${selectedSellerId}`)}
+              onOpenConsult={() => {
+                if (selectedSellerId) setChatWidgetOpen(true);
+              }}
               chatEndRef={chatEndRef}
             />
           </Box>
+
+          {(livestream.selectedShop || livestream.activeStream) && (
+            <LiveShopChatWidget
+              sellerId={selectedSellerId}
+              shopName={currentShopName}
+              open={chatWidgetOpen}
+              onOpen={() => setChatWidgetOpen(true)}
+              onClose={() => {
+                setChatWidgetOpen(false);
+                if (searchParams.get('chat')) {
+                  setSearchParams({ sellerId: selectedSellerId }, { replace: true });
+                }
+              }}
+              onOpenFullInbox={() => navigate(`/inbox?sellerId=${selectedSellerId}`)}
+            />
+          )}
         </>
       )}
     </Container>

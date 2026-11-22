@@ -460,6 +460,87 @@ describe('DirectMessageService AI history', () => {
     ).toEqual({ senderId: 'buyer-a' });
   });
 
+  it('filters Buyer shops to Sellers with messages or conversations for that Buyer', async () => {
+    prisma.user.findMany.mockResolvedValue([]);
+
+    await service.getShops('buyer-a');
+
+    expect(prisma.user.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          role: Role.SELLER,
+          OR: [
+            { messagesSent: { some: { receiverId: 'buyer-a' } } },
+            { messagesRecv: { some: { senderId: 'buyer-a' } } },
+            { sellerConversations: { some: { buyerId: 'buyer-a' } } },
+          ],
+        },
+      }),
+    );
+  });
+
+  it('includes includeSellerId in the OR filter when provided to getShops', async () => {
+    prisma.user.findMany.mockResolvedValue([]);
+
+    await service.getShops('buyer-a', 'shop-c');
+
+    expect(prisma.user.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          role: Role.SELLER,
+          OR: [
+            { messagesSent: { some: { receiverId: 'buyer-a' } } },
+            { messagesRecv: { some: { senderId: 'buyer-a' } } },
+            { sellerConversations: { some: { buyerId: 'buyer-a' } } },
+            { id: 'shop-c' },
+          ],
+        },
+      }),
+    );
+  });
+
+  it('omits blank includeSellerId from the getShops OR filter', async () => {
+    prisma.user.findMany.mockResolvedValue([]);
+
+    await service.getShops('buyer-a', '   ');
+
+    expect(prisma.user.findMany.mock.calls[0][0].where).toEqual({
+      role: Role.SELLER,
+      OR: [
+        { messagesSent: { some: { receiverId: 'buyer-a' } } },
+        { messagesRecv: { some: { senderId: 'buyer-a' } } },
+        { sellerConversations: { some: { buyerId: 'buyer-a' } } },
+      ],
+    });
+  });
+
+  it('forwards trimmed includeSellerId or undefined from DirectMessageController.getShops', async () => {
+    const mockService = { getShops: jest.fn().mockResolvedValue([]) };
+    const controller = new DirectMessageController(
+      mockService as unknown as DirectMessageService,
+    );
+
+    await controller.getShops({ user: { userId: 'buyer-a' } }, ' shop-c ');
+    await controller.getShops({ user: { userId: 'buyer-a' } }, '   ');
+    await controller.getShops({ user: { userId: 'buyer-a' } });
+
+    expect(mockService.getShops).toHaveBeenNthCalledWith(
+      1,
+      'buyer-a',
+      'shop-c',
+    );
+    expect(mockService.getShops).toHaveBeenNthCalledWith(
+      2,
+      'buyer-a',
+      undefined,
+    );
+    expect(mockService.getShops).toHaveBeenNthCalledWith(
+      3,
+      'buyer-a',
+      undefined,
+    );
+  });
+
   it('orders Seller customers using only messages with the authenticated Shop', async () => {
     prisma.user.findMany.mockResolvedValue([
       {
