@@ -1,5 +1,50 @@
 # TIẾN ĐỘ DỰ ÁN: LIVEORDER CHỐT ĐƠN ENGINE
 
+## Cập nhật 24/11/2026 — Hoàn thành 3 Tính năng: Setup Mở Live & Sản phẩm, Xác nhận Chốt đơn & Địa chỉ giao hàng, Danh mục Live & Giám sát Tồn kho
+
+- ✅ **Nhánh 1: Tùy chọn Mở Live & Danh mục sản phẩm mở bán (`feat/livestream-setup-products`):**
+  - **Mục tiêu:** Cho phép Streamer (Seller) thiết lập tiêu đề, mô tả và chọn các sản phẩm từ kho mở bán trong phiên livestream; chỉ những sản phẩm này mới được bán trong phiên live.
+  - **Backend:**
+    - `prisma/schema.prisma`: Thêm quan hệ nhiều-nhiều `Livestream` $\leftrightarrow$ `Product` (`@relation("LivestreamProducts")`).
+    - `livestream.service.ts`: Cập nhật `createStream` nhận `productIds` và liên kết quan hệ trong Prisma; thêm `getProductsForLivestream(id)` lấy danh mục sản phẩm của buổi live.
+    - `livestream.controller.ts`: Mở endpoint `GET /livestreams/:id/products` public cho người xem/streamer.
+    - `create-livestream.dto.ts`: Bổ sung `description?: string` và `productIds?: string[]`.
+  - **Frontend:**
+    - `LiveSetupModal.tsx` (tạo mới): Modal chuẩn bị phát sóng chuyên nghiệp (chọn/bỏ chọn tất cả sản phẩm, tìm kiếm, nhập tiêu đề, mô tả).
+    - `LiveStudio.tsx`: Tích hợp modal thiết lập trước khi phát live; chỉ gọi API tạo phiên khi đã hoàn tất chọn sản phẩm.
+  - **Kiểm thử QA Subagent:** Build Backend/Frontend pass, 120/120 tests pass. Đã commit (`070c5fb`) & push remote `feat/livestream-setup-products`.
+
+- ✅ **Nhánh 2: Xác nhận Chốt đơn & Thu thập/Lưu địa chỉ giao hàng (`feat/order-confirm-shipping`):**
+  - **Mục tiêu:** Đổi cơ chế từ "comment là trừ kho ngay" sang "phải mở modal xác nhận chốt đơn mới trừ kho nguyên tử"; thu thập thông tin nhận hàng, tự động lưu thông tin mặc định vào tài khoản User và pre-fill cho các lần mua sau.
+  - **Backend:**
+    - `prisma/schema.prisma`: Bổ sung các trường thông tin giao hàng mặc định vào `User` (`defaultRecipientName`, `defaultPhone`, `defaultAddress`) và thông tin nhận hàng vào `Order` (`recipientName`, `shippingPhone`, `shippingAddress`, `shippingNote`, `expiresAt`).
+    - `confirm-order.dto.ts` (tạo mới): DTO xác nhận đơn hàng chứa `livestreamId`, `productId`, `quantity`, `recipientName`, `shippingPhone`, `shippingAddress`, `shippingNote`, `saveAsDefault`.
+    - `order.service.ts`: Viết hàm `confirmOrder` chạy transaction nguyên tử kiểm tra `stock >= quantity`, trừ kho `decrement`, tạo đơn hàng trạng thái `PENDING`, và lưu địa chỉ mặc định vào hồ sơ `User` nếu `saveAsDefault: true`; thêm `getShippingProfile(userId)` lấy thông tin giao hàng đã lưu.
+    - `order.controller.ts`: Mở endpoint `POST /orders/confirm` và `GET /orders/shipping-profile` bảo vệ bằng `JwtAuthGuard`.
+    - `livestream-comment.processor.ts`: Chuyển đổi luồng: khi comment hợp lệ (có SKU và SĐT), hệ thống phát socket `draft_order_ready` gửi riêng cho Buyer (chứa thông tin SKU, giá, tên sản phẩm và thông tin giao hàng đã lưu) thay vì trừ kho ngay lập tức.
+  - **Frontend:**
+    - `OrderConfirmModal.tsx` (tạo mới): Modal xác nhận chốt đơn hiển thị thông tin sản phẩm, đơn giá, form thông tin giao hàng (họ tên, SĐT, địa chỉ, ghi chú), checkbox "Lưu làm địa chỉ mặc định", xử lý báo hết hàng/thành công mượt mà.
+    - `useViewerLivestream.ts` & `ViewerPage.tsx`: Lắng nghe sự kiện `draft_order_ready`, tự động bật `OrderConfirmModal` khi có đơn nháp; sau khi xác nhận gọi API `confirmOrder` thành công thì bắn thông báo.
+  - **Kiểm thử QA Subagent:** 3 unit tests mới cho `confirmOrder` (trừ kho nguyên tử, từ chối khi hết hàng, lưu địa chỉ mặc định), Build Backend/Frontend pass, 123/123 tests pass. Đã commit (`92ca254`) & push remote `feat/order-confirm-shipping`.
+
+- ✅ **Nhánh 3: Danh mục Sản phẩm Live cho Buyer & Giám sát Tồn kho cho Streamer (`feat/livestream-products-catalog`):**
+  - **Mục tiêu:** Cung cấp trải nghiệm mua hàng trực quan: Buyer có thể duyệt danh mục các sản phẩm đang bán trong phiên live và bấm "Chốt đơn" để tự động điền cú pháp; Streamer có bảng theo dõi tồn kho biến động theo thời gian thực ngay trên màn hình phát live.
+  - **Frontend:**
+    - `LiveProductsCatalogModal.tsx` (tạo mới): Modal xem danh sách sản phẩm mở bán trong phiên live dành cho Buyer; hiển thị ảnh, tên, giá, số lượng còn lại, badge "Hết hàng", nút "Chốt đơn ngay" (tự động điền cú pháp `Chốt {SKU} {SĐT}` vào khung chat).
+    - `LiveInventoryList.tsx` (tạo mới): Panel danh sách sản phẩm bên cạnh khung livestream dành cho Streamer; hiển thị SKU, giá bán, thanh đo tồn kho trực quan với cảnh báo hết hàng/sắp hết hàng.
+    - `LiveCommentPanel.tsx`: Thêm nút icon mở modal danh mục sản phẩm ngay cạnh ô chat.
+    - `ViewerPage.tsx`: Tích hợp `LiveProductsCatalogModal`, gọi API `GET /livestreams/:id/products` nạp danh mục sản phẩm phiên live.
+    - `LiveStudio.tsx`: Tích hợp `LiveInventoryList`, cập nhật trừ tồn kho hiển thị trực tiếp khi có sự kiện socket `new_order`.
+  - **Kiểm thử QA Subagent:** Build Backend/Frontend pass, 123/123 tests pass. Đã commit (`46ea8a6`) & push remote `feat/livestream-products-catalog`.
+
+- ✅ **Kiểm chứng tổng thể toàn hệ thống:**
+  - Build Backend: `nest build` thành công 100% không cảnh báo/lỗi.
+  - Build Frontend: `tsc -b && vite build` thành công (exit 0).
+  - Unit Tests: `npm test` đạt **11/11 suites, 123/123 tests PASS 100%**.
+  - Quy tắc Git & Phân tách module: Tách thành 3 nhánh Git độc lập (`origin/feat/livestream-setup-products`, `origin/feat/order-confirm-shipping`, `origin/feat/livestream-products-catalog`), mỗi file tạo mới đều tuân thủ nguyên tắc đơn nhiệm và dưới 300 dòng code.
+
+---
+
 ## Cập nhật 19/11/2026 — Khung Chat AI Góc Màn hình Live (`/viewer`) & Lọc Shop Đã Tương Tác Trong Inbox (`feat/m5-m6-demo-readiness`)
 
 - ✅ **Lọc danh sách Shop đã tương tác cho Buyer (`GET /messages/shops?includeSellerId=...`):**
