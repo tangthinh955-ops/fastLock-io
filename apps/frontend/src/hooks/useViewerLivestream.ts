@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
 import apiClient from '../api/client';
 import { SOCKET_URL } from '../config/env';
+import type { DraftOrderData } from '../components/viewer/OrderConfirmModal';
 
 const COMMENT_HISTORY_LIMIT = 10;
 
@@ -89,10 +90,13 @@ export const useViewerLivestream = ({
     null,
   );
   const [comments, setComments] = useState<LivestreamComment[]>([]);
+  const [draftOrder, setDraftOrder] = useState<DraftOrderData | null>(null);
   const [loading, setLoading] = useState(true);
   const [socketConnected, setSocketConnected] = useState(false);
   const [roomJoined, setRoomJoined] = useState(false);
   const [error, setError] = useState('');
+  const buyerIdRef = useRef(buyerId);
+  buyerIdRef.current = buyerId;
   const socketRef = useRef<Socket | null>(null);
   const activeStreamRef = useRef<ActiveLivestream | null>(null);
   const selectedSellerIdRef = useRef<string | null>(selectedSellerId ?? null);
@@ -287,6 +291,12 @@ export const useViewerLivestream = ({
       });
     });
 
+    socket.on('draft_order_ready', (data: DraftOrderData) => {
+      if (data.buyerId && data.buyerId === buyerIdRef.current) {
+        setDraftOrder(data);
+      }
+    });
+
     socket.on('comment_error', (data: { message?: string }) => {
       setError(data.message || 'Không thể gửi bình luận.');
     });
@@ -346,6 +356,8 @@ export const useViewerLivestream = ({
     selectedShop,
     activeStream,
     comments,
+    draftOrder,
+    setDraftOrder,
     loading,
     connected: socketConnected && roomJoined,
     error,

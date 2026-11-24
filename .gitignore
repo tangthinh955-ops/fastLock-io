@@ -146,3 +146,26 @@ KY_GUIDE.md
 apps/frontend/public/visualizer.html
 # File cẩm nang cá nhân của Thịnh
 study_guide.md
+
+# Tệp tài liệu nghiên cứu, báo cáo KLTN, slide & tệp tạm ngoài lề
+*.docx
+~$*
+*.pptx
+*.rar
+KLTN/
+Slide.html
+kehoach.html
+AI_PROJECT_REPORT.md
+BAO_CAO_CHUC_NANG_VA_VAN_HANH.md
+CAM_NANG_BAO_VE_KLTN_DIEM_TOI_DA.md
+KHOA_LUAN_TOT_NGHIEP_LIVEORDER.md
+PHAN_CONG_LAM_BAO_CAO_KLTN.md
+TONG_QUAN_BAO_CAO_KLTN.md
+PRODUCTION_READINESS_MASTER_PLAN.md
+create_presentation.py
+upda.md
+apps/frontend/public/*.pptx
+apps/frontend/public/*.html
+apps/frontend/public/assets/
+.agents/
+

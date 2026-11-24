@@ -29,6 +29,11 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Địa chỉ giao hàng mặc định của Buyer (tự động điền cho các lần mua sau)
+  defaultRecipientName String?
+  defaultPhone         String?
+  defaultAddress       String?
+
   // Quan hệ (Relations)
   products     Product[]       @relation("SellerProducts")
   livestreams  Livestream[]    @relation("SellerLivestreams")
@@ -56,6 +61,7 @@ model Product {
   seller     User        @relation("SellerProducts", fields: [sellerId], references: [id])
   orderItems OrderItem[]
   aiEmbedding ProductEmbedding?
+  livestreams Livestream[] @relation("LivestreamProducts")
 }
 
 // AI-owned index; product CRUD and live price/stock stay in Product.
@@ -95,15 +101,17 @@ enum LiveStatus {
 }
 
 model Livestream {
-  id        String     @id @default(uuid())
-  title     String
-  status    LiveStatus @default(IDLE)
-  sellerId  String
-  startedAt DateTime?
-  endedAt   DateTime?
+  id          String     @id @default(uuid())
+  title       String
+  description String?
+  status      LiveStatus @default(IDLE)
+  sellerId    String
+  startedAt   DateTime?
+  endedAt     DateTime?
 
-  seller User    @relation("SellerLivestreams", fields: [sellerId], references: [id])
-  orders Order[]
+  seller   User      @relation("SellerLivestreams", fields: [sellerId], references: [id])
+  orders   Order[]
+  products Product[] @relation("LivestreamProducts")
 }
 
 enum OrderStatus {
@@ -113,12 +121,17 @@ enum OrderStatus {
 }
 
 model Order {
-  id           String      @id @default(uuid())
-  totalAmount  Float
-  status       OrderStatus @default(PENDING)
-  buyerId      String
-  livestreamId String
-  createdAt    DateTime    @default(now())
+  id              String      @id @default(uuid())
+  totalAmount     Float
+  status          OrderStatus @default(PENDING)
+  buyerId         String
+  livestreamId    String
+  recipientName   String?
+  shippingPhone   String?
+  shippingAddress String?
+  shippingNote    String?
+  expiresAt       DateTime?
+  createdAt       DateTime    @default(now())
 
   buyer      User        @relation("BuyerOrders", fields: [buyerId], references: [id])
   livestream Livestream  @relation(fields: [livestreamId], references: [id])

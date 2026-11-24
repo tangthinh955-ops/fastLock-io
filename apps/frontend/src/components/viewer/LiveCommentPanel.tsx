@@ -35,6 +35,7 @@ interface LiveCommentPanelProps {
   onSend: () => void;
   onRetry: () => void;
   onOpenConsult: () => void;
+  onOpenCatalog?: () => void;
   chatEndRef: RefObject<HTMLDivElement | null>;
 }
 
@@ -52,6 +53,7 @@ export const LiveCommentPanel: React.FC<LiveCommentPanelProps> = ({
   onSend,
   onRetry,
   onOpenConsult,
+  onOpenCatalog,
   chatEndRef,
 }) => {
   return (
@@ -114,25 +116,44 @@ export const LiveCommentPanel: React.FC<LiveCommentPanelProps> = ({
             </Typography>
           </Box>
 
-          <Button
-            variant="outlined"
-            size="small"
-            startIcon={<ForumOutlinedIcon fontSize="small" />}
-            disabled={!activeStream && !canConsult}
-            onClick={onOpenConsult}
-            sx={{
-              flexShrink: 0,
-              borderColor: 'primary.main',
-              color: 'primary.main',
-              bgcolor: surfaceTokens.primarySoft,
-              '&:hover': {
-                bgcolor: surfaceTokens.primaryBorder,
-                borderColor: 'primary.dark',
-              },
-            }}
-          >
-            Tư vấn Shop
-          </Button>
+          <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
+            {onOpenCatalog && Boolean(activeStream) && (
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<ShoppingBagOutlinedIcon fontSize="small" />}
+                onClick={onOpenCatalog}
+                sx={{
+                  flexShrink: 0,
+                  borderColor: 'error.main',
+                  color: 'error.main',
+                  fontWeight: 700,
+                }}
+              >
+                Sản phẩm
+              </Button>
+            )}
+
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<ForumOutlinedIcon fontSize="small" />}
+              disabled={!activeStream && !canConsult}
+              onClick={onOpenConsult}
+              sx={{
+                flexShrink: 0,
+                borderColor: 'primary.main',
+                color: 'primary.main',
+                bgcolor: surfaceTokens.primarySoft,
+                '&:hover': {
+                  bgcolor: surfaceTokens.primaryBorder,
+                  borderColor: 'primary.dark',
+                },
+              }}
+            >
+              Tư vấn Shop
+            </Button>
+          </Stack>
         </Stack>
 
         <Box

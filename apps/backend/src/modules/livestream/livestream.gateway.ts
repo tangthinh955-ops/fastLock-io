@@ -61,6 +61,10 @@ export class LivestreamGateway implements OnGatewayConnection, OnGatewayDisconne
         this.server.emit('stream_ended', { livestreamId });
     }
 
+    notifyNewOrder(livestreamId: string, orderData: any) {
+        this.server.to(livestreamId).emit('new_order', orderData);
+    }
+
     notifyStreamStarted(stream: {
         id: string;
         title: string;
