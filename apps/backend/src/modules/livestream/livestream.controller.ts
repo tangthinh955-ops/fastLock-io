@@ -71,6 +71,11 @@ export class LivestreamController {
         return await this.livestreamService.getActiveStreamBySeller(sellerId);
     }
 
+    @Get(':id/products')
+    async getLiveProducts(@Param('id') id: string) {
+        return await this.livestreamService.getLiveProducts(id);
+    }
+
     @Get(':id')
     async getStreamById(@Param('id') id: string) {
         return await this.livestreamService.getStreamById(id);

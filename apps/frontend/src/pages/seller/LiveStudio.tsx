@@ -6,6 +6,7 @@ import apiClient from '../../api/client';
 import { SOCKET_URL } from '../../config/env';
 import { useLiveKitPublisher } from '../../hooks/useLiveKitPublisher';
 import { StreamControlHeader } from '../../components/stream/StreamControlHeader';
+import { LiveSetupModal, type LiveSetupData } from '../../components/stream/LiveSetupModal';
 import { WebCamPlayer } from '../../components/stream/WebCamPlayer';
 import { RecentOrdersList, type OrderNotification } from '../../components/stream/RecentOrdersList';
 import { LiveChatSidebar, type CommentItem } from '../../components/stream/LiveChatSidebar';
@@ -16,6 +17,7 @@ export const LiveStudio: React.FC = () => {
     const [streamTitle, setStreamTitle] = useState('Phiên Livestream chốt đơn hôm nay');
     const [currentStreamId, setCurrentStreamId] = useState<string | null>(null);
     const [streamError, setStreamError] = useState<string>('');
+    const [setupModalOpen, setSetupModalOpen] = useState(false);
     const startingRef = useRef(false);
     const studioMountedRef = useRef(true);
     const activeStreamIdRef = useRef<string | null>(null);
@@ -134,12 +136,17 @@ export const LiveStudio: React.FC = () => {
         };
     }, [user?.id, token, attachStreamSocket, startPublishing]);
 
-    const handleStartLive = async () => {
+    const handleStartLive = async (setupData?: LiveSetupData) => {
         if (!user || isStreaming || startingRef.current) return;
         startingRef.current = true;
         setStreamError('');
         try {
-            const res = await apiClient.post('/livestreams', { title: streamTitle });
+            const title = setupData?.title || streamTitle;
+            const res = await apiClient.post('/livestreams', {
+                title,
+                description: setupData?.description || '',
+                productIds: setupData?.productIds || [],
+            });
             const streamData = res.data;
 
             if (!studioMountedRef.current) {
@@ -149,7 +156,9 @@ export const LiveStudio: React.FC = () => {
 
             activeStreamIdRef.current = streamData.id;
             setCurrentStreamId(streamData.id);
+            setStreamTitle(streamData.title || title);
             setIsStreaming(true);
+            setSetupModalOpen(false);
 
             attachStreamSocket(streamData.id);
 
@@ -195,8 +204,15 @@ export const LiveStudio: React.FC = () => {
                     isStreaming={isStreaming}
                     streamTitle={streamTitle}
                     onTitleChange={setStreamTitle}
-                    onStartLive={handleStartLive}
+                    onStartLive={() => setSetupModalOpen(true)}
                     onEndLive={handleEndLive}
+                />
+
+                <LiveSetupModal
+                    open={setupModalOpen}
+                    loading={startingRef.current}
+                    onClose={() => setSetupModalOpen(false)}
+                    onStartLive={handleStartLive}
                 />
 
                 {streamError && (

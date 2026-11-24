@@ -45,12 +45,18 @@ export class LivestreamService {
         await this.endActiveStreamsForSeller(sellerId);
 
         // Tạo phiên live mới với status LIVE
+        const connectProducts = dto.productIds && dto.productIds.length > 0
+            ? { connect: dto.productIds.map((id) => ({ id })) }
+            : undefined;
+
         return await this.prisma.livestream.create({
             data: {
                 title: dto.title,
+                description: dto.description,
                 sellerId,
                 status: 'LIVE',
                 startedAt: new Date(),
+                products: connectProducts,
             },
             include: {
                 seller: {
@@ -58,6 +64,16 @@ export class LivestreamService {
                         id: true,
                         name: true,
                         email: true,
+                    },
+                },
+                products: {
+                    select: {
+                        id: true,
+                        sku: true,
+                        name: true,
+                        price: true,
+                        stock: true,
+                        imageUrl: true,
                     },
                 },
             },
@@ -228,6 +244,29 @@ export class LivestreamService {
         }
 
         return stream;
+    }
+
+    /**
+     * Lấy danh sách sản phẩm được chọn mở bán trong phiên livestream
+     */
+    async getLiveProducts(livestreamId: string) {
+        const stream = await this.prisma.livestream.findUnique({
+            where: { id: livestreamId },
+            select: {
+                products: {
+                    select: {
+                        id: true,
+                        sku: true,
+                        name: true,
+                        price: true,
+                        stock: true,
+                        imageUrl: true,
+                    },
+                    orderBy: { sku: 'asc' },
+                },
+            },
+        });
+        return stream?.products ?? [];
     }
 
     /**
