@@ -5,6 +5,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { LiveCommentPanel } from '../../components/viewer/LiveCommentPanel';
 import { LiveShopChatWidget } from '../../components/viewer/LiveShopChatWidget';
 import { OrderConfirmModal } from '../../components/viewer/OrderConfirmModal';
+import { LiveProductsCatalogModal } from '../../components/viewer/LiveProductsCatalogModal';
 import { LiveVideoPlayer } from '../../components/viewer/LiveVideoPlayer';
 import { ShopLiveDirectory } from '../../components/viewer/ShopLiveDirectory';
 import { useAuth } from '../../context/AuthContext';
@@ -30,6 +31,7 @@ export const ViewerPage: React.FC = () => {
     authToken: token,
   });
   const [inputText, setInputText] = useState('');
+  const [catalogOpen, setCatalogOpen] = useState(false);
   const [chatWidgetOpen, setChatWidgetOpen] = useState<boolean>(
     () => searchParams.get('chat') === 'open',
   );
@@ -243,6 +245,7 @@ export const ViewerPage: React.FC = () => {
               onOpenConsult={() => {
                 if (selectedSellerId) setChatWidgetOpen(true);
               }}
+              onOpenCatalog={() => setCatalogOpen(true)}
               chatEndRef={chatEndRef}
             />
           </Box>
@@ -268,6 +271,14 @@ export const ViewerPage: React.FC = () => {
             data={livestream.draftOrder}
             onClose={() => livestream.setDraftOrder(null)}
             onSuccess={() => {}}
+          />
+
+          <LiveProductsCatalogModal
+            open={catalogOpen}
+            livestreamId={livestream.activeStream?.id}
+            shopName={currentShopName}
+            onClose={() => setCatalogOpen(false)}
+            onSelectSku={(sku) => setInputText(sku)}
           />
         </>
       )}

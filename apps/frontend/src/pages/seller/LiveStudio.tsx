@@ -7,6 +7,7 @@ import { SOCKET_URL } from '../../config/env';
 import { useLiveKitPublisher } from '../../hooks/useLiveKitPublisher';
 import { StreamControlHeader } from '../../components/stream/StreamControlHeader';
 import { LiveSetupModal, type LiveSetupData } from '../../components/stream/LiveSetupModal';
+import { LiveInventoryList } from '../../components/stream/LiveInventoryList';
 import { WebCamPlayer } from '../../components/stream/WebCamPlayer';
 import { RecentOrdersList, type OrderNotification } from '../../components/stream/RecentOrdersList';
 import { LiveChatSidebar, type CommentItem } from '../../components/stream/LiveChatSidebar';
@@ -240,6 +241,14 @@ export const LiveStudio: React.FC = () => {
                             onToggleCam={() => { void toggleCamera(); }}
                             onToggleMic={() => { void toggleMic(); }}
                         />
+                        {isStreaming && (
+                            <Box sx={{ mt: 2.5 }}>
+                                <LiveInventoryList
+                                    livestreamId={currentStreamId}
+                                    refreshTrigger={recentOrders.length}
+                                />
+                            </Box>
+                        )}
                     </Grid>
 
                     <Grid size={{ xs: 12, md: 6, lg: 3 }}>
