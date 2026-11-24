@@ -19,6 +19,10 @@ describe('OrderService (S08 Lifecycle & Atomic Stock)', () => {
             update: jest.fn(),
             updateMany: jest.fn(),
         },
+        user: {
+            findUnique: jest.fn(),
+            update: jest.fn(),
+        },
         $transaction: jest.fn(),
     };
 
@@ -170,6 +174,75 @@ describe('OrderService (S08 Lifecycle & Atomic Stock)', () => {
             await expect(
                 service.updateOrderStatus('order-1', 'seller-A', OrderStatus.PAID),
             ).rejects.toThrow(BadRequestException);
+        });
+    });
+
+    describe('confirmOrder', () => {
+        it('nên ném lỗi BadRequestException nếu thiếu buyerId', async () => {
+            await expect(
+                service.confirmOrder('', {
+                    livestreamId: 'live-1',
+                    productId: 'prod-1',
+                    recipientName: 'Nguyen Van A',
+                    shippingPhone: '0912345678',
+                    shippingAddress: '123 Đường ABC, Q1, TP.HCM',
+                }),
+            ).rejects.toThrow(BadRequestException);
+        });
+
+        it('nên trừ kho nguyên tử thành công, tạo đơn có thông tin giao hàng và lưu vào user', async () => {
+            mockPrisma.product.updateMany.mockResolvedValue({ count: 1 });
+            mockPrisma.product.findUnique.mockResolvedValue({ id: 'prod-1', name: 'Áo Khoác', sku: 'AK01', price: 200000, stock: 5 });
+            mockPrisma.order.create.mockResolvedValue({
+                id: 'order-confirm-1',
+                buyerId: 'buyer-1',
+                totalAmount: 200000,
+                status: 'PENDING',
+                recipientName: 'Nguyen Van A',
+                shippingPhone: '0912345678',
+                shippingAddress: '123 Đường ABC, Q1, TP.HCM',
+            });
+            mockPrisma.user.update.mockResolvedValue({});
+
+            const result = await service.confirmOrder('buyer-1', {
+                livestreamId: 'live-1',
+                productId: 'prod-1',
+                quantity: 1,
+                recipientName: 'Nguyen Van A',
+                shippingPhone: '0912345678',
+                shippingAddress: '123 Đường ABC, Q1, TP.HCM',
+                saveAsDefault: true,
+            });
+
+            expect(result.id).toBe('order-confirm-1');
+            expect(mockPrisma.product.updateMany).toHaveBeenCalledWith({
+                where: { id: 'prod-1', stock: { gte: 1 } },
+                data: { stock: { decrement: 1 } },
+            });
+            expect(mockPrisma.user.update).toHaveBeenCalledWith({
+                where: { id: 'buyer-1' },
+                data: {
+                    defaultRecipientName: 'Nguyen Van A',
+                    defaultPhone: '0912345678',
+                    defaultAddress: '123 Đường ABC, Q1, TP.HCM',
+                },
+            });
+        });
+
+        it('nên ném lỗi BadRequestException nếu sản phẩm vừa hết hàng (count === 0)', async () => {
+            mockPrisma.product.updateMany.mockResolvedValue({ count: 0 });
+            mockPrisma.product.findUnique.mockResolvedValue({ id: 'prod-1', name: 'Áo Khoác', sku: 'AK01', price: 200000, stock: 0 });
+
+            await expect(
+                service.confirmOrder('buyer-1', {
+                    livestreamId: 'live-1',
+                    productId: 'prod-1',
+                    quantity: 1,
+                    recipientName: 'Nguyen Van A',
+                    shippingPhone: '0912345678',
+                    shippingAddress: '123 Đường ABC, Q1, TP.HCM',
+                }),
+            ).rejects.toThrow('vừa hết hàng');
         });
     });
 });

@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { LivestreamService } from './livestream.service';
 import { LivestreamController } from './livestream.controller';
 import { LivestreamGateway } from './livestream.gateway';
@@ -10,7 +10,7 @@ import { DirectMessageModule } from '../direct-message/direct-message.module';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
-    imports: [ParserModule, OrderModule, DirectMessageModule, AuthModule],
+    imports: [ParserModule, forwardRef(() => OrderModule), DirectMessageModule, AuthModule],
     controllers: [LivestreamController],
     providers: [LivestreamService, LivestreamGateway, LivestreamCommentProcessor, LivekitTokenService],
     exports: [LivestreamService, LivestreamGateway],

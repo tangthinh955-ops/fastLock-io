@@ -46,11 +46,11 @@ export class LivestreamCommentProcessor {
             const parseResult = this.parserService.parseComment(commentText, sellerSkus);
 
             const finalPhone = parseResult.phone || phone || null;
-            const isOrder = Boolean(finalPhone && parseResult.skus.length > 0);
+            const hasSku = parseResult.skus.length > 0;
 
-            if (isOrder && parseResult.skus.length > 0) {
+            if (hasSku) {
                 if (!buyerId) {
-                    this.logger.warn(`Bình luận chứa SKU & SĐT nhưng buyer chưa đăng nhập: livestreamId=${livestreamId}`);
+                    this.logger.warn(`Bình luận chứa SKU nhưng buyer chưa đăng nhập: livestreamId=${livestreamId}`);
                     server.to(livestreamId).emit('comment_received', {
                         id: `comment-${Date.now()}`,
                         livestreamId,
@@ -67,29 +67,20 @@ export class LivestreamCommentProcessor {
                     where: { sku: targetSku },
                 });
 
-                if (product && product.sellerId === sellerId && product.stock > 0) {
-                    try {
-                        const order = await this.orderService.createOrder({
-                            buyerId,
-                            livestreamId,
-                            items: [{ productId: product.id, quantity: 1 }],
+                if (product && product.sellerId === sellerId) {
+                    if (product.stock > 0) {
+                        // Lấy thông tin giao hàng đã lưu của Buyer để tự động điền sẵn
+                        const buyer = await this.prisma.user.findUnique({
+                            where: { id: buyerId },
+                            select: {
+                                defaultRecipientName: true,
+                                defaultPhone: true,
+                                defaultAddress: true,
+                                name: true,
+                            },
                         });
 
-                        const maskedPhone = (finalPhone && finalPhone.length >= 7)
-                            ? `${finalPhone.slice(0, 4)}***${finalPhone.slice(-3)}`
-                            : (finalPhone || '');
-
-                        server.to(livestreamId).emit('new_order', {
-                            orderId: order.id,
-                            productName: product.name,
-                            sku: product.sku,
-                            price: product.price,
-                            totalAmount: order.totalAmount,
-                            buyerName: buyerName || 'Khách hàng',
-                            phone: maskedPhone,
-                            createdAt: order.createdAt,
-                        });
-
+                        // 1. Phát bình luận lên phòng live (đánh dấu là bình luận hỏi mua SKU)
                         server.to(livestreamId).emit('comment_received', {
                             id: `comment-${Date.now()}`,
                             livestreamId,
@@ -97,27 +88,47 @@ export class LivestreamCommentProcessor {
                             content: commentText,
                             isOrder: true,
                             sku: product.sku,
-                            orderSuccess: true,
                             createdAt: new Date(),
                         });
 
-                        try {
-                            await this.directMessageService.sendOrderMessage(
-                                sellerId,
-                                buyerId,
-                                order.totalAmount,
-                                order.id,
-                                product.name,
-                                product.sku,
-                            );
-                        } catch (dmErr) {
-                            this.logger.error(
-                                `Lỗi gửi tin nhắn VietQR: ${dmErr instanceof Error ? dmErr.message : String(dmErr)}`,
-                            );
-                        }
+                        // 2. KHÔNG trừ kho ngay: Phát sự kiện 'draft_order_ready' để Buyer mở popup xác nhận
+                        server.to(livestreamId).emit('draft_order_ready', {
+                            buyerId,
+                            livestreamId,
+                            product: {
+                                id: product.id,
+                                sku: product.sku,
+                                name: product.name,
+                                price: product.price,
+                                stock: product.stock,
+                                imageUrl: product.imageUrl,
+                            },
+                            defaultShipping: {
+                                recipientName: buyer?.defaultRecipientName || buyer?.name || buyerName || '',
+                                shippingPhone: buyer?.defaultPhone || finalPhone || '',
+                                shippingAddress: buyer?.defaultAddress || '',
+                            },
+                        });
                         return;
-                    } catch (orderErr) {
-                        this.logger.error(`Lỗi khi tạo đơn hàng: ${orderErr.message}`);
+                    } else {
+                        // Hết hàng: Thông báo lên phòng live
+                        server.to(livestreamId).emit('comment_received', {
+                            id: `comment-${Date.now()}`,
+                            livestreamId,
+                            buyerName: buyerName || 'Khách hàng',
+                            content: commentText,
+                            isOrder: true,
+                            sku: product.sku,
+                            outOfStock: true,
+                            createdAt: new Date(),
+                        });
+                        server.to(livestreamId).emit('order_failed', {
+                            buyerId,
+                            sku: product.sku,
+                            reason: 'OUT_OF_STOCK',
+                            message: `Rất tiếc! Sản phẩm ${product.name} (SKU: ${product.sku}) hiện đã hết hàng.`,
+                        });
+                        return;
                     }
                 }
             }

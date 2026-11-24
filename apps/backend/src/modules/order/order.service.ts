@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
+import { ConfirmOrderDto } from './dto/confirm-order.dto';
 import { OrderStatus } from '@prisma/client';
 import { GetOrdersQueryDto } from './dto/get-orders-query.dto';
 
@@ -87,6 +88,128 @@ export class OrderService {
 
             return order;
         });
+    }
+
+    /**
+     * Xác nhận chốt đơn: Chỉ trừ kho nguyên tử khi Buyer bấm nút xác nhận
+     * Tự động lưu thông tin giao hàng cho các lần mua sau của tài khoản
+     */
+    async confirmOrder(buyerId: string, dto: ConfirmOrderDto) {
+        if (!buyerId) {
+            throw new BadRequestException('Định danh người mua (buyerId) là bắt buộc để xác nhận chốt đơn');
+        }
+
+        const quantity = dto.quantity && dto.quantity > 0 ? dto.quantity : 1;
+
+        return await this.prisma.$transaction(async (tx) => {
+            // 1. Trừ kho Atomic: Chỉ update khi stock >= quantity
+            const updatedProduct = await tx.product.updateMany({
+                where: {
+                    id: dto.productId,
+                    stock: {
+                        gte: quantity,
+                    },
+                },
+                data: {
+                    stock: {
+                        decrement: quantity,
+                    },
+                },
+            });
+
+            // Nếu count === 0 -> Sản phẩm không đủ số lượng tồn kho (Chống Oversell)
+            if (updatedProduct.count === 0) {
+                const product = await tx.product.findUnique({ where: { id: dto.productId } });
+                if (!product) {
+                    throw new NotFoundException(`Sản phẩm ID ${dto.productId} không tồn tại.`);
+                }
+                throw new BadRequestException(
+                    `Rất tiếc! Sản phẩm "${product.name}" (SKU: ${product.sku}) vừa hết hàng!`
+                );
+            }
+
+            const product = await tx.product.findUnique({ where: { id: dto.productId } });
+            if (!product) {
+                throw new NotFoundException(`Sản phẩm ID ${dto.productId} không tồn tại.`);
+            }
+
+            const totalAmount = product.price * quantity;
+
+            // 2. Tạo bản ghi Đơn hàng với đầy đủ thông tin giao hàng
+            const order = await tx.order.create({
+                data: {
+                    buyerId,
+                    livestreamId: dto.livestreamId,
+                    totalAmount,
+                    status: 'PENDING',
+                    recipientName: dto.recipientName,
+                    shippingPhone: dto.shippingPhone,
+                    shippingAddress: dto.shippingAddress,
+                    shippingNote: dto.shippingNote,
+                    expiresAt: new Date(Date.now() + 15 * 60 * 1000), // TTL 15 phút
+                    items: {
+                        create: [
+                            {
+                                productId: product.id,
+                                quantity,
+                                unitPrice: product.price,
+                            },
+                        ],
+                    },
+                },
+                include: {
+                    items: {
+                        include: {
+                            product: true,
+                        },
+                    },
+                    livestream: {
+                        select: {
+                            id: true,
+                            sellerId: true,
+                        },
+                    },
+                },
+            });
+
+            // 3. Tự động lưu thông tin giao hàng làm mặc định cho các lần mua sau của tài khoản
+            if (dto.saveAsDefault !== false) {
+                await tx.user.update({
+                    where: { id: buyerId },
+                    data: {
+                        defaultRecipientName: dto.recipientName,
+                        defaultPhone: dto.shippingPhone,
+                        defaultAddress: dto.shippingAddress,
+                    },
+                });
+            }
+
+            return order;
+        });
+    }
+
+    /**
+     * Lấy thông tin giao hàng đã lưu của Buyer để tự động điền (pre-fill)
+     */
+    async getShippingProfile(buyerId: string) {
+        const user = await this.prisma.user.findUnique({
+            where: { id: buyerId },
+            select: {
+                id: true,
+                name: true,
+                defaultRecipientName: true,
+                defaultPhone: true,
+                defaultAddress: true,
+            },
+        });
+        if (!user) {
+            throw new NotFoundException('Không tìm thấy người dùng');
+        }
+        return {
+            recipientName: user.defaultRecipientName || user.name || '',
+            phone: user.defaultPhone || '',
+            address: user.defaultAddress || '',
+        };
     }
 
     async getOrderById(id: string, user?: { userId: string; role: string }) {
