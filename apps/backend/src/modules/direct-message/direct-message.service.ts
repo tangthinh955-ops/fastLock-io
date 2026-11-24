@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { ChatMode, MessageSource, Role } from '@prisma/client';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import {
@@ -466,6 +471,50 @@ export class DirectMessageService {
     return { buyerMessage, aiMessage };
   }
 
+  // Xác thực đơn hàng thật thuộc đúng Seller/Buyer/số tiền khi gọi qua HTTP API
+  async sendVerifiedOrderMessage(
+    senderId: string,
+    receiverId: string,
+    amount: number,
+    orderId: string,
+  ) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: {
+        id: true,
+        buyerId: true,
+        totalAmount: true,
+        livestream: {
+          select: { sellerId: true },
+        },
+      },
+    });
+
+    if (!order) {
+      throw new NotFoundException('Không tìm thấy đơn hàng để gửi mã VietQR.');
+    }
+
+    if (order.livestream?.sellerId !== senderId) {
+      throw new ForbiddenException(
+        'Bạn không có quyền gửi mã VietQR cho đơn hàng của shop khác.',
+      );
+    }
+
+    if (order.buyerId !== receiverId) {
+      throw new BadRequestException(
+        'Người nhận không khớp với khách hàng của đơn hàng.',
+      );
+    }
+
+    if (order.totalAmount !== amount) {
+      throw new BadRequestException(
+        'Số tiền thanh toán không khớp với tổng giá trị đơn hàng.',
+      );
+    }
+
+    return this.sendOrderMessage(senderId, receiverId, amount, orderId);
+  }
+
   // 1. Tạo tin nhắn chứa mã VietQR
   async sendOrderMessage(
     senderId: string,
@@ -490,8 +539,8 @@ export class DirectMessageService {
     const template = 'compact'; // Mẫu QR nhỏ gọn
     const description = `Thanh toan don hang ${orderId}`;
 
-    // Tạo link ảnh VietQR
-    const qrUrl = `https://img.vietqr.io/image/${bank}-${account}-${template}.png?amount=${amount}&addInfo=${description}`;
+    // Tạo link ảnh VietQR (URL-encode đầy đủ các tham số truy vấn)
+    const qrUrl = `https://img.vietqr.io/image/${bank}-${account}-${template}.png?amount=${amount}&addInfo=${encodeURIComponent(description)}&accountName=${encodeURIComponent('SHOP LIVEORDER')}`;
     const orderCode = orderId.slice(0, 8).toUpperCase();
     const formattedAmount = amount.toLocaleString('vi-VN');
     const productDetail = productName

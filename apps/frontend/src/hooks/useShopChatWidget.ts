@@ -28,11 +28,15 @@ export const useShopChatWidget = ({
   const sellerIdRef = useRef(sellerId);
   const sendRequestIdRef = useRef(0);
   const unreadRequestIdRef = useRef(0);
+  const inFlightUnreadRequestRef = useRef<number | null>(null);
+  const socketUnreadDeltaRef = useRef(0);
   isOpenRef.current = isOpen;
   sellerIdRef.current = sellerId;
 
   const fetchInitialUnread = useCallback(async (targetSellerId: string) => {
     const requestId = ++unreadRequestIdRef.current;
+    inFlightUnreadRequestRef.current = requestId;
+    socketUnreadDeltaRef.current = 0;
     try {
       const response = await apiClient.get<InboxContact[]>('/messages/shops', {
         params: { includeSellerId: targetSellerId },
@@ -47,7 +51,10 @@ export const useShopChatWidget = ({
       const matchedShop = response.data.find(
         (shop) => shop.id === targetSellerId,
       );
-      setUnreadCount(matchedShop?.unreadCount ?? 0);
+      const socketDelta = socketUnreadDeltaRef.current;
+      socketUnreadDeltaRef.current = 0;
+      inFlightUnreadRequestRef.current = null;
+      setUnreadCount((matchedShop?.unreadCount ?? 0) + socketDelta);
     } catch (requestError) {
       if (
         requestId === unreadRequestIdRef.current &&
@@ -56,12 +63,19 @@ export const useShopChatWidget = ({
       ) {
         console.error('Lỗi khi tải số tin chưa đọc:', requestError);
       }
+    } finally {
+      if (inFlightUnreadRequestRef.current === requestId) {
+        inFlightUnreadRequestRef.current = null;
+        socketUnreadDeltaRef.current = 0;
+      }
     }
   }, []);
 
   useEffect(() => {
     sendRequestIdRef.current++;
     unreadRequestIdRef.current++;
+    inFlightUnreadRequestRef.current = null;
+    socketUnreadDeltaRef.current = 0;
     setSending(false);
     setUnreadCount(0);
     setInputText('');
@@ -71,17 +85,23 @@ export const useShopChatWidget = ({
     const requestCounter = unreadRequestIdRef;
     if (isOpen) {
       requestCounter.current++;
+      inFlightUnreadRequestRef.current = null;
+      socketUnreadDeltaRef.current = 0;
       setUnreadCount(0);
       return;
     }
     if (!sellerId) {
       requestCounter.current++;
+      inFlightUnreadRequestRef.current = null;
+      socketUnreadDeltaRef.current = 0;
       return;
     }
 
     void fetchInitialUnread(sellerId);
     return () => {
       requestCounter.current++;
+      inFlightUnreadRequestRef.current = null;
+      socketUnreadDeltaRef.current = 0;
     };
   }, [sellerId, isOpen, fetchInitialUnread]);
 
@@ -110,7 +130,7 @@ export const useShopChatWidget = ({
 
     if (isOpenRef.current) {
       conversation.appendMessages(message);
-      if (message.senderId === activeSellerId) {
+      if (message.senderId === activeSellerId && message.source !== 'AI') {
         setUnreadCount(0);
         void apiClient
           .patch(`/messages/conversations/${activeSellerId}/read`)
@@ -119,7 +139,10 @@ export const useShopChatWidget = ({
       return;
     }
 
-    if (message.senderId === activeSellerId) {
+    if (message.senderId === activeSellerId && message.source !== 'AI') {
+      if (inFlightUnreadRequestRef.current !== null) {
+        socketUnreadDeltaRef.current += 1;
+      }
       setUnreadCount((current) => current + 1);
     }
   };

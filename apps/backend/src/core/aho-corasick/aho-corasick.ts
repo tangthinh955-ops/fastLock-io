@@ -1,3 +1,5 @@
+const TOKEN_CHAR_REGEX = /[\p{L}\p{N}_-]/u;
+
 export class TrieNode {
     children: Map<string, TrieNode> = new Map();
     failure: TrieNode | null = null;
@@ -15,16 +17,18 @@ export class AhoCorasick {
         for (const keyword of keywords) {
             if (!keyword) continue;
             const normalized = keyword.trim().toUpperCase();
+            if (!normalized) continue;
             let node = this.root;
 
             for (const char of normalized) {
                 if (!node.children.has(char)) {
                     node.children.set(char, new TrieNode());
-
                 }
                 node = node.children.get(char)!;
             }
-            node.output.push(normalized);
+            if (!node.output.includes(normalized)) {
+                node.output.push(normalized);
+            }
         }
     }
 
@@ -36,7 +40,6 @@ export class AhoCorasick {
         for (const [, child] of this.root.children) {
             child.failure = this.root;
             queue.push(child);
-
         }
         while (queue.length > 0) {
             const current = queue.shift()!;
@@ -46,7 +49,9 @@ export class AhoCorasick {
                     fallback = fallback.failure;
                 }
                 child.failure = fallback ? fallback.children.get(char)! : this.root;
-                child.output = [...child.output, ...child.failure.output];
+                child.output = Array.from(
+                    new Set([...child.output, ...child.failure.output]),
+                );
                 queue.push(child);
             }
         }
@@ -56,7 +61,7 @@ export class AhoCorasick {
         if (!text) return [];
         const normalizedText = text.toUpperCase();
         let current = this.root;
-        const results = new Set<string>();
+        const matches: { start: number; end: number; sku: string }[] = [];
 
         for (let i = 0; i < normalizedText.length; i++) {
             const char = normalizedText[i];
@@ -71,15 +76,38 @@ export class AhoCorasick {
                 current = current.children.get(char)!;
             }
 
-            // Ghi nhận tất cả SKU khớp tại nút hiện tại
+            // Ghi nhận tất cả SKU khớp hợp lệ theo ranh giới token tại nút hiện tại
             for (const matchedSku of current.output) {
-                results.add(matchedSku);
+                const endIdx = i;
+                const startIdx = endIdx - matchedSku.length + 1;
+                if (startIdx < 0) continue;
+
+                const leftOk =
+                    startIdx === 0 ||
+                    !TOKEN_CHAR_REGEX.test(normalizedText[startIdx - 1]);
+                const rightOk =
+                    endIdx + 1 === normalizedText.length ||
+                    !TOKEN_CHAR_REGEX.test(normalizedText[endIdx + 1]);
+
+                if (leftOk && rightOk) {
+                    matches.push({ start: startIdx, end: endIdx, sku: matchedSku });
+                }
             }
         }
+
+        matches.sort(
+            (a, b) => a.start - b.start || (b.end - b.start) - (a.end - a.start),
+        );
+
+        const results = new Set<string>();
+        let lastAcceptedEnd = -1;
+        for (const match of matches) {
+            if (match.start > lastAcceptedEnd) {
+                results.add(match.sku);
+                lastAcceptedEnd = match.end;
+            }
+        }
+
         return Array.from(results);
     }
-
-
-
-
 }

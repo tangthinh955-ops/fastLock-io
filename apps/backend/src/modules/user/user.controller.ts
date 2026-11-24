@@ -13,12 +13,17 @@ export class UserController {
   @Get()
   @Roles(Role.ADMIN) // Đóng dấu: Chỉ ADMIN mới được phép gọi API này
   async getAllUsers(
-    @Query('page') page: string,
-    @Query('limit') limit: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
   ) {
-    // Ép kiểu sang Number và truyền default nếu user không gửi
-    const pageNumber = page ? parseInt(page, 10) : 1;
-    const limitNumber = limit ? parseInt(limit, 10) : 10;
+    // Ép kiểu sang Number và giới hạn an toàn
+    const parsedPage = page ? parseInt(page, 10) : 1;
+    const parsedLimit = limit ? parseInt(limit, 10) : 10;
+    const pageNumber = Math.max(1, Number.isFinite(parsedPage) ? parsedPage : 1);
+    const limitNumber = Math.min(
+      100,
+      Math.max(1, Number.isFinite(parsedLimit) ? parsedLimit : 10),
+    );
 
     return this.userService.findAll(pageNumber, limitNumber);
   }

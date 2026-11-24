@@ -92,6 +92,18 @@ export const LiveStudio: React.FC = () => {
     }, []);
 
     useEffect(() => {
+        if (!isStreaming) return;
+        const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+            event.preventDefault();
+            event.returnValue = '';
+        };
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+        };
+    }, [isStreaming]);
+
+    useEffect(() => {
         if (!user?.id || !token || activeStreamIdRef.current || startingRef.current) {
             return;
         }
@@ -117,6 +129,7 @@ export const LiveStudio: React.FC = () => {
 
                 if (res.data && res.data.id && res.data.status === 'LIVE') {
                     activeStreamIdRef.current = res.data.id;
+                    sessionStorage.setItem('active_seller_stream_id', res.data.id);
                     setCurrentStreamId(res.data.id);
                     if (res.data.title) {
                         setStreamTitle(res.data.title);
@@ -124,6 +137,8 @@ export const LiveStudio: React.FC = () => {
                     setIsStreaming(true);
                     attachStreamSocket(res.data.id);
                     void startPublishing(res.data.id);
+                } else {
+                    sessionStorage.removeItem('active_seller_stream_id');
                 }
             } catch {
                 // Bỏ qua lỗi khôi phục phiên live để không cản trở thao tác tạo phiên mới
@@ -151,11 +166,21 @@ export const LiveStudio: React.FC = () => {
             const streamData = res.data;
 
             if (!studioMountedRef.current) {
+                sessionStorage.removeItem('active_seller_stream_id');
                 void apiClient.patch(`/livestreams/${streamData.id}/end`).catch(() => {});
                 return;
             }
 
+            if (latestOrderTimerRef.current) {
+                clearTimeout(latestOrderTimerRef.current);
+                latestOrderTimerRef.current = null;
+            }
+            setComments([]);
+            setRecentOrders([]);
+            setLatestOrder(null);
+
             activeStreamIdRef.current = streamData.id;
+            sessionStorage.setItem('active_seller_stream_id', streamData.id);
             setCurrentStreamId(streamData.id);
             setStreamTitle(streamData.title || title);
             setIsStreaming(true);
@@ -176,6 +201,7 @@ export const LiveStudio: React.FC = () => {
     const handleEndLive = async () => {
         const targetStreamId = activeStreamIdRef.current ?? currentStreamId;
         activeStreamIdRef.current = null;
+        sessionStorage.removeItem('active_seller_stream_id');
         await stopPublishing();
         if (targetStreamId) {
             try { await apiClient.patch(`/livestreams/${targetStreamId}/end`); } catch {}

@@ -13,6 +13,7 @@ import { JwtService } from '@nestjs/jwt';
 import { LivestreamCommentProcessor, SendCommentDto } from './livestream-comment.processor';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 import { createCorsOptions } from '../../core/config/cors.config';
+import { PrismaService } from '../../core/prisma/prisma.service';
 
 @Injectable()
 @WebSocketGateway({
@@ -27,9 +28,10 @@ export class LivestreamGateway implements OnGatewayConnection, OnGatewayDisconne
     constructor(
         private readonly commentProcessor: LivestreamCommentProcessor,
         private readonly jwtService: JwtService,
+        private readonly prisma: PrismaService,
     ) { }
 
-    handleConnection(client: Socket) {
+    async handleConnection(client: Socket) {
         try {
             const token = client.handshake.auth?.token;
             if (typeof token !== 'string' || !token) {
@@ -37,13 +39,23 @@ export class LivestreamGateway implements OnGatewayConnection, OnGatewayDisconne
             }
 
             const payload = this.jwtService.verify<JwtPayload>(token);
+            const user = await this.prisma.user.findUnique({
+                where: { id: payload.sub },
+                select: { id: true, name: true, role: true },
+            });
+
+            if (!user) {
+                throw new Error('USER_NOT_FOUND');
+            }
+
             client.data.user = {
-                userId: payload.sub,
+                userId: user.id,
                 email: payload.email,
-                role: payload.role,
+                role: user.role,
+                name: user.name,
             };
 
-            this.logger.log(`Client ${client.id} kết nối Socket với role ${payload.role}`);
+            this.logger.log(`Client ${client.id} kết nối Socket với role ${user.role}`);
         } catch {
             this.logger.warn(`Từ chối Socket không có JWT hợp lệ: ${client.id}`);
             client.emit('auth_error', {
@@ -61,7 +73,7 @@ export class LivestreamGateway implements OnGatewayConnection, OnGatewayDisconne
         this.server.emit('stream_ended', { livestreamId });
     }
 
-    notifyNewOrder(livestreamId: string, orderData: any) {
+    notifyNewOrder(livestreamId: string, orderData: unknown) {
         this.server.to(livestreamId).emit('new_order', orderData);
     }
 
@@ -83,39 +95,65 @@ export class LivestreamGateway implements OnGatewayConnection, OnGatewayDisconne
     }
 
     @SubscribeMessage('join_room')
-    handleJoinRoom(
+    async handleJoinRoom(
         @ConnectedSocket() client: Socket,
         @MessageBody() data: { livestreamId: string },
     ) {
-        if (!data?.livestreamId) return;
-        client.join(data.livestreamId);
+        if (!data?.livestreamId || typeof data.livestreamId !== 'string') return;
+        await client.join(data.livestreamId);
         this.logger.log(`Client ${client.id} đã tham gia phòng: ${data.livestreamId}`);
         client.emit('room_joined', { livestreamId: data.livestreamId, status: 'SUCCESS' });
     }
 
     @SubscribeMessage('leave_room')
-    handleLeaveRoom(
+    async handleLeaveRoom(
         @ConnectedSocket() client: Socket,
         @MessageBody() data: { livestreamId: string },
     ) {
-        if (!data?.livestreamId) return;
-        client.leave(data.livestreamId);
+        if (!data?.livestreamId || typeof data.livestreamId !== 'string') return;
+        await client.leave(data.livestreamId);
         this.logger.log(`Client ${client.id} đã rời phòng: ${data.livestreamId}`);
     }
 
     @SubscribeMessage('send_comment')
     async handleSendComment(
         @ConnectedSocket() client: Socket,
-        @MessageBody() data: SendCommentDto,
+        @MessageBody() data: Partial<SendCommentDto> | undefined,
     ) {
-        const authUser = client.data?.user;
-        const buyerId = authUser?.userId;
-        const buyerName = data.buyerName || authUser?.email?.split('@')[0] || 'Khách hàng';
+        const authUser = client.data?.user as
+            | { userId: string; email?: string; role?: string; name?: string }
+            | undefined;
+        if (!authUser?.userId) {
+            client.emit('auth_error', {
+                message: 'Phiên đăng nhập không hợp lệ hoặc đã hết hạn.',
+            });
+            return;
+        }
 
-        await this.commentProcessor.processComment(this.server, {
-            ...data,
-            buyerId,
-            buyerName,
-        });
+        if (
+            !data ||
+            typeof data.livestreamId !== 'string' ||
+            typeof data.commentText !== 'string'
+        ) {
+            return;
+        }
+
+        const livestreamId = data.livestreamId.trim();
+        const trimmedComment = data.commentText.trim();
+        if (!livestreamId || trimmedComment.length === 0) {
+            return;
+        }
+        const cappedComment = trimmedComment.slice(0, 500);
+
+        const payload: SendCommentDto = {
+            livestreamId,
+            buyerId: authUser.userId,
+            buyerName: authUser.name || 'Khách hàng',
+            buyerRole: authUser.role,
+            commentText: cappedComment,
+            phone: typeof data.phone === 'string' ? data.phone : undefined,
+        };
+
+        await this.commentProcessor.processComment(this.server, payload, client);
     }
 }

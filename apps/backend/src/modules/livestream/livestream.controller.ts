@@ -57,26 +57,31 @@ export class LivestreamController {
     }
 
     @Get('active')
+    @UseGuards(JwtAuthGuard)
     async getAllActiveStreams() {
         return await this.livestreamService.getAllActiveStreams();
     }
 
     @Get('shops')
+    @UseGuards(JwtAuthGuard)
     async getShopsWithLiveStatus() {
         return await this.livestreamService.getShopsWithLiveStatus();
     }
 
     @Get('active/seller/:sellerId')
+    @UseGuards(JwtAuthGuard)
     async getActiveStreamBySeller(@Param('sellerId') sellerId: string) {
         return await this.livestreamService.getActiveStreamBySeller(sellerId);
     }
 
     @Get(':id/products')
+    @UseGuards(JwtAuthGuard)
     async getLiveProducts(@Param('id') id: string) {
         return await this.livestreamService.getLiveProducts(id);
     }
 
     @Get(':id')
+    @UseGuards(JwtAuthGuard)
     async getStreamById(@Param('id') id: string) {
         return await this.livestreamService.getStreamById(id);
     }

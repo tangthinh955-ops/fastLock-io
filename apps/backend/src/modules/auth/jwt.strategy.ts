@@ -24,7 +24,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   // ✅ Thay thế "any" bằng JwtPayload interface — TypeScript sẽ cảnh báo nếu dùng sai field
-  async validate(payload: JwtPayload) {
+  validate(payload: JwtPayload) {
     // Kết quả hàm này sẽ được gắn vào request.user ở mọi Controller có @UseGuards(JwtAuthGuard)
     return {
       userId: payload.sub,

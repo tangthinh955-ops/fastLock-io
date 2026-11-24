@@ -33,11 +33,18 @@ export class ProductController {
   }
 
   @Get()
-  findAllBySeller(@Query('sellerId') sellerId: string) {
-    return this.productService.findAllBySeller(sellerId);
+  @UseGuards(JwtAuthGuard)
+  findAllBySeller(
+    @Query('sellerId') sellerId?: string,
+    @CurrentUser() user?: { userId?: string; role?: string },
+  ) {
+    const resolvedSellerId =
+      sellerId?.trim() || (user?.role === 'SELLER' ? user.userId : '') || '';
+    return this.productService.findAllBySeller(resolvedSellerId);
   }
 
   @Get(':id')
+  @UseGuards(JwtAuthGuard)
   findOne(@Param('id') id: string) {
     return this.productService.findOne(id);
   }

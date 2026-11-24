@@ -66,6 +66,7 @@ export interface Order {
 interface SellerOrderTableProps {
   orders: Order[];
   loading: boolean;
+  updatingOrderId?: string | null;
   statusFilter: string;
   onStatusFilterChange: (status: string) => void;
   onUpdateStatus: (orderId: string, newStatus: 'PAID' | 'CANCELLED') => void;
@@ -101,12 +102,14 @@ const getStatusChip = (status: Order['status']) => {
 interface OrderActionButtonsProps {
   order: Order;
   compact?: boolean;
+  disabled?: boolean;
   onUpdateStatus: (orderId: string, newStatus: 'PAID' | 'CANCELLED') => void;
 }
 
 const OrderActionButtons: React.FC<OrderActionButtonsProps> = ({
   order,
   compact = false,
+  disabled = false,
   onUpdateStatus,
 }) => {
   if (order.status !== 'PENDING') {
@@ -123,6 +126,7 @@ const OrderActionButtons: React.FC<OrderActionButtonsProps> = ({
         fullWidth={compact}
         variant="outlined"
         color="success"
+        disabled={disabled}
         startIcon={<CheckCircleIcon />}
         onClick={() => onUpdateStatus(order.id, 'PAID')}
         sx={compact ? { minHeight: 44, borderRadius: 2, fontSize: '0.8125rem' } : undefined}
@@ -133,6 +137,7 @@ const OrderActionButtons: React.FC<OrderActionButtonsProps> = ({
         fullWidth={compact}
         variant="outlined"
         color="error"
+        disabled={disabled}
         startIcon={<CancelIcon />}
         onClick={() => onUpdateStatus(order.id, 'CANCELLED')}
         sx={compact ? { minHeight: 44, borderRadius: 2, fontSize: '0.8125rem' } : undefined}
@@ -163,6 +168,7 @@ const OrderActionButtons: React.FC<OrderActionButtonsProps> = ({
 export const SellerOrderTable: React.FC<SellerOrderTableProps> = ({
   orders,
   loading,
+  updatingOrderId,
   statusFilter,
   onStatusFilterChange,
   onUpdateStatus,
@@ -335,7 +341,11 @@ export const SellerOrderTable: React.FC<SellerOrderTableProps> = ({
                     </TableCell>
                     <TableCell>{getStatusChip(order.status)}</TableCell>
                     <TableCell align="center">
-                      <OrderActionButtons order={order} onUpdateStatus={onUpdateStatus} />
+                      <OrderActionButtons
+                        order={order}
+                        disabled={updatingOrderId === order.id}
+                        onUpdateStatus={onUpdateStatus}
+                      />
                     </TableCell>
                   </TableRow>
                 ))
@@ -391,7 +401,12 @@ export const SellerOrderTable: React.FC<SellerOrderTableProps> = ({
                 </Typography>
               </Stack>
 
-              <OrderActionButtons order={order} compact onUpdateStatus={onUpdateStatus} />
+              <OrderActionButtons
+                order={order}
+                compact
+                disabled={updatingOrderId === order.id}
+                onUpdateStatus={onUpdateStatus}
+              />
             </Paper>
           ))
         )}

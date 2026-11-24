@@ -17,9 +17,13 @@ import {
 
 interface UseBuyerInboxOptions {
   autoSelectFirst?: boolean;
+  isChatVisible?: boolean;
 }
 
-export const useBuyerInbox = ({ autoSelectFirst = true }: UseBuyerInboxOptions = {}) => {
+export const useBuyerInbox = ({
+  autoSelectFirst = true,
+  isChatVisible = true,
+}: UseBuyerInboxOptions = {}) => {
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const requestedSellerId = searchParams.get('sellerId');
@@ -33,69 +37,74 @@ export const useBuyerInbox = ({ autoSelectFirst = true }: UseBuyerInboxOptions =
     new Map<string, Pick<DirectMessage, 'id' | 'createdAt'>>(),
   );
   const contactsRequestRef = useRef(0);
+  const sendRequestIdRef = useRef(0);
+  const requestedSellerIdRef = useRef<string | null>(requestedSellerId);
+  requestedSellerIdRef.current = requestedSellerId;
   const autoSelectFirstRef = useRef(autoSelectFirst);
   autoSelectFirstRef.current = autoSelectFirst;
+  const isChatVisibleRef = useRef(isChatVisible);
+  isChatVisibleRef.current = isChatVisible;
+  const loadingShopsRef = useRef(loadingShops);
+  loadingShopsRef.current = loadingShops;
   const selectedShopIdRef = useRef<string | null>(selectedShopId);
   selectedShopIdRef.current = selectedShopId;
   const shopsRef = useRef<InboxContact[]>(shops);
   shopsRef.current = shops;
+  const prevIsChatVisibleRef = useRef(isChatVisible);
+  const prevSelectedShopIdRef = useRef<string | null>(selectedShopId);
   const conversationMode = useConversationMode(
     selectedShopId ? `/messages/conversations/${selectedShopId}/mode` : null,
   );
 
-  const fetchShops = useCallback(
-    async (initial = false) => {
-      const request = ++contactsRequestRef.current;
-      if (initial) setLoadingShops(true);
-      setShopsError('');
-      try {
-        const response = await apiClient.get<InboxContact[]>('/messages/shops', {
-          params: requestedSellerId
-            ? { includeSellerId: requestedSellerId }
-            : undefined,
-        });
-        if (request !== contactsRequestRef.current) return;
+  const fetchShops = useCallback(async (initial = false) => {
+    const request = ++contactsRequestRef.current;
+    const requestedId = requestedSellerIdRef.current;
+    if (initial) setLoadingShops(true);
+    setShopsError('');
+    try {
+      const response = await apiClient.get<InboxContact[]>('/messages/shops', {
+        params: requestedId ? { includeSellerId: requestedId } : undefined,
+      });
+      if (request !== contactsRequestRef.current) return;
 
-        const ordered = orderInboxContacts(response.data, activityRef.current);
-        setShops((current) =>
-          orderInboxContacts(
-            [
-              ...ordered,
-              ...current.filter(
-                (shop) =>
-                  activityRef.current.has(shop.id) &&
-                  !ordered.some((entry) => entry.id === shop.id),
-              ),
-            ],
-            activityRef.current,
-          ),
-        );
-        setSelectedShopId((currentShopId) => {
-          if (
-            (initial || !currentShopId) &&
-            requestedSellerId &&
-            response.data.some((shop) => shop.id === requestedSellerId)
-          ) {
-            return requestedSellerId;
-          }
-          if (
-            currentShopId &&
-            response.data.some((shop) => shop.id === currentShopId)
-          ) {
-            return currentShopId;
-          }
-          return autoSelectFirstRef.current ? (ordered[0]?.id ?? null) : null;
-        });
-      } catch (requestError) {
-        console.error('Lỗi khi tải danh sách shop:', requestError);
-        if (request === contactsRequestRef.current)
-          setShopsError('Không thể tải danh sách shop.');
-      } finally {
-        if (request === contactsRequestRef.current) setLoadingShops(false);
-      }
-    },
-    [requestedSellerId],
-  );
+      const ordered = orderInboxContacts(response.data, activityRef.current);
+      setShops((current) =>
+        orderInboxContacts(
+          [
+            ...ordered,
+            ...current.filter(
+              (shop) =>
+                activityRef.current.has(shop.id) &&
+                !ordered.some((entry) => entry.id === shop.id),
+            ),
+          ],
+          activityRef.current,
+        ),
+      );
+      setSelectedShopId((currentShopId) => {
+        const targetRequestedId = requestedSellerIdRef.current;
+        if (
+          targetRequestedId &&
+          response.data.some((shop) => shop.id === targetRequestedId)
+        ) {
+          return targetRequestedId;
+        }
+        if (
+          currentShopId &&
+          response.data.some((shop) => shop.id === currentShopId)
+        ) {
+          return currentShopId;
+        }
+        return autoSelectFirstRef.current ? (ordered[0]?.id ?? null) : null;
+      });
+    } catch (requestError) {
+      console.error('Lỗi khi tải danh sách shop:', requestError);
+      if (request === contactsRequestRef.current)
+        setShopsError('Không thể tải danh sách shop.');
+    } finally {
+      if (request === contactsRequestRef.current) setLoadingShops(false);
+    }
+  }, []);
 
   useEffect(() => {
     const requestCounter = contactsRequestRef;
@@ -104,6 +113,15 @@ export const useBuyerInbox = ({ autoSelectFirst = true }: UseBuyerInboxOptions =
       requestCounter.current++;
     };
   }, [fetchShops]);
+
+  useEffect(() => {
+    if (!requestedSellerId) return;
+    if (shopsRef.current.some((shop) => shop.id === requestedSellerId)) {
+      setSelectedShopId(requestedSellerId);
+    } else if (!loadingShopsRef.current) {
+      void fetchShops(false);
+    }
+  }, [requestedSellerId, fetchShops]);
 
   useEffect(() => {
     if (autoSelectFirst && !selectedShopId && shops.length > 0) {
@@ -115,6 +133,16 @@ export const useBuyerInbox = ({ autoSelectFirst = true }: UseBuyerInboxOptions =
     }
   }, [autoSelectFirst, selectedShopId, shops, requestedSellerId]);
 
+  useEffect(() => {
+    const requestCounter = sendRequestIdRef;
+    requestCounter.current++;
+    setSending(false);
+    setInputText('');
+    return () => {
+      requestCounter.current++;
+    };
+  }, [selectedShopId]);
+
   const handleMarkedRead = useCallback((shopId: string) => {
     setShops((currentShops) =>
       currentShops.map((shop) =>
@@ -122,6 +150,34 @@ export const useBuyerInbox = ({ autoSelectFirst = true }: UseBuyerInboxOptions =
       ),
     );
   }, []);
+
+  useEffect(() => {
+    const becameVisible = !prevIsChatVisibleRef.current && isChatVisible;
+    const sameSelectedShop = prevSelectedShopIdRef.current === selectedShopId;
+    prevIsChatVisibleRef.current = isChatVisible;
+    prevSelectedShopIdRef.current = selectedShopId;
+
+    if (!becameVisible || !sameSelectedShop || !selectedShopId) return;
+    const activeShop = shopsRef.current.find(
+      (shop) => shop.id === selectedShopId,
+    );
+    if (!activeShop || activeShop.unreadCount <= 0) return;
+
+    let active = true;
+    const targetShopId = selectedShopId;
+    void apiClient
+      .patch(`/messages/conversations/${targetShopId}/read`)
+      .then(() => {
+        if (active) handleMarkedRead(targetShopId);
+      })
+      .catch((markReadError) => {
+        console.error('Lỗi khi đánh dấu tin đã đọc:', markReadError);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [isChatVisible, selectedShopId, handleMarkedRead]);
 
   const conversation = usePaginatedConversation({
     conversationId: selectedShopId,
@@ -138,12 +194,14 @@ export const useBuyerInbox = ({ autoSelectFirst = true }: UseBuyerInboxOptions =
     const shopId =
       message.senderId === user.id ? message.receiverId : message.senderId;
     const isIncomingFromShop = message.senderId === shopId;
+    const isUnreadIncoming = isIncomingFromShop && message.source !== 'AI';
     const isActiveShop = shopId === selectedShopIdRef.current;
+    const isVisiblyActiveShop = isActiveShop && isChatVisibleRef.current;
     rememberInboxActivity(activityRef.current, shopId, message);
     setShops((current) =>
       orderInboxContacts(
         current.map((shop) =>
-          isIncomingFromShop && !isActiveShop && shop.id === shopId
+          isUnreadIncoming && !isVisiblyActiveShop && shop.id === shopId
             ? { ...shop, unreadCount: shop.unreadCount + 1 }
             : shop,
         ),
@@ -155,7 +213,7 @@ export const useBuyerInbox = ({ autoSelectFirst = true }: UseBuyerInboxOptions =
     }
     if (isActiveShop) {
       conversation.appendMessages(message);
-      if (isIncomingFromShop) {
+      if (isVisiblyActiveShop && isUnreadIncoming) {
         void apiClient
           .patch(`/messages/conversations/${shopId}/read`)
           .catch(() => {});
@@ -179,16 +237,25 @@ export const useBuyerInbox = ({ autoSelectFirst = true }: UseBuyerInboxOptions =
   );
 
   const handleSendMessage = async () => {
+    const targetShopId = selectedShopId;
     const message = inputText.trim();
-    if (!selectedShopId || !message || sending) return;
+    if (!targetShopId || !message || sending) return;
 
+    const requestId = ++sendRequestIdRef.current;
     setSending(true);
     conversation.setError('');
     try {
       const response = await apiClient.post<SendMessageResponse>(
         '/messages/conversations',
-        { sellerId: selectedShopId, message },
+        { sellerId: targetShopId, message },
       );
+      if (
+        requestId !== sendRequestIdRef.current ||
+        selectedShopIdRef.current !== targetShopId
+      ) {
+        return;
+      }
+
       const { buyerMessage, aiMessage } = response.data;
       conversation.appendMessages(
         buyerMessage,
@@ -196,17 +263,25 @@ export const useBuyerInbox = ({ autoSelectFirst = true }: UseBuyerInboxOptions =
       );
       rememberInboxActivity(
         activityRef.current,
-        selectedShopId,
+        targetShopId,
         aiMessage ?? buyerMessage,
       );
       setShops((current) => orderInboxContacts(current, activityRef.current));
       setInputText('');
       await conversationMode.refresh();
     } catch (requestError) {
+      if (
+        requestId !== sendRequestIdRef.current ||
+        selectedShopIdRef.current !== targetShopId
+      ) {
+        return;
+      }
       console.error('Lỗi khi gửi tin nhắn:', requestError);
       conversation.setError('Không thể gửi tin nhắn. Vui lòng thử lại.');
     } finally {
-      setSending(false);
+      if (requestId === sendRequestIdRef.current) {
+        setSending(false);
+      }
     }
   };
 

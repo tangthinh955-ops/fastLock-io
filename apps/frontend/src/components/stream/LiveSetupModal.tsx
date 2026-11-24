@@ -24,6 +24,7 @@ import {
 import SearchIcon from '@mui/icons-material/Search';
 import LiveTvIcon from '@mui/icons-material/LiveTv';
 import apiClient from '../../api/client';
+import { useAuth } from '../../context/AuthContext';
 
 export interface ProductItem {
     id: string;
@@ -52,6 +53,7 @@ export const LiveSetupModal: React.FC<LiveSetupModalProps> = ({
     onClose,
     onStartLive,
 }) => {
+    const { user } = useAuth();
     const [title, setTitle] = useState('Phiên Livestream chốt đơn hôm nay');
     const [description, setDescription] = useState('');
     const [products, setProducts] = useState<ProductItem[]>([]);
@@ -64,7 +66,9 @@ export const LiveSetupModal: React.FC<LiveSetupModalProps> = ({
         let isMounted = true;
         setFetching(true);
         apiClient
-            .get<ProductItem[]>('/products')
+            .get<ProductItem[]>('/products', {
+                params: user?.id ? { sellerId: user.id } : undefined,
+            })
             .then((res) => {
                 if (isMounted) {
                     const list = res.data || [];
@@ -82,7 +86,7 @@ export const LiveSetupModal: React.FC<LiveSetupModalProps> = ({
         return () => {
             isMounted = false;
         };
-    }, [open]);
+    }, [open, user?.id]);
 
     const filteredProducts = products.filter(
         (p) =>

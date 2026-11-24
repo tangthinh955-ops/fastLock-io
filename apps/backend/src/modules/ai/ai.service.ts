@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import Groq from 'groq-sdk';
 import {
@@ -253,12 +253,17 @@ export class AiService {
 
   async deleteKnowledgeBase(sellerId: string, id: string) {
     // Chỉ cho phép xóa quy tắc của chính seller đó
-    return this.prisma.kbEntry.delete({
+    const result = await this.prisma.kbEntry.deleteMany({
       where: {
         id,
         sellerId,
       },
-      select: { id: true, sellerId: true, keyword: true, answer: true },
     });
+
+    if (result.count === 0) {
+      throw new NotFoundException('Không tìm thấy mục kiến thức!');
+    }
+
+    return { deleted: true, id };
   }
 }

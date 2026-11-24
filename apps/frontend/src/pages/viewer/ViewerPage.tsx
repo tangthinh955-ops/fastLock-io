@@ -91,8 +91,8 @@ export const ViewerPage: React.FC = () => {
         selectedSellerId
           ? {
               flex: 1,
-              minHeight: 0,
-              height: { xs: 'calc(100dvh - 56px)', md: 'calc(100dvh - 64px)' },
+              minHeight: { xs: 'calc(100dvh - 56px)', md: 0 },
+              height: { xs: 'auto', md: 'calc(100dvh - 64px)' },
               px: { xs: 0, md: 3 },
               py: { xs: 0, md: 2.5 },
               display: 'flex',
@@ -237,6 +237,7 @@ export const ViewerPage: React.FC = () => {
               connected={livestream.connected}
               error={livestream.error}
               comments={livestream.comments}
+              currentUserId={user?.id}
               currentUserName={user?.name}
               inputText={inputText}
               onInputChange={setInputText}

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import apiClient from '../api/client';
+import apiClient, { clearAuthSessionStorage } from '../api/client';
 
 export type Role = 'ADMIN' | 'SELLER' | 'BUYER';
 
@@ -41,14 +41,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (savedToken && savedUser) {
       try {
+        const parsedUser = JSON.parse(savedUser) as User;
         setToken(savedToken);
-        setUser(JSON.parse(savedUser));
-      } catch (e) {
+        setUser(parsedUser);
+      } catch {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
       }
     }
     setIsLoading(false);
+  }, []);
+
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      setToken(null);
+      setUser(null);
+    };
+    window.addEventListener('auth:unauthorized', handleUnauthorized);
+    return () => {
+      window.removeEventListener('auth:unauthorized', handleUnauthorized);
+    };
   }, []);
 
   const applyAuthSession = (accessToken: string, sessionUser: User) => {
@@ -60,7 +72,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const login = async (email: string, pass: string) => {
-    const res = await apiClient.post('/auth/login', { email, password: pass });
+    const res = await apiClient.post('/auth/login', {
+      email: email.trim(),
+      password: pass,
+    });
     const { access_token, user: loggedUser } = res.data;
     applyAuthSession(access_token, loggedUser);
   };
@@ -76,6 +91,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    clearAuthSessionStorage();
   };
 
   return (

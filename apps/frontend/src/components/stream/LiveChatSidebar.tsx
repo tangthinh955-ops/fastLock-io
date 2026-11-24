@@ -9,6 +9,7 @@ export interface CommentItem {
     isOrder?: boolean;
     sku?: string;
     orderSuccess?: boolean;
+    outOfStock?: boolean;
     createdAt: Date;
 }
 
@@ -55,15 +56,26 @@ export const LiveChatSidebar: React.FC<LiveChatSidebarProps> = ({ comments }) =>
                     </Stack>
                 ) : (
                     <Stack spacing={1.25}>
-                        {comments.map((c) => (
+                        {comments.map((c) => {
+                            const isFailedOrder = Boolean(c.isOrder && (c.orderSuccess === false || c.outOfStock));
+                            const isOrderSuccess = Boolean(c.isOrder && !isFailedOrder);
+                            return (
                             <Box
                                 key={c.id}
                                 sx={{
                                     p: 1.5,
                                     borderRadius: 2,
-                                    bgcolor: c.isOrder ? '#ECFDF5' : 'background.default',
+                                    bgcolor: isOrderSuccess
+                                        ? '#ECFDF5'
+                                        : isFailedOrder
+                                            ? '#FEF2F2'
+                                            : 'background.default',
                                     border: '1px solid',
-                                    borderColor: c.isOrder ? '#A7F3D0' : 'divider',
+                                    borderColor: isOrderSuccess
+                                        ? '#A7F3D0'
+                                        : isFailedOrder
+                                            ? '#FECACA'
+                                            : 'divider',
                                 }}
                             >
                                 <Stack direction="row" spacing={1.25} sx={{ alignItems: 'flex-start' }}>
@@ -71,7 +83,11 @@ export const LiveChatSidebar: React.FC<LiveChatSidebarProps> = ({ comments }) =>
                                         sx={{
                                             width: 32,
                                             height: 32,
-                                            bgcolor: c.isOrder ? 'success.main' : 'primary.main',
+                                            bgcolor: isOrderSuccess
+                                                ? 'success.main'
+                                                : isFailedOrder
+                                                    ? 'error.main'
+                                                    : 'primary.main',
                                             flexShrink: 0,
                                         }}
                                     >
@@ -87,10 +103,19 @@ export const LiveChatSidebar: React.FC<LiveChatSidebarProps> = ({ comments }) =>
                                             <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
                                                 {c.buyerName}
                                             </Typography>
-                                            {c.isOrder && (
+                                            {isOrderSuccess && c.sku && (
                                                 <Chip
                                                     label={`SKU: ${c.sku}`}
                                                     color="success"
+                                                    size="small"
+                                                    sx={{ height: 22, fontSize: '0.75rem', fontWeight: 700 }}
+                                                />
+                                            )}
+                                            {isFailedOrder && c.sku && (
+                                                <Chip
+                                                    label={`Hết hàng: ${c.sku}`}
+                                                    color="error"
+                                                    variant="outlined"
                                                     size="small"
                                                     sx={{ height: 22, fontSize: '0.75rem', fontWeight: 700 }}
                                                 />
@@ -99,7 +124,11 @@ export const LiveChatSidebar: React.FC<LiveChatSidebarProps> = ({ comments }) =>
                                         <Typography
                                             variant="body2"
                                             sx={{
-                                                color: c.isOrder ? '#065F46' : 'text.secondary',
+                                                color: isOrderSuccess
+                                                    ? '#065F46'
+                                                    : isFailedOrder
+                                                        ? '#991B1B'
+                                                        : 'text.secondary',
                                                 mt: 0.25,
                                                 overflowWrap: 'anywhere',
                                             }}
@@ -109,7 +138,8 @@ export const LiveChatSidebar: React.FC<LiveChatSidebarProps> = ({ comments }) =>
                                     </Box>
                                 </Stack>
                             </Box>
-                        ))}
+                            );
+                        })}
                     </Stack>
                 )}
             </Box>

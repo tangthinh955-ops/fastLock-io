@@ -1,4 +1,4 @@
-import { Logger } from '@nestjs/common';
+import { Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { AiService, type ConversationMessage } from './ai.service';
 import { KnowledgeRetrievalService } from './knowledge-retrieval.service';
@@ -16,6 +16,7 @@ jest.mock('groq-sdk', () => ({
 describe('AiService conversation context', () => {
   const findMany = jest.fn();
   const create = jest.fn();
+  const deleteMany = jest.fn();
   const retrieval = { retrieve: jest.fn(), indexEntry: jest.fn() };
   const products = { retrieve: jest.fn() };
   const embedding = { embed: jest.fn() };
@@ -38,6 +39,7 @@ describe('AiService conversation context', () => {
       keyword: 'Ship',
       answer: '25000đ',
     });
+    deleteMany.mockReset().mockResolvedValue({ count: 1 });
     findMany
       .mockReset()
       .mockResolvedValue([{ keyword: 'SP01', answer: 'Size M: 60–70 kg.' }]);
@@ -46,7 +48,7 @@ describe('AiService conversation context', () => {
     });
     service = new AiService(
       {
-        kbEntry: { findMany, create },
+        kbEntry: { findMany, create, deleteMany },
       } as unknown as PrismaService,
       retrieval as unknown as KnowledgeRetrievalService,
       products as unknown as ProductRetrievalService,
@@ -397,5 +399,19 @@ describe('AiService conversation context', () => {
       'Còn AO-SOMI thì sao?',
       expect.any(Function),
     );
+  });
+
+  it('deletes a Seller knowledge entry via deleteMany and throws NotFoundException when missing', async () => {
+    await expect(
+      service.deleteKnowledgeBase('shop-a', 'kb-1'),
+    ).resolves.toEqual({ deleted: true, id: 'kb-1' });
+    expect(deleteMany).toHaveBeenCalledWith({
+      where: { id: 'kb-1', sellerId: 'shop-a' },
+    });
+
+    deleteMany.mockResolvedValueOnce({ count: 0 });
+    await expect(
+      service.deleteKnowledgeBase('shop-a', 'missing-kb'),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 });

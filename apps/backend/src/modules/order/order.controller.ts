@@ -22,13 +22,15 @@ export class OrderController {
     ) { }
 
     @Get('shipping-profile')
-    @UseGuards(JwtAuthGuard)
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(Role.BUYER)
     async getShippingProfile(@CurrentUser('userId') buyerId: string) {
         return this.orderService.getShippingProfile(buyerId);
     }
 
     @Post('confirm')
-    @UseGuards(JwtAuthGuard)
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(Role.BUYER)
     async confirm(
         @CurrentUser('userId') buyerId: string,
         @Body() confirmOrderDto: ConfirmOrderDto,
@@ -77,7 +79,8 @@ export class OrderController {
     }
 
     @Post()
-    @UseGuards(JwtAuthGuard)
+    @UseGuards(JwtAuthGuard, RolesGuard)
+    @Roles(Role.BUYER)
     async create(
         @CurrentUser('userId') buyerId: string,
         @Body() createOrderDto: CreateOrderDto,

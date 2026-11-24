@@ -15,7 +15,7 @@ import {
 import BoltRoundedIcon from '@mui/icons-material/BoltRounded';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth, type Role } from '../../context/AuthContext';
 import { surfaceTokens } from '../../theme';
 import { ROLE_HOME } from '../../utils/roleConfig';
@@ -45,8 +45,12 @@ export const LoginPage: React.FC = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const { login } = useAuth();
+  const { login, isAuthenticated, isLoading, user } = useAuth();
   const navigate = useNavigate();
+
+  if (!isLoading && isAuthenticated && user) {
+    return <Navigate to={ROLE_HOME[user.role] ?? ROLE_HOME.BUYER} replace />;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

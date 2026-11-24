@@ -17,6 +17,7 @@ export const AdminDashboard: React.FC = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       setLoading(true);
+      setError('');
       try {
         const response = await apiClient.get(`/users?page=${page + 1}&limit=${rowsPerPage}`);
         setUsers(response.data.data);

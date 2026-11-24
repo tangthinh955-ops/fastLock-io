@@ -174,7 +174,7 @@ export class DirectMessageController {
     @Req() req: any, // Lấy thông tin người đang gọi API (System / Seller)
     @Body() body: CreateMessageDto, // Sử dụng DTO đã được Validate
   ) {
-    return this.messageService.sendOrderMessage(
+    return this.messageService.sendVerifiedOrderMessage(
       req.user.userId, // Người gửi (Seller)
       body.receiverId, // Người nhận (Buyer)
       body.amount,

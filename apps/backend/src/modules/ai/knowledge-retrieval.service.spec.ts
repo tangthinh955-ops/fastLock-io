@@ -99,8 +99,8 @@ describe('KnowledgeRetrievalService persistent vectors', () => {
     const entries = Array.from({ length: 5 }, (_, i) => source(`source-${i}`));
     entries.push({ ...source('unrelated'), embedding: [-1, 0] });
     prisma.kbEntry.findMany.mockResolvedValue(entries);
-    prisma.kbEntry.findFirst.mockImplementation(async ({ where }) =>
-      entries.find((entry) => entry.id === where.id),
+    prisma.kbEntry.findFirst.mockImplementation(({ where }) =>
+      Promise.resolve(entries.find((entry) => entry.id === where.id)),
     );
     const result = await service.retrieve('shop-a', 'Ship?');
     expect(result).toHaveLength(3);
@@ -124,9 +124,9 @@ describe('KnowledgeRetrievalService persistent vectors', () => {
   });
 
   it('shares in-flight passage embedding across concurrent requests', async () => {
-    prisma.kbEntry.findMany.mockImplementation(async () => [
-      { ...source(), embedding: [] },
-    ]);
+    prisma.kbEntry.findMany.mockImplementation(() =>
+      Promise.resolve([{ ...source(), embedding: [] }]),
+    );
     await Promise.all([
       service.retrieve('shop-a', 'Ship?'),
       service.retrieve('shop-a', 'Ship?'),

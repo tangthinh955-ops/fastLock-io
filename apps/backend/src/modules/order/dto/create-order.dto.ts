@@ -1,4 +1,13 @@
-import { IsNotEmpty, IsNumber, IsString, IsArray, ValidateNested, Min, IsOptional } from 'class-validator';
+import {
+    IsNotEmpty,
+    IsInt,
+    IsString,
+    IsArray,
+    ArrayMinSize,
+    ValidateNested,
+    Min,
+    IsOptional,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class OrderItemDto {
@@ -6,7 +15,7 @@ export class OrderItemDto {
     @IsNotEmpty()
     productId: string;
 
-    @IsNumber()
+    @IsInt()
     @Min(1)
     quantity: number;
 }
@@ -21,6 +30,7 @@ export class CreateOrderDto {
     livestreamId: string;
 
     @IsArray()
+    @ArrayMinSize(1)
     @ValidateNested({ each: true })
     @Type(() => OrderItemDto)
     items: OrderItemDto[];

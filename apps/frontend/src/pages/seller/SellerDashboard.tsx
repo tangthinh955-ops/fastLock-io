@@ -47,6 +47,7 @@ export const SellerDashboard: React.FC = () => {
   const [orderStatusFilter, setOrderStatusFilter] = useState<string>('');
   const [orderPage, setOrderPage] = useState<number>(1);
   const [orderTotalPages, setOrderTotalPages] = useState<number>(1);
+  const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
 
   const [toast, setToast] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
     open: false,
@@ -115,14 +116,23 @@ export const SellerDashboard: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
-    if (!formSku.trim() || !formName.trim() || !formPrice || !formStock) {
+    const trimmedSku = formSku.trim();
+    if (!trimmedSku || !formName.trim() || !formPrice.trim() || !formStock.trim()) {
       setFormError('Vui lòng điền đầy đủ các thông tin bắt buộc!');
+      return;
+    }
+    if (/\s/.test(trimmedSku)) {
+      setFormError('Mã SKU không được chứa khoảng trắng!');
       return;
     }
     const priceNum = Number(formPrice);
     const stockNum = Number(formStock);
-    if (isNaN(priceNum) || priceNum < 0 || isNaN(stockNum) || stockNum < 0) {
-      setFormError('Giá và tồn kho phải là số hợp lệ!');
+    if (!Number.isFinite(priceNum) || priceNum < 0) {
+      setFormError('Giá bán phải là số hợp lệ!');
+      return;
+    }
+    if (!Number.isInteger(stockNum) || stockNum < 0) {
+      setFormError('Tồn kho phải là số nguyên không âm!');
       return;
     }
 
@@ -161,6 +171,8 @@ export const SellerDashboard: React.FC = () => {
   };
 
   const handleUpdateOrderStatus = async (orderId: string, newStatus: 'PAID' | 'CANCELLED') => {
+    if (updatingOrderId === orderId) return;
+    setUpdatingOrderId(orderId);
     try {
       await apiClient.patch(`/orders/${orderId}/status`, { status: newStatus });
       setToast({
@@ -173,6 +185,8 @@ export const SellerDashboard: React.FC = () => {
     } catch (err: any) {
       const msg = err.response?.data?.message || 'Thao tác cập nhật đơn hàng thất bại!';
       setToast({ open: true, message: msg, severity: 'error' });
+    } finally {
+      setUpdatingOrderId(null);
     }
   };
 
@@ -238,6 +252,7 @@ export const SellerDashboard: React.FC = () => {
         <SellerOrderTable
           orders={orders}
           loading={ordersLoading}
+          updatingOrderId={updatingOrderId}
           statusFilter={orderStatusFilter}
           onStatusFilterChange={(val) => {
             setOrderStatusFilter(val);

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Box, Paper, Stack, Typography } from '@mui/material';
 import CheckCircleOutlineRoundedIcon from '@mui/icons-material/CheckCircleOutlineRounded';
 import PersonOutlinedIcon from '@mui/icons-material/PersonOutlined';
@@ -78,6 +78,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   view,
   compact = false,
 }) => {
+  const [qrLoadFailed, setQrLoadFailed] = useState(false);
   const isOwnMessage = message.senderId === currentUserId;
   const alignRight =
     view === 'buyer'
@@ -184,29 +185,39 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                   Mã thanh toán VietQR
                 </Typography>
               </Stack>
-              <Box
-                component="img"
-                src={message.qrUrl}
-                alt="Mã thanh toán VietQR"
-                sx={{
-                  width: '100%',
-                  maxWidth: 220,
-                  height: 'auto',
-                  display: 'block',
-                  mx: 'auto',
-                  borderRadius: 1.5,
-                  bgcolor: '#FFFFFF',
-                  p: 0.75,
-                  border: `1px solid ${surfaceTokens.borderSubtle}`,
-                }}
-              />
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                sx={{ display: 'block', mt: 1 }}
-              >
-                Mở ứng dụng ngân hàng và quét mã để thanh toán đơn hàng.
-              </Typography>
+              {!qrLoadFailed ? (
+                <>
+                  <Box
+                    component="img"
+                    src={message.qrUrl}
+                    alt="Mã thanh toán VietQR"
+                    onError={() => setQrLoadFailed(true)}
+                    sx={{
+                      width: '100%',
+                      maxWidth: 220,
+                      height: 'auto',
+                      display: 'block',
+                      mx: 'auto',
+                      borderRadius: 1.5,
+                      bgcolor: '#FFFFFF',
+                      p: 0.75,
+                      border: `1px solid ${surfaceTokens.borderSubtle}`,
+                    }}
+                  />
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ display: 'block', mt: 1 }}
+                  >
+                    Mở ứng dụng ngân hàng và quét mã để thanh toán đơn hàng.
+                  </Typography>
+                </>
+              ) : (
+                <Typography variant="caption" color="text.secondary">
+                  Không tải được ảnh VietQR trên mạng hiện tại. Vui lòng xem
+                  thông tin đơn hàng ở nội dung tin nhắn phía trên.
+                </Typography>
+              )}
             </Box>
           ))}
 

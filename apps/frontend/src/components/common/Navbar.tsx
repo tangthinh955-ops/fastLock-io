@@ -20,6 +20,7 @@ import MenuBookOutlinedIcon from '@mui/icons-material/MenuBookOutlined';
 import MenuRoundedIcon from '@mui/icons-material/MenuRounded';
 import VideocamOutlinedIcon from '@mui/icons-material/VideocamOutlined';
 import { useLocation, useNavigate } from 'react-router-dom';
+import apiClient from '../../api/client';
 import { useAuth, type Role } from '../../context/AuthContext';
 import { surfaceTokens } from '../../theme';
 import { ROLE_HOME, getRoleMeta } from '../../utils/roleConfig';
@@ -89,11 +90,35 @@ export const Navbar: React.FC = () => {
   const roleBadge = getRoleMeta(user.role);
 
   const handleNavigate = (path: string) => {
+    if (
+      user.role === 'SELLER' &&
+      location.pathname === '/seller/live-studio' &&
+      path !== '/seller/live-studio' &&
+      sessionStorage.getItem('active_seller_stream_id')
+    ) {
+      const confirmed = window.confirm(
+        'Rời khỏi Live Studio sẽ tạm ngắt camera phát sóng trực tiếp. Bạn có chắc muốn chuyển trang không?',
+      );
+      if (!confirmed) return;
+    }
     setDrawerOpen(false);
     navigate(path);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    if (user.role === 'SELLER') {
+      const activeStreamId = sessionStorage.getItem('active_seller_stream_id');
+      if (activeStreamId) {
+        const confirmed = window.confirm(
+          'Bạn đang có phiên Livestream đang phát. Đăng xuất sẽ kết thúc phiên Live này. Tiếp tục?',
+        );
+        if (!confirmed) return;
+        await apiClient
+          .patch(`/livestreams/${activeStreamId}/end`)
+          .catch(() => {});
+        sessionStorage.removeItem('active_seller_stream_id');
+      }
+    }
     setDrawerOpen(false);
     logout();
     navigate('/login');
@@ -275,7 +300,9 @@ export const Navbar: React.FC = () => {
               variant="outlined"
               size="small"
               startIcon={<LogoutRoundedIcon fontSize="small" />}
-              onClick={handleLogout}
+              onClick={() => {
+                void handleLogout();
+              }}
               sx={{
                 borderColor: 'divider',
                 color: 'text.secondary',
@@ -298,7 +325,9 @@ export const Navbar: React.FC = () => {
         navItems={navItems}
         currentPathname={location.pathname}
         onNavigate={handleNavigate}
-        onLogout={handleLogout}
+        onLogout={() => {
+          void handleLogout();
+        }}
       />
     </>
   );

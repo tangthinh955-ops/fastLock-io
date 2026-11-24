@@ -16,7 +16,7 @@ import PersonOutlinedIcon from '@mui/icons-material/PersonOutlined';
 import StorefrontOutlinedIcon from '@mui/icons-material/StorefrontOutlined';
 import Visibility from '@mui/icons-material/Visibility';
 import VisibilityOff from '@mui/icons-material/VisibilityOff';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { surfaceTokens } from '../../theme';
 import { ROLE_HOME } from '../../utils/roleConfig';
@@ -34,8 +34,12 @@ export const RegisterPage: React.FC = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const { register } = useAuth();
+  const { register, isAuthenticated, isLoading, user } = useAuth();
   const navigate = useNavigate();
+
+  if (!isLoading && isAuthenticated && user) {
+    return <Navigate to={ROLE_HOME[user.role] ?? ROLE_HOME.BUYER} replace />;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
