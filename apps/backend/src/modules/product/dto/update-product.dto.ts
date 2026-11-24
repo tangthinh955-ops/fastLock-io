@@ -1,8 +1,20 @@
-import { IsOptional, IsString, IsNumber, IsInt, Min } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsNumber,
+  IsInt,
+  Min,
+  Matches,
+} from 'class-validator';
+import { Transform } from 'class-transformer';
 
 export class UpdateProductDto {
   @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim().toUpperCase() : value,
+  )
   @IsString()
+  @Matches(/^\S+$/, { message: 'Mã SKU không được chứa khoảng trắng' })
   sku?: string;
 
   @IsOptional()

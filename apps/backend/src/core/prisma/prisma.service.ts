@@ -12,7 +12,7 @@ export class PrismaService
     try {
       await this.$connect();
       this.logger.log('✅ Đã kết nối thành công tới Database PostgreSQL!');
-    } catch (error) {
+    } catch {
       this.logger.warn(
         '⚠️ CHƯA BẬT DOCKER POSTGRES (localhost:5433). NestJS vẫn khởi chạy bình thường.',
       );

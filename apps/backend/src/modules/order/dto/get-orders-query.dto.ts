@@ -1,4 +1,4 @@
-import { IsOptional, IsEnum, IsNumber, Min } from 'class-validator';
+import { IsOptional, IsEnum, IsNumber, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
 import { OrderStatus } from '@prisma/client';
 
@@ -19,5 +19,6 @@ export class GetOrdersQueryDto {
     @Type(() => Number)
     @IsNumber({}, { message: 'Số lượng mục trên trang phải là số' })
     @Min(1, { message: 'Số lượng tối thiểu là 1' })
+    @Max(100, { message: 'Số lượng tối đa là 100' })
     limit?: number = 10;
 }

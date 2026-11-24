@@ -35,22 +35,21 @@ describe('ProductRetrievalService', () => {
   beforeEach(() => {
     jest.resetAllMocks();
     rows = [makeProduct()];
-    prisma.product.findMany.mockImplementation(async () =>
-      rows.map((row) => ({ ...row })),
+    prisma.product.findMany.mockImplementation(() =>
+      Promise.resolve(rows.map((row) => ({ ...row }))),
     );
-    prisma.product.findFirst.mockImplementation(
-      async ({ where }) =>
+    prisma.product.findFirst.mockImplementation(({ where }) =>
+      Promise.resolve(
         rows.find(
           (row) => row.id === where.id && row.sellerId === where.sellerId,
         ) ?? null,
+      ),
     );
-    prisma.productEmbedding.upsert.mockImplementation(
-      async ({ where, update }) => {
-        const row = rows.find((row) => row.id === where.productId);
-        if (row) row.aiEmbedding = { productId: row.id, ...update };
-        return row?.aiEmbedding;
-      },
-    );
+    prisma.productEmbedding.upsert.mockImplementation(({ where, update }) => {
+      const row = rows.find((row) => row.id === where.productId);
+      if (row) row.aiEmbedding = { productId: row.id, ...update };
+      return Promise.resolve(row?.aiEmbedding);
+    });
     embedding.embed.mockResolvedValue([1, 0]);
     service = new ProductRetrievalService(
       prisma as unknown as PrismaService,

@@ -9,27 +9,27 @@ import type {
 
 export const useInboxSocket = (
   onMessage: (message: DirectMessage) => void,
-  onFirstReady: () => void,
+  onReconnect: () => void,
   onModeChanged: (status: ConversationModeEvent) => void,
 ) => {
   const { token, user } = useAuth();
   const userId = user?.id;
   const messageHandlerRef = useRef(onMessage);
-  const readyHandlerRef = useRef(onFirstReady);
+  const readyHandlerRef = useRef(onReconnect);
   const modeHandlerRef = useRef(onModeChanged);
   const [error, setError] = useState('');
 
   useEffect(() => {
     messageHandlerRef.current = onMessage;
-    readyHandlerRef.current = onFirstReady;
+    readyHandlerRef.current = onReconnect;
     modeHandlerRef.current = onModeChanged;
-  }, [onMessage, onFirstReady, onModeChanged]);
+  }, [onMessage, onReconnect, onModeChanged]);
 
   useEffect(() => {
     if (!token || !userId) return;
     let active = true;
     const seen = new Set<string>();
-    let firstReady = true;
+    let hasConnectedOnce = false;
     const socket = io(`${SOCKET_URL}/inbox`, {
       autoConnect: false,
       auth: { token },
@@ -48,10 +48,10 @@ export const useInboxSocket = (
     const handleReady = () => {
       if (!active) return;
       setError('');
-      if (firstReady) {
-        firstReady = false;
+      if (hasConnectedOnce) {
         readyHandlerRef.current();
       }
+      hasConnectedOnce = true;
     };
     const handleModeChanged = (status: ConversationModeEvent) => {
       if (

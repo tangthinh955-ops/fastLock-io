@@ -29,6 +29,7 @@ interface LiveCommentPanelProps {
   connected: boolean;
   error: string;
   comments: LivestreamComment[];
+  currentUserId?: string;
   currentUserName?: string;
   inputText: string;
   onInputChange: (value: string) => void;
@@ -47,6 +48,7 @@ export const LiveCommentPanel: React.FC<LiveCommentPanelProps> = ({
   connected,
   error,
   comments,
+  currentUserId,
   currentUserName,
   inputText,
   onInputChange,
@@ -63,7 +65,7 @@ export const LiveCommentPanel: React.FC<LiveCommentPanelProps> = ({
         flex: 1,
         minWidth: { xs: 0, md: 360 },
         maxWidth: { md: 440 },
-        minHeight: 0,
+        minHeight: { xs: 340, md: 0 },
         borderRadius: { xs: 0, md: 3 },
         border: { xs: 'none', md: `1px solid ${surfaceTokens.borderSubtle}` },
         borderTop: { xs: `1px solid ${surfaceTokens.borderSubtle}` },
@@ -200,7 +202,7 @@ export const LiveCommentPanel: React.FC<LiveCommentPanelProps> = ({
           minHeight: 0,
           pt: { xs: 1.5, md: 2 },
           px: { xs: 1.5, md: 2 },
-          pb: { xs: 9.5, md: 9.5 },
+          pb: { xs: 1.5, md: 2 },
           overflowY: 'auto',
           bgcolor: surfaceTokens.pageBg,
           display: 'flex',
@@ -222,7 +224,14 @@ export const LiveCommentPanel: React.FC<LiveCommentPanelProps> = ({
         )}
 
         {comments.map((comment) => {
-          const isSelf = comment.buyerName === currentUserName;
+          const isSelf = comment.buyerId
+            ? comment.buyerId === currentUserId
+            : Boolean(currentUserName && comment.buyerName === currentUserName);
+          const isFailedOrder = Boolean(
+            comment.isOrder &&
+              (comment.orderSuccess === false || comment.outOfStock),
+          );
+          const isSuccessfulOrder = Boolean(comment.isOrder && !isFailedOrder);
           return (
             <Box
               key={comment.id}
@@ -235,7 +244,11 @@ export const LiveCommentPanel: React.FC<LiveCommentPanelProps> = ({
             >
               <Avatar
                 sx={{
-                  bgcolor: comment.isOrder ? 'success.main' : '#475569',
+                  bgcolor: isSuccessfulOrder
+                    ? 'success.main'
+                    : isFailedOrder
+                      ? 'error.main'
+                      : '#475569',
                   width: 32,
                   height: 32,
                   fontSize: '0.85rem',
@@ -252,16 +265,20 @@ export const LiveCommentPanel: React.FC<LiveCommentPanelProps> = ({
                   py: 1,
                   maxWidth: '78%',
                   minWidth: 0,
-                  bgcolor: comment.isOrder
+                  bgcolor: isSuccessfulOrder
                     ? surfaceTokens.successSoft
-                    : isSelf
-                      ? surfaceTokens.primarySoft
-                      : 'background.paper',
-                  borderColor: comment.isOrder
+                    : isFailedOrder
+                      ? surfaceTokens.liveRedSoft
+                      : isSelf
+                        ? surfaceTokens.primarySoft
+                        : 'background.paper',
+                  borderColor: isSuccessfulOrder
                     ? surfaceTokens.successBorder
-                    : isSelf
-                      ? surfaceTokens.primaryBorder
-                      : 'divider',
+                    : isFailedOrder
+                      ? '#FECACA'
+                      : isSelf
+                        ? surfaceTokens.primaryBorder
+                        : 'divider',
                   borderRadius: 2.5,
                 }}
               >
@@ -274,14 +291,16 @@ export const LiveCommentPanel: React.FC<LiveCommentPanelProps> = ({
                     variant="caption"
                     sx={{
                       fontWeight: 700,
-                      color: comment.isOrder
+                      color: isSuccessfulOrder
                         ? surfaceTokens.successText
-                        : 'text.secondary',
+                        : isFailedOrder
+                          ? surfaceTokens.liveRedText
+                          : 'text.secondary',
                     }}
                   >
                     {comment.buyerName}
                   </Typography>
-                  {comment.isOrder && comment.sku && (
+                  {isSuccessfulOrder && comment.sku && (
                     <Chip
                       label={`Đã chốt ${comment.sku}`}
                       size="small"
@@ -290,6 +309,19 @@ export const LiveCommentPanel: React.FC<LiveCommentPanelProps> = ({
                         fontSize: '0.75rem',
                         bgcolor: surfaceTokens.successBubble,
                         color: surfaceTokens.successText,
+                      }}
+                    />
+                  )}
+                  {isFailedOrder && comment.sku && (
+                    <Chip
+                      size="small"
+                      label={`Hết hàng ${comment.sku}`}
+                      sx={{
+                        height: 20,
+                        fontSize: '0.75rem',
+                        bgcolor: surfaceTokens.liveRedSoft,
+                        color: surfaceTokens.liveRedText,
+                        border: '1px solid #FECACA',
                       }}
                     />
                   )}
@@ -308,7 +340,7 @@ export const LiveCommentPanel: React.FC<LiveCommentPanelProps> = ({
             </Box>
           );
         })}
-        <div ref={chatEndRef} />
+        <Box ref={chatEndRef} sx={{ height: 72, flexShrink: 0 }} />
       </Box>
 
       {/* Sticky Comment Input */}

@@ -21,11 +21,12 @@ export const usePaginatedConversation = ({
   const [messageState, setMessageState] = useState<{
     key: string;
     messages: DirectMessage[];
-  }>({ key: '', messages: [] });
+    hasMore: boolean;
+  }>({ key: '', messages: [], hasMore: false });
   const messages = messageState.key === key ? messageState.messages : [];
+  const hasMore = messageState.key === key ? messageState.hasMore : false;
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState('');
   const chatEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -41,11 +42,11 @@ export const usePaginatedConversation = ({
     loadingMoreRef.current = false;
     setLoadingMore(false);
     setMessageState((current) =>
-      current.key === key ? current : { key, messages: [] },
+      current.key === key ? current : { key, messages: [], hasMore: false },
     );
     followLatestRef.current = true;
     if (!conversationId) {
-      setHasMore(false);
+      setError('');
       setLoadingMessages(false);
       return;
     }
@@ -67,10 +68,10 @@ export const usePaginatedConversation = ({
               ? {
                   key,
                   messages: mergeInboxMessages(current.messages, response.data),
+                  hasMore: response.data.length === MESSAGE_PAGE_SIZE,
                 }
               : current,
           );
-          setHasMore(response.data.length === MESSAGE_PAGE_SIZE);
         }
 
         if (!active) return;
@@ -128,11 +129,18 @@ export const usePaginatedConversation = ({
             ? {
                 key,
                 messages: mergeInboxMessages(current.messages, response.data),
+                hasMore:
+                  response.data.length < MESSAGE_PAGE_SIZE
+                    ? false
+                    : current.hasMore,
               }
             : current,
         );
+      } else {
+        setMessageState((current) =>
+          current.key === key ? { ...current, hasMore: false } : current,
+        );
       }
-      if (response.data.length < MESSAGE_PAGE_SIZE) setHasMore(false);
     } catch (requestError) {
       if (generation === generationRef.current)
         console.error('Lỗi khi tải thêm tin nhắn cũ:', requestError);
@@ -179,7 +187,10 @@ export const usePaginatedConversation = ({
   const appendMessages = (...newMessages: DirectMessage[]) => {
     setMessageState((current) =>
       current.key === key
-        ? { key, messages: mergeInboxMessages(current.messages, newMessages) }
+        ? {
+            ...current,
+            messages: mergeInboxMessages(current.messages, newMessages),
+          }
         : current,
     );
   };
@@ -192,7 +203,32 @@ export const usePaginatedConversation = ({
         `${endpointBase}/${conversationId}?limit=${MESSAGE_PAGE_SIZE}&skip=0`,
       );
       if (generation !== generationRef.current) return;
-      appendMessages(...response.data);
+      if (response.data.length > 0) {
+        setMessageState((current) => {
+          if (current.key !== key) return current;
+          const existingIds = new Set(
+            current.messages.map((message) => message.id),
+          );
+          const hasGap =
+            current.messages.length > 0 &&
+            response.data.every((message) => !existingIds.has(message.id));
+          if (hasGap) {
+            return {
+              key,
+              messages: mergeInboxMessages([], response.data),
+              hasMore: response.data.length === MESSAGE_PAGE_SIZE,
+            };
+          }
+          return {
+            key,
+            messages: mergeInboxMessages(current.messages, response.data),
+            hasMore:
+              current.messages.length === 0
+                ? response.data.length === MESSAGE_PAGE_SIZE
+                : current.hasMore,
+          };
+        });
+      }
     } catch (requestError) {
       if (generation === generationRef.current)
         console.error('Lỗi khi đồng bộ tin lúc kết nối Inbox:', requestError);

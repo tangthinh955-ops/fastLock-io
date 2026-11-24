@@ -106,7 +106,7 @@ export const AiSettingsPage = () => {
   return (
     <>
       <Box
-        component="main"
+        component="div"
         sx={{
           bgcolor: 'background.default',
           color: 'text.primary',

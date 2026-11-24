@@ -65,7 +65,7 @@ export const LiveShopChatWidget: React.FC<LiveShopChatWidgetProps> = ({
           position: 'fixed',
           bottom: { xs: 80, md: 84 },
           right: { xs: 16, md: 24 },
-          zIndex: 1200,
+          zIndex: 1050,
         }}
       >
         <Tooltip title={`Tư vấn AI · ${shopName}`} placement="left">
@@ -121,7 +121,7 @@ export const LiveShopChatWidget: React.FC<LiveShopChatWidgetProps> = ({
           xs: 'min(66dvh, 500px)',
           md: 'min(520px, calc(100dvh - 104px))',
         },
-        zIndex: 1300,
+        zIndex: 1150,
         borderRadius: 3.5,
         boxShadow: '0 16px 40px rgba(15, 23, 42, 0.16)',
         display: 'flex',

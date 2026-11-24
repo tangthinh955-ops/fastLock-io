@@ -1,4 +1,8 @@
-import { NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { ChatMode, MessageSource, Role } from '@prisma/client';
 import { validateSync } from 'class-validator';
 import { PrismaService } from '../../core/prisma/prisma.service';
@@ -11,6 +15,7 @@ import { DirectMessageEvents } from './direct-message.events';
 describe('DirectMessageService AI history', () => {
   const prisma = {
     user: { findFirst: jest.fn(), findMany: jest.fn() },
+    order: { findUnique: jest.fn() },
     directMessage: {
       findFirst: jest.fn(),
       findMany: jest.fn(),
@@ -37,7 +42,9 @@ describe('DirectMessageService AI history', () => {
     prisma.directMessage.findFirst.mockResolvedValue({
       id: 'existing-message',
     });
-    prisma.directMessage.create.mockImplementation(async ({ data }) => data);
+    prisma.directMessage.create.mockImplementation(({ data }) =>
+      Promise.resolve(data),
+    );
     prisma.conversation.upsert.mockResolvedValue({
       id: 'conversation-a',
       mode: ChatMode.AI,
@@ -342,24 +349,30 @@ describe('DirectMessageService AI history', () => {
     expect(
       Reflect.getMetadata(
         'roles',
-        DirectMessageController.prototype.updateSellerConversationMode,
+        Object.getOwnPropertyDescriptor(
+          DirectMessageController.prototype,
+          'updateSellerConversationMode',
+        )?.value,
       ),
     ).toEqual([Role.SELLER]);
     expect(
       Reflect.getMetadata(
         'roles',
-        DirectMessageController.prototype.getBuyerConversationMode,
+        Object.getOwnPropertyDescriptor(
+          DirectMessageController.prototype,
+          'getBuyerConversationMode',
+        )?.value,
       ),
     ).toEqual([Role.BUYER]);
   });
 
   it('publishes Buyer before waiting for Groq and AI only after transaction commit', async () => {
-    ai.generateReply.mockImplementation(async () => {
+    ai.generateReply.mockImplementation(() => {
       expect(events.publishMessage).toHaveBeenCalledTimes(1);
       expect(events.publishMessage.mock.calls[0][0].source).toBe(
         MessageSource.BUYER,
       );
-      return 'AI reply';
+      return Promise.resolve('AI reply');
     });
     prisma.$transaction.mockImplementation(
       async (callback: (tx: typeof prisma) => Promise<unknown>) => {
@@ -423,6 +436,71 @@ describe('DirectMessageService AI history', () => {
     expect(events.publishMessage).toHaveBeenCalledWith(saved);
     expect(response).not.toHaveProperty('sender');
     expect(response.id).toBe('qr-a');
+    expect(prisma.directMessage.create.mock.calls[0][0].data.qrUrl).toContain(
+      `addInfo=${encodeURIComponent('Thanh toan don hang order-a')}`,
+    );
+    expect(prisma.directMessage.create.mock.calls[0][0].data.qrUrl).toContain(
+      `accountName=${encodeURIComponent('SHOP LIVEORDER')}`,
+    );
+  });
+
+  it('verifies order ownership, buyer, and amount before sending VietQR via controller', async () => {
+    prisma.order.findUnique.mockResolvedValueOnce({
+      id: 'order-a',
+      buyerId: 'buyer-a',
+      totalAmount: 20000,
+      livestream: { sellerId: 'shop-a' },
+    });
+    prisma.directMessage.create.mockResolvedValueOnce({
+      id: 'qr-verified',
+      source: MessageSource.SYSTEM,
+      senderId: 'shop-a',
+      receiverId: 'buyer-a',
+      sender: { id: 'shop-a', name: 'Shop', role: Role.SELLER },
+    });
+
+    const verified = await service.sendVerifiedOrderMessage(
+      'shop-a',
+      'buyer-a',
+      20000,
+      'order-a',
+    );
+    expect(verified.id).toBe('qr-verified');
+
+    prisma.order.findUnique.mockResolvedValueOnce(null);
+    await expect(
+      service.sendVerifiedOrderMessage('shop-a', 'buyer-a', 20000, 'missing'),
+    ).rejects.toBeInstanceOf(NotFoundException);
+
+    prisma.order.findUnique.mockResolvedValueOnce({
+      id: 'order-a',
+      buyerId: 'buyer-a',
+      totalAmount: 20000,
+      livestream: { sellerId: 'shop-other' },
+    });
+    await expect(
+      service.sendVerifiedOrderMessage('shop-a', 'buyer-a', 20000, 'order-a'),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    prisma.order.findUnique.mockResolvedValueOnce({
+      id: 'order-a',
+      buyerId: 'buyer-other',
+      totalAmount: 20000,
+      livestream: { sellerId: 'shop-a' },
+    });
+    await expect(
+      service.sendVerifiedOrderMessage('shop-a', 'buyer-a', 20000, 'order-a'),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    prisma.order.findUnique.mockResolvedValueOnce({
+      id: 'order-a',
+      buyerId: 'buyer-a',
+      totalAmount: 50000,
+      livestream: { sellerId: 'shop-a' },
+    });
+    await expect(
+      service.sendVerifiedOrderMessage('shop-a', 'buyer-a', 20000, 'order-a'),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('orders Buyer shops by latest message in either direction, with unused shops last', async () => {

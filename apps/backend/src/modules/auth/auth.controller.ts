@@ -10,7 +10,7 @@ export class AuthController {
 
   // POST /auth/login
   // @Throttle ghi đè giới hạn toàn cục: cho phép 60 lần/phút (đủ cho nhiều máy demo dùng chung Wi-Fi)
-  @Throttle({ default: { ttl: 60000, limit: 60 } })
+  @Throttle({ global: { ttl: 60000, limit: 60 } })
   @HttpCode(HttpStatus.OK)
   @Post('login')
   login(@Body() loginDto: LoginDto) {
@@ -19,7 +19,7 @@ export class AuthController {
 
   // POST /auth/register
   // Cho phép 60 lần/phút để nhiều user demo cùng đăng ký trên một mạng
-  @Throttle({ default: { ttl: 60000, limit: 60 } })
+  @Throttle({ global: { ttl: 60000, limit: 60 } })
   @Post('register')
   register(@Body() registerDto: RegisterDto) {
     return this.authService.register(registerDto);

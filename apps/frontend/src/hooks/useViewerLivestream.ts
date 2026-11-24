@@ -29,11 +29,13 @@ export interface ShopLiveItem {
 export interface LivestreamComment {
   id: string;
   livestreamId?: string;
+  buyerId?: string;
   buyerName: string;
   content: string;
   isOrder?: boolean;
   sku?: string;
   orderSuccess?: boolean;
+  outOfStock?: boolean;
   createdAt: string;
 }
 
@@ -102,6 +104,7 @@ export const useViewerLivestream = ({
   const selectedSellerIdRef = useRef<string | null>(selectedSellerId ?? null);
   const prevSelectedSellerIdRef = useRef<string | null>(selectedSellerId ?? null);
   const shopsRef = useRef<ShopLiveItem[]>([]);
+  const loadRequestIdRef = useRef(0);
   selectedSellerIdRef.current = selectedSellerId ?? null;
   shopsRef.current = shops;
 
@@ -112,12 +115,14 @@ export const useViewerLivestream = ({
   }, []);
 
   const loadActiveStream = useCallback(async () => {
+    const requestId = ++loadRequestIdRef.current;
     setLoading(true);
     setError('');
     try {
       const response = await apiClient.get<ShopLiveItem[]>(
         '/livestreams/shops',
       );
+      if (requestId !== loadRequestIdRef.current) return;
       const sortedShops = sortShops(response.data);
       shopsRef.current = sortedShops;
       setShops(sortedShops);
@@ -132,10 +137,13 @@ export const useViewerLivestream = ({
         selectActiveStream(null);
       }
     } catch (requestError) {
+      if (requestId !== loadRequestIdRef.current) return;
       console.error('Lỗi khi tải danh sách phòng livestream:', requestError);
       setError('Không thể tải thông tin livestream.');
     } finally {
-      setLoading(false);
+      if (requestId === loadRequestIdRef.current) {
+        setLoading(false);
+      }
     }
   }, [selectActiveStream]);
 
@@ -294,6 +302,12 @@ export const useViewerLivestream = ({
     socket.on('draft_order_ready', (data: DraftOrderData) => {
       if (data.buyerId && data.buyerId === buyerIdRef.current) {
         setDraftOrder(data);
+      }
+    });
+
+    socket.on('order_failed', (data: { buyerId?: string; message?: string }) => {
+      if (!data.buyerId || data.buyerId === buyerIdRef.current) {
+        setError(data.message || 'Sản phẩm hiện đã hết hàng.');
       }
     });
 

@@ -17,9 +17,13 @@ import {
 
 interface UseSellerInboxOptions {
   autoSelectFirst?: boolean;
+  isChatVisible?: boolean;
 }
 
-export const useSellerInbox = ({ autoSelectFirst = true }: UseSellerInboxOptions = {}) => {
+export const useSellerInbox = ({
+  autoSelectFirst = true,
+  isChatVisible = true,
+}: UseSellerInboxOptions = {}) => {
   const { user } = useAuth();
   const [customers, setCustomers] = useState<InboxContact[]>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(
@@ -34,12 +38,18 @@ export const useSellerInbox = ({ autoSelectFirst = true }: UseSellerInboxOptions
     new Map<string, Pick<DirectMessage, 'id' | 'createdAt'>>(),
   );
   const contactsRequestRef = useRef(0);
+  const sendRequestIdRef = useRef(0);
+  const modeChangeRequestIdRef = useRef(0);
   const autoSelectFirstRef = useRef(autoSelectFirst);
   autoSelectFirstRef.current = autoSelectFirst;
+  const isChatVisibleRef = useRef(isChatVisible);
+  isChatVisibleRef.current = isChatVisible;
   const selectedCustomerIdRef = useRef<string | null>(selectedCustomerId);
   selectedCustomerIdRef.current = selectedCustomerId;
   const customersRef = useRef<InboxContact[]>(customers);
   customersRef.current = customers;
+  const prevIsChatVisibleRef = useRef(isChatVisible);
+  const prevSelectedCustomerIdRef = useRef<string | null>(selectedCustomerId);
   const modeEndpoint = selectedCustomerId
     ? `/messages/seller/conversations/${selectedCustomerId}/mode`
     : null;
@@ -97,6 +107,20 @@ export const useSellerInbox = ({ autoSelectFirst = true }: UseSellerInboxOptions
     }
   }, [autoSelectFirst, selectedCustomerId, customers]);
 
+  useEffect(() => {
+    const sendCounter = sendRequestIdRef;
+    const modeCounter = modeChangeRequestIdRef;
+    sendCounter.current++;
+    modeCounter.current++;
+    setSending(false);
+    setChangingMode(false);
+    setInputText('');
+    return () => {
+      sendCounter.current++;
+      modeCounter.current++;
+    };
+  }, [selectedCustomerId]);
+
   const handleMarkedRead = useCallback((customerId: string) => {
     setCustomers((currentCustomers) =>
       currentCustomers.map((customer) =>
@@ -104,6 +128,35 @@ export const useSellerInbox = ({ autoSelectFirst = true }: UseSellerInboxOptions
       ),
     );
   }, []);
+
+  useEffect(() => {
+    const becameVisible = !prevIsChatVisibleRef.current && isChatVisible;
+    const sameSelectedCustomer =
+      prevSelectedCustomerIdRef.current === selectedCustomerId;
+    prevIsChatVisibleRef.current = isChatVisible;
+    prevSelectedCustomerIdRef.current = selectedCustomerId;
+
+    if (!becameVisible || !sameSelectedCustomer || !selectedCustomerId) return;
+    const activeCustomer = customersRef.current.find(
+      (customer) => customer.id === selectedCustomerId,
+    );
+    if (!activeCustomer || activeCustomer.unreadCount <= 0) return;
+
+    let active = true;
+    const targetCustomerId = selectedCustomerId;
+    void apiClient
+      .patch(`/messages/seller/conversations/${targetCustomerId}/read`)
+      .then(() => {
+        if (active) handleMarkedRead(targetCustomerId);
+      })
+      .catch((markReadError) => {
+        console.error('Lỗi khi đánh dấu tin đã đọc:', markReadError);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [isChatVisible, selectedCustomerId, handleMarkedRead]);
 
   const conversation = usePaginatedConversation({
     conversationId: selectedCustomerId,
@@ -121,6 +174,7 @@ export const useSellerInbox = ({ autoSelectFirst = true }: UseSellerInboxOptions
       message.senderId === user.id ? message.receiverId : message.senderId;
     const isIncomingFromBuyer = message.senderId === buyerId;
     const isActiveCustomer = buyerId === selectedCustomerIdRef.current;
+    const isVisiblyActiveCustomer = isActiveCustomer && isChatVisibleRef.current;
     rememberInboxActivity(activityRef.current, buyerId, message);
     setCustomers((current) => {
       const known = current.some((customer) => customer.id === buyerId);
@@ -131,10 +185,10 @@ export const useSellerInbox = ({ autoSelectFirst = true }: UseSellerInboxOptions
           {
             id: buyerId,
             name: message.sender.name,
-            unreadCount: isActiveCustomer ? 0 : 1,
+            unreadCount: isVisiblyActiveCustomer ? 0 : 1,
           },
         ];
-      } else if (known && isIncomingFromBuyer && !isActiveCustomer) {
+      } else if (known && isIncomingFromBuyer && !isVisiblyActiveCustomer) {
         entries = current.map((customer) =>
           customer.id === buyerId
             ? { ...customer, unreadCount: customer.unreadCount + 1 }
@@ -148,7 +202,7 @@ export const useSellerInbox = ({ autoSelectFirst = true }: UseSellerInboxOptions
     }
     if (isActiveCustomer) {
       conversation.appendMessages(message);
-      if (isIncomingFromBuyer) {
+      if (isVisiblyActiveCustomer && isIncomingFromBuyer) {
         void apiClient
           .patch(`/messages/seller/conversations/${buyerId}/read`)
           .catch(() => {});
@@ -176,6 +230,7 @@ export const useSellerInbox = ({ autoSelectFirst = true }: UseSellerInboxOptions
     const buyerId = selectedCustomerId;
     if (!buyerId || !message || sending || changingMode) return;
 
+    const requestId = ++sendRequestIdRef.current;
     setSending(true);
     conversation.setError('');
     try {
@@ -183,6 +238,13 @@ export const useSellerInbox = ({ autoSelectFirst = true }: UseSellerInboxOptions
         '/messages/seller/conversations',
         { buyerId, message },
       );
+      if (
+        requestId !== sendRequestIdRef.current ||
+        selectedCustomerIdRef.current !== buyerId
+      ) {
+        return;
+      }
+
       conversation.appendMessages(response.data);
       rememberInboxActivity(activityRef.current, buyerId, response.data);
       setCustomers((current) =>
@@ -191,28 +253,58 @@ export const useSellerInbox = ({ autoSelectFirst = true }: UseSellerInboxOptions
       setInputText('');
       await conversationMode.refresh();
     } catch (requestError) {
+      if (
+        requestId !== sendRequestIdRef.current ||
+        selectedCustomerIdRef.current !== buyerId
+      ) {
+        return;
+      }
       console.error('Lỗi khi gửi tin nhắn cho khách hàng:', requestError);
       conversation.setError('Không thể gửi tin nhắn. Vui lòng thử lại.');
     } finally {
-      setSending(false);
+      if (requestId === sendRequestIdRef.current) {
+        setSending(false);
+      }
     }
   };
 
   const handleChangeMode = async (mode: ChatMode) => {
-    if (!modeEndpoint || !conversationMode.status || sending || changingMode)
+    const buyerId = selectedCustomerId;
+    if (
+      !buyerId ||
+      !modeEndpoint ||
+      !conversationMode.status ||
+      sending ||
+      changingMode
+    )
       return;
+    const requestId = ++modeChangeRequestIdRef.current;
     setChangingMode(true);
     conversation.setError('');
     try {
       const response = await apiClient.patch<ConversationMode>(modeEndpoint, {
         mode,
       });
+      if (
+        requestId !== modeChangeRequestIdRef.current ||
+        selectedCustomerIdRef.current !== buyerId
+      ) {
+        return;
+      }
       conversationMode.applyStatus(response.data);
     } catch (error) {
+      if (
+        requestId !== modeChangeRequestIdRef.current ||
+        selectedCustomerIdRef.current !== buyerId
+      ) {
+        return;
+      }
       console.error('Lỗi khi đổi chế độ hội thoại:', error);
       conversation.setError('Không thể đổi chế độ. Vui lòng thử lại.');
     } finally {
-      setChangingMode(false);
+      if (requestId === modeChangeRequestIdRef.current) {
+        setChangingMode(false);
+      }
     }
   };
 

@@ -12,7 +12,9 @@ describe('AiController', () => {
         {
           provide: AiService,
           useValue: {
-            consultProduct: jest.fn(),
+            getKnowledgeBases: jest.fn(),
+            addKnowledgeBase: jest.fn(),
+            deleteKnowledgeBase: jest.fn(),
           },
         },
       ],

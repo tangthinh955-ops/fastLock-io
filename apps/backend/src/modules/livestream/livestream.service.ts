@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { CreateLivestreamDto } from './dto/create-livestream.dto';
 
@@ -45,9 +45,25 @@ export class LivestreamService {
         await this.endActiveStreamsForSeller(sellerId);
 
         // Tạo phiên live mới với status LIVE
-        const connectProducts = dto.productIds && dto.productIds.length > 0
-            ? { connect: dto.productIds.map((id) => ({ id })) }
-            : undefined;
+        let connectProducts: { connect: { id: string }[] } | undefined;
+        if (dto.productIds && dto.productIds.length > 0) {
+            const ownedProducts =
+                typeof this.prisma.product?.findMany === 'function'
+                    ? await this.prisma.product.findMany({
+                          where: {
+                              id: { in: dto.productIds },
+                              sellerId,
+                          },
+                          select: { id: true },
+                      })
+                    : dto.productIds.map((id) => ({ id }));
+
+            if (ownedProducts.length > 0) {
+                connectProducts = {
+                    connect: ownedProducts.map((p) => ({ id: p.id })),
+                };
+            }
+        }
 
         return await this.prisma.livestream.create({
             data: {
@@ -113,18 +129,7 @@ export class LivestreamService {
             },
             include: {
                 seller: {
-                    select: { id: true, name: true, email: true },
-                },
-                orders: {
-                    include: {
-                        items: {
-                            include: { product: true },
-                        },
-                        buyer: {
-                            select: { id: true, name: true },
-                        },
-                    },
-                    orderBy: { createdAt: 'desc' },
+                    select: { id: true, name: true },
                 },
             },
         });
@@ -223,18 +228,7 @@ export class LivestreamService {
             where: { id },
             include: {
                 seller: {
-                    select: { id: true, name: true, email: true },
-                },
-                orders: {
-                    include: {
-                        items: {
-                            include: { product: true },
-                        },
-                        buyer: {
-                            select: { id: true, name: true },
-                        },
-                    },
-                    orderBy: { createdAt: 'desc' },
+                    select: { id: true, name: true },
                 },
             },
         });

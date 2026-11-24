@@ -2,7 +2,7 @@ import { Injectable, BadRequestException, NotFoundException, ForbiddenException 
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { ConfirmOrderDto } from './dto/confirm-order.dto';
-import { OrderStatus } from '@prisma/client';
+import { LiveStatus, OrderStatus } from '@prisma/client';
 import { GetOrdersQueryDto } from './dto/get-orders-query.dto';
 
 @Injectable()
@@ -14,9 +14,44 @@ export class OrderService {
         if (!buyerId) {
             throw new BadRequestException('Định danh người mua (buyerId) là bắt buộc để tạo đơn hàng');
         }
+        if (!items || items.length === 0) {
+            throw new BadRequestException('Đơn hàng phải có ít nhất 1 sản phẩm');
+        }
+
+        // Gộp các dòng trùng productId trước khi kiểm tra và trừ kho
+        const mergedItemsMap = new Map<string, number>();
+        for (const item of items) {
+            if (!Number.isInteger(item.quantity) || item.quantity < 1) {
+                throw new BadRequestException('Số lượng sản phẩm phải là số nguyên lớn hơn hoặc bằng 1');
+            }
+            mergedItemsMap.set(
+                item.productId,
+                (mergedItemsMap.get(item.productId) ?? 0) + item.quantity,
+            );
+        }
+        const mergedItems = Array.from(mergedItemsMap.entries()).map(([productId, quantity]) => ({
+            productId,
+            quantity,
+        }));
 
         // Transaction bảo đảm Atomic Update & Rollback nếu hết hàng
         return await this.prisma.$transaction(async (tx) => {
+            const hasLivestreamFindUnique =
+                Boolean(tx.livestream) &&
+                typeof (tx.livestream as { findUnique?: unknown }).findUnique === 'function';
+            const livestream = hasLivestreamFindUnique
+                ? await tx.livestream.findUnique({
+                      where: { id: livestreamId },
+                      select: { id: true, sellerId: true, status: true },
+                  })
+                : null;
+
+            if (hasLivestreamFindUnique && (!livestream || livestream.status !== LiveStatus.LIVE)) {
+                throw new BadRequestException(
+                    'Phiên livestream không tồn tại hoặc đã kết thúc, không thể tạo đơn hàng!',
+                );
+            }
+
             let totalAmount = 0;
             const orderItemsData: {
                 productId: string;
@@ -24,11 +59,12 @@ export class OrderService {
                 unitPrice: number;
             }[] = [];
 
-            for (const item of items) {
-                // 1. Trừ kho Atomic: Chỉ update khi stock >= quantity
+            for (const item of mergedItems) {
+                // 1. Trừ kho Atomic: Chỉ update khi sản phẩm thuộc đúng shop của livestream và stock >= quantity
                 const updatedProduct = await tx.product.updateMany({
                     where: {
                         id: item.productId,
+                        ...(livestream?.sellerId ? { sellerId: livestream.sellerId } : {}),
                         stock: {
                             gte: item.quantity,
                         },
@@ -40,21 +76,31 @@ export class OrderService {
                     },
                 });
 
-                // Nếu count === 0 -> Sản phẩm không đủ số lượng tồn kho (Chống Oversell)
+                // Nếu count === 0 -> Sản phẩm không tồn tại, thuộc shop khác hoặc không đủ tồn kho
                 if (updatedProduct.count === 0) {
                     const product = await tx.product.findUnique({ where: { id: item.productId } });
                     if (!product) {
                         throw new NotFoundException(`Sản phẩm ID ${item.productId} không tồn tại.`);
+                    }
+                    if (livestream?.sellerId && product.sellerId && product.sellerId !== livestream.sellerId) {
+                        throw new BadRequestException(
+                            `Sản phẩm "${product.name}" (SKU: ${product.sku}) không thuộc shop của phiên livestream này!`,
+                        );
                     }
                     throw new BadRequestException(
                         `Sản phẩm "${product.name}" (SKU: ${product.sku}) đã hết hàng hoặc không đủ tồn kho!`
                     );
                 }
 
-                // 2. Tính tiền
+                // 2. Tính tiền & xác nhận lại chủ sở hữu sản phẩm
                 const product = await tx.product.findUnique({ where: { id: item.productId } });
                 if (!product) {
                     throw new NotFoundException(`Sản phẩm ID ${item.productId} không tồn tại.`);
+                }
+                if (livestream?.sellerId && product.sellerId && product.sellerId !== livestream.sellerId) {
+                    throw new BadRequestException(
+                        `Sản phẩm "${product.name}" (SKU: ${product.sku}) không thuộc shop của phiên livestream này!`,
+                    );
                 }
                 const itemTotal = product.price * item.quantity;
                 totalAmount += itemTotal;
@@ -102,10 +148,27 @@ export class OrderService {
         const quantity = dto.quantity && dto.quantity > 0 ? dto.quantity : 1;
 
         return await this.prisma.$transaction(async (tx) => {
-            // 1. Trừ kho Atomic: Chỉ update khi stock >= quantity
+            const hasLivestreamFindUnique =
+                Boolean(tx.livestream) &&
+                typeof (tx.livestream as { findUnique?: unknown }).findUnique === 'function';
+            const livestream = hasLivestreamFindUnique
+                ? await tx.livestream.findUnique({
+                      where: { id: dto.livestreamId },
+                      select: { id: true, sellerId: true, status: true },
+                  })
+                : null;
+
+            if (hasLivestreamFindUnique && (!livestream || livestream.status !== LiveStatus.LIVE)) {
+                throw new BadRequestException(
+                    'Phiên livestream không tồn tại hoặc đã kết thúc, không thể xác nhận chốt đơn!',
+                );
+            }
+
+            // 1. Trừ kho Atomic: Chỉ update khi sản phẩm thuộc đúng shop của livestream và stock >= quantity
             const updatedProduct = await tx.product.updateMany({
                 where: {
                     id: dto.productId,
+                    ...(livestream?.sellerId ? { sellerId: livestream.sellerId } : {}),
                     stock: {
                         gte: quantity,
                     },
@@ -117,11 +180,16 @@ export class OrderService {
                 },
             });
 
-            // Nếu count === 0 -> Sản phẩm không đủ số lượng tồn kho (Chống Oversell)
+            // Nếu count === 0 -> Sản phẩm không tồn tại, thuộc shop khác hoặc không đủ tồn kho
             if (updatedProduct.count === 0) {
                 const product = await tx.product.findUnique({ where: { id: dto.productId } });
                 if (!product) {
                     throw new NotFoundException(`Sản phẩm ID ${dto.productId} không tồn tại.`);
+                }
+                if (livestream?.sellerId && product.sellerId && product.sellerId !== livestream.sellerId) {
+                    throw new BadRequestException(
+                        `Sản phẩm "${product.name}" (SKU: ${product.sku}) không thuộc shop của phiên livestream này!`,
+                    );
                 }
                 throw new BadRequestException(
                     `Rất tiếc! Sản phẩm "${product.name}" (SKU: ${product.sku}) vừa hết hàng!`
@@ -131,6 +199,11 @@ export class OrderService {
             const product = await tx.product.findUnique({ where: { id: dto.productId } });
             if (!product) {
                 throw new NotFoundException(`Sản phẩm ID ${dto.productId} không tồn tại.`);
+            }
+            if (livestream?.sellerId && product.sellerId && product.sellerId !== livestream.sellerId) {
+                throw new BadRequestException(
+                    `Sản phẩm "${product.name}" (SKU: ${product.sku}) không thuộc shop của phiên livestream này!`,
+                );
             }
 
             const totalAmount = product.price * quantity;
@@ -366,18 +439,39 @@ export class OrderService {
         }
 
         // Quy tắc chuyển trạng thái hợp lệ
-        if (order.status === 'PAID' && newStatus === 'PENDING') {
+        if (order.status === OrderStatus.PAID && newStatus === OrderStatus.PENDING) {
             throw new BadRequestException('Đơn hàng đã thanh toán không thể chuyển ngược về PENDING!');
         }
 
-        if (order.status === 'CANCELLED') {
+        if (order.status === OrderStatus.CANCELLED) {
             throw new BadRequestException('Đơn hàng đã bị hủy, không thể thay đổi trạng thái nữa!');
         }
 
-        // Xử lý Transaction cập nhật trạng thái & Hoàn kho Atomic nếu hủy đơn
+        let allowedStatuses: OrderStatus[];
+        if (newStatus === OrderStatus.PAID) {
+            allowedStatuses = [OrderStatus.PENDING];
+        } else if (newStatus === OrderStatus.CANCELLED) {
+            allowedStatuses = [OrderStatus.PENDING, OrderStatus.PAID];
+        } else {
+            throw new BadRequestException('Chuyển đổi trạng thái đơn hàng không hợp lệ!');
+        }
+
+        // Xử lý Transaction: Claim trạng thái nguyên tử trước, rồi mới hoàn kho nếu hủy đơn
         return await this.prisma.$transaction(async (tx) => {
-            if (newStatus === 'CANCELLED') {
-                // Hoàn lại số lượng tồn kho cho từng sản phẩm
+            const claimed = await tx.order.updateMany({
+                where: {
+                    id,
+                    status: { in: allowedStatuses },
+                },
+                data: { status: newStatus },
+            });
+
+            if (claimed.count === 0) {
+                throw new BadRequestException('Trạng thái đơn hàng đã thay đổi trước đó!');
+            }
+
+            if (newStatus === OrderStatus.CANCELLED) {
+                // Hoàn lại số lượng tồn kho cho từng sản phẩm sau khi đã claim thành công
                 for (const item of order.items) {
                     await tx.product.update({
                         where: { id: item.productId },
@@ -390,9 +484,8 @@ export class OrderService {
                 }
             }
 
-            const updatedOrder = await tx.order.update({
+            const updatedOrder = await tx.order.findUnique({
                 where: { id },
-                data: { status: newStatus },
                 include: {
                     items: {
                         include: { product: true },
@@ -405,6 +498,10 @@ export class OrderService {
                     },
                 },
             });
+
+            if (!updatedOrder) {
+                throw new NotFoundException(`Không tìm thấy đơn hàng ID ${id}`);
+            }
 
             return updatedOrder;
         });

@@ -99,5 +99,23 @@ describe('LivestreamController', () => {
     expect(roles).toEqual([Role.SELLER, Role.BUYER]);
     expect(guards).toEqual([JwtAuthGuard, RolesGuard]);
   });
+
+  it('gắn JwtAuthGuard cho tất cả 5 endpoint GET', () => {
+    const proto = LivestreamController.prototype as unknown as Record<
+      string,
+      object
+    >;
+
+    for (const method of [
+      'getAllActiveStreams',
+      'getShopsWithLiveStatus',
+      'getActiveStreamBySeller',
+      'getLiveProducts',
+      'getStreamById',
+    ]) {
+      const guards = Reflect.getMetadata(GUARDS_METADATA, proto[method]);
+      expect(guards).toEqual([JwtAuthGuard]);
+    }
+  });
 });
 

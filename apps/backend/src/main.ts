@@ -36,6 +36,11 @@ async function bootstrap() {
   }
 
   const app = await NestFactory.create(AppModule);
+  (
+    app.getHttpAdapter().getInstance() as {
+      set?: (k: string, v: unknown) => void;
+    }
+  ).set?.('trust proxy', 1);
   if (process.env.NODE_ENV === 'production' && !hasConfiguredCorsOrigins()) {
     logger.warn(
       'CORS_ORIGINS chưa được cấu hình ở môi trường production — mọi request trình duyệt khác origin sẽ bị chặn.',

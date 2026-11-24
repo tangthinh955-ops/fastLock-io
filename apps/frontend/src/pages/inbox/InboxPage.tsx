@@ -22,11 +22,18 @@ export const InboxPage: React.FC = () => {
   const [mobilePane, setMobilePane] = useState<'list' | 'chat'>(() =>
     searchParams.get('sellerId') ? 'chat' : 'list',
   );
-  const inbox = useBuyerInbox({ autoSelectFirst: isDesktop });
+  const inbox = useBuyerInbox({
+    autoSelectFirst: isDesktop,
+    isChatVisible: isDesktop || mobilePane === 'chat',
+  });
   const { conversation } = inbox;
   const { status, loading: loadingMode } = inbox.conversationMode;
   const { isAiMode, modeLabel } = getConversationModeDisplay(status, loadingMode);
   const isEmptyShops = !inbox.loadingShops && !inbox.error && inbox.shops.length === 0;
+  const effectiveMobilePane =
+    mobilePane === 'chat' && (inbox.selectedShop || inbox.loadingShops)
+      ? 'chat'
+      : 'list';
 
   const handleSelectShop = (shopId: string) => {
     inbox.setSelectedShopId(shopId);
@@ -49,7 +56,7 @@ export const InboxPage: React.FC = () => {
     <InboxSplitLayout
       headerTitle="Hộp thư Trao đổi & Đơn hàng"
       headerDescription="Xem nội dung tư vấn sản phẩm và mã thanh toán VietQR từ các Shop"
-      mobilePane={mobilePane}
+      mobilePane={effectiveMobilePane}
       hasError={Boolean(inbox.error)}
       emptyMessage={
         inbox.error ||

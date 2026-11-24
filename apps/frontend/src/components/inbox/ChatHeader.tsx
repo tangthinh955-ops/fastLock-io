@@ -69,7 +69,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
         <Typography
           variant="caption"
           sx={{
-            color: isAiMode ? surfaceTokens.successText : 'primary.main',
+            color: isAiMode ? surfaceTokens.aiText : surfaceTokens.successText,
             fontWeight: 600,
             display: 'flex',
             alignItems: 'center',
@@ -78,10 +78,13 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
         >
           <Box
             component="span"
+            aria-hidden="true"
             sx={{
               width: 7,
               height: 7,
-              bgcolor: isAiMode ? '#10B981' : 'primary.main',
+              bgcolor: isAiMode
+                ? surfaceTokens.aiText
+                : surfaceTokens.successMain,
               borderRadius: '50%',
               flexShrink: 0,
             }}

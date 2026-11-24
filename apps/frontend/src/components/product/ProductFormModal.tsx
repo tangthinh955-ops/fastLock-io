@@ -58,7 +58,9 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     return (
         <Dialog
             open={open}
-            onClose={onClose}
+            onClose={() => {
+                if (!submitting) onClose();
+            }}
             maxWidth="sm"
             fullWidth
             slotProps={{
@@ -151,7 +153,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                     </Grid>
                 </DialogContent>
                 <DialogActions sx={{ px: { xs: 2.5, sm: 3 }, py: 2, borderTop: 1, borderColor: 'divider', gap: 1 }}>
-                    <Button onClick={onClose} color="inherit" sx={{ minHeight: 44, px: 2 }}>
+                    <Button onClick={onClose} disabled={submitting} color="inherit" sx={{ minHeight: 44, px: 2 }}>
                         Hủy
                     </Button>
                     <Button

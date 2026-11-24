@@ -1,8 +1,21 @@
-import { IsNotEmpty, IsString, IsNumber, IsInt, IsOptional, Min } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsString,
+  IsNumber,
+  IsInt,
+  IsOptional,
+  Min,
+  Matches,
+} from 'class-validator';
+import { Transform } from 'class-transformer';
 
 export class CreateProductDto {
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim().toUpperCase() : value,
+  )
   @IsNotEmpty({ message: 'Mã SKU không được để trống' })
   @IsString({ message: 'Mã SKU phải là chuỗi văn bản' })
+  @Matches(/^\S+$/, { message: 'Mã SKU không được chứa khoảng trắng' })
   sku: string;
 
   @IsNotEmpty({ message: 'Tên sản phẩm không được để trống' })

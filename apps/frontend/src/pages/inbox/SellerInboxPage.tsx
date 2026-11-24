@@ -16,7 +16,10 @@ export const SellerInboxPage: React.FC = () => {
   const isDesktop = useMediaQuery(theme.breakpoints.up('md'), { noSsr: true });
   const { user } = useAuth();
   const [mobilePane, setMobilePane] = useState<'list' | 'chat'>('list');
-  const inbox = useSellerInbox({ autoSelectFirst: isDesktop });
+  const inbox = useSellerInbox({
+    autoSelectFirst: isDesktop,
+    isChatVisible: isDesktop || mobilePane === 'chat',
+  });
   const { conversation } = inbox;
   const { status, loading: loadingMode } = inbox.conversationMode;
   const { isAiMode, modeLabel } = getConversationModeDisplay(status, loadingMode);
