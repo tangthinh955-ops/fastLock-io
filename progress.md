@@ -1,5 +1,20 @@
 # TIẾN ĐỘ DỰ ÁN: LIVEORDER CHỐT ĐƠN ENGINE
 
+## Cập nhật 24/11/2026 (tiếp) — Vá lỗi 500 Production do thiếu Prisma Migration của `PR #27` (`fix/prisma-migration-pr27`)
+
+- ✅ **Nguyên nhân & phạm vi:** `PR #27` đã cập nhật `apps/backend/prisma/schema.prisma` (thông tin giao hàng mặc định của `User`, `description` của `Livestream`, thông tin nhận hàng/`expiresAt` của `Order`, bảng nối `_LivestreamProducts`) nhưng chưa có migration tương ứng và chưa chạy `prisma migrate deploy` trên Neon PostgreSQL, khiến API production trả `500`. Chỉ tạo migration + cập nhật nhật ký; **không sửa** `schema.prisma`, code ứng dụng, không reset/xóa dữ liệu.
+- [CREATE] `apps/backend/prisma/migrations/20261124000000_add_live_products_and_order_shipping/migration.sql`: thêm 3 cột `User`, 1 cột `Livestream`, 5 cột `Order`; tạo bảng nối `_LivestreamProducts` + index + 2 FK cascade.
+- **Build:** `npx prisma generate` (Prisma Client 6.19.3) và `npm run build` trong `apps/backend`: **PASS**.
+- **Deploy Neon:** `prisma migrate status` trước deploy: 6 migration, `20261124000000_add_live_products_and_order_shipping` pending; `prisma migrate deploy`: áp dụng thành công 1 migration; `prisma migrate status` sau deploy: **“Database schema is up to date!”**.
+- **Xác minh production (`https://liveorder-api.onrender.com`):**
+  - `POST /auth/login` sai → **401** (hết 500); đăng nhập seed Seller → **200**.
+  - Không auth: các `GET /products`, `/livestreams/shops`, `/livestreams/active`, `/livestreams/nonexistent` → **401** do `JwtAuthGuard` của `PR #28` (không còn 500).
+  - Có JWT Seller: `/products` → **200**, `/livestreams/shops` → **200**, `/livestreams/active` → **200**, `/livestreams/nonexistent` → **404**.
+- **Bảo mật:** Connection string Neon Direct chỉ dùng qua biến `$env:DATABASE_URL` tạm trong phiên shell; không ghi `.env`, không commit, đã xóa biến môi trường và file tạm sau khi chạy.
+- [MODIFY] `progress.md`: nhật ký này. Nhánh `fix/prisma-migration-pr27` tạo từ `origin/main` (`80b65fb`, bao gồm `PR #27` + `PR #28`).
+
+---
+
 ## Cập nhật 24/11/2026 (tiếp) — Rà soát & Gia cố Toàn diện Hệ thống trên nền `main` mới nhất (`PR #27` — `feat/system-audit-hardening`)
 
 - ✅ **Bảo mật, Cấu hình Production, Chống Race Condition & Vá lỗ hổng luồng `PR #27` (Backend):**
