@@ -9,6 +9,7 @@ const COMMENT_HISTORY_LIMIT = 10;
 export interface ActiveLivestream {
   id: string;
   title: string;
+  description?: string | null;
   sellerId: string;
   startedAt?: string;
   seller: {
@@ -24,6 +25,7 @@ export interface ShopLiveItem {
   productCount: number;
   isLive: boolean;
   activeStream: ActiveLivestream | null;
+  kbHighlights?: Array<{ id: string; keyword: string; answer: string }>;
 }
 
 export interface LivestreamComment {
@@ -96,6 +98,7 @@ export const useViewerLivestream = ({
   const [loading, setLoading] = useState(true);
   const [socketConnected, setSocketConnected] = useState(false);
   const [roomJoined, setRoomJoined] = useState(false);
+  const [viewerCount, setViewerCount] = useState(0);
   const [error, setError] = useState('');
   const buyerIdRef = useRef(buyerId);
   buyerIdRef.current = buyerId;
@@ -177,6 +180,7 @@ export const useViewerLivestream = ({
   useEffect(() => {
     activeStreamRef.current = activeStream;
     setRoomJoined(false);
+    setViewerCount(0);
 
     if (!activeStream) return;
 
@@ -213,12 +217,27 @@ export const useViewerLivestream = ({
 
     socket.on(
       'room_joined',
-      (data: { livestreamId?: string; status?: string }) => {
+      (data: { livestreamId?: string; status?: string; viewerCount?: number }) => {
         if (
           data.status === 'SUCCESS' &&
           data.livestreamId === activeStreamRef.current?.id
         ) {
           setRoomJoined(true);
+          if (typeof data.viewerCount === 'number') {
+            setViewerCount(data.viewerCount);
+          }
+        }
+      },
+    );
+
+    socket.on(
+      'viewer_count',
+      (data: { livestreamId?: string; viewerCount?: number }) => {
+        if (
+          data.livestreamId === activeStreamRef.current?.id &&
+          typeof data.viewerCount === 'number'
+        ) {
+          setViewerCount(data.viewerCount);
         }
       },
     );
@@ -246,6 +265,7 @@ export const useViewerLivestream = ({
                 productCount: 0,
                 isLive: true,
                 activeStream: streamWithTimestamp,
+                kbHighlights: [],
               },
             ];
         return sortShops(nextShops);
@@ -278,6 +298,7 @@ export const useViewerLivestream = ({
       }
 
       setRoomJoined(false);
+      setViewerCount(0);
       setError('Phiên livestream đã kết thúc.');
       selectActiveStream(null);
     });
@@ -374,6 +395,7 @@ export const useViewerLivestream = ({
     setDraftOrder,
     loading,
     connected: socketConnected && roomJoined,
+    viewerCount,
     error,
     loadActiveStream,
     sendComment,

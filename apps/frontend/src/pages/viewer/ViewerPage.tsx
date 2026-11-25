@@ -1,5 +1,16 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Box, Button, Chip, Container, Stack, Typography } from '@mui/material';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  Box,
+  Button,
+  Chip,
+  CircularProgress,
+  Container,
+  Stack,
+  Typography,
+} from '@mui/material';
+import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded';
+import LiveTvRoundedIcon from '@mui/icons-material/LiveTvRounded';
+import StorefrontOutlinedIcon from '@mui/icons-material/StorefrontOutlined';
 import SwapHorizRoundedIcon from '@mui/icons-material/SwapHorizRounded';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { LiveCommentPanel } from '../../components/viewer/LiveCommentPanel';
@@ -8,16 +19,27 @@ import { OrderConfirmModal } from '../../components/viewer/OrderConfirmModal';
 import { LiveProductsCatalogModal } from '../../components/viewer/LiveProductsCatalogModal';
 import { LiveVideoPlayer } from '../../components/viewer/LiveVideoPlayer';
 import { ShopLiveDirectory } from '../../components/viewer/ShopLiveDirectory';
+import {
+  ShopStorefrontView,
+  type ShopStorefrontInfo,
+} from '../../components/viewer/ShopStorefrontView';
 import { useAuth } from '../../context/AuthContext';
 import { useLiveKitViewer } from '../../hooks/useLiveKitViewer';
 import { useViewerLivestream } from '../../hooks/useViewerLivestream';
 import { surfaceTokens } from '../../theme';
+
+const TOP_BAR_BTN_SX = {
+  minHeight: { xs: 44, md: 36 },
+  borderRadius: 2,
+  fontWeight: 600,
+} as const;
 
 export const ViewerPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedSellerId = searchParams.get('sellerId');
   const chatParam = searchParams.get('chat');
+  const tabParam = searchParams.get('tab');
   const { user, token } = useAuth();
   const livestream = useViewerLivestream({
     buyerId: user?.id,
@@ -25,13 +47,25 @@ export const ViewerPage: React.FC = () => {
     token,
     selectedSellerId,
   });
+  const isShopLive = Boolean(
+    livestream.activeStream || livestream.selectedShop?.isLive,
+  );
+  const activeTab: 'live' | 'store' =
+    tabParam === 'store'
+      ? 'store'
+      : tabParam === 'live'
+        ? 'live'
+        : isShopLive
+          ? 'live'
+          : 'store';
   const livekit = useLiveKitViewer({
     livestreamId: livestream.activeStream?.id,
-    isLive: Boolean(livestream.activeStream),
+    isLive: Boolean(livestream.activeStream) && activeTab === 'live',
     authToken: token,
   });
   const [inputText, setInputText] = useState('');
   const [catalogOpen, setCatalogOpen] = useState(false);
+  const [chatPrefillMessage, setChatPrefillMessage] = useState<string | null>(null);
   const [chatWidgetOpen, setChatWidgetOpen] = useState<boolean>(
     () => searchParams.get('chat') === 'open',
   );
@@ -41,6 +75,8 @@ export const ViewerPage: React.FC = () => {
 
   useEffect(() => {
     setInputText('');
+    setCatalogOpen(false);
+    setChatPrefillMessage(null);
   }, [selectedSellerId]);
 
   useEffect(() => {
@@ -64,13 +100,12 @@ export const ViewerPage: React.FC = () => {
     }
   }, [livestream.comments]);
 
+  const handleConsumePrefill = useCallback(() => setChatPrefillMessage(null), []);
+
   const handleSendMessage = () => {
     const text = inputText.trim();
     if (!text) return;
-
-    if (livestream.sendComment(text)) {
-      setInputText('');
-    }
+    if (livestream.sendComment(text)) setInputText('');
   };
 
   const liveShopsCount = livestream.shops.filter((shop) => shop.isLive).length;
@@ -81,30 +116,43 @@ export const ViewerPage: React.FC = () => {
     livestream.selectedShop?.name ||
     livestream.activeStream?.seller.name ||
     'Phòng Livestream';
-  const isShopLive = Boolean(livestream.activeStream);
+  const productCount = livestream.selectedShop?.productCount ?? 0;
+  const isLiveRoomLayout = Boolean(selectedSellerId && activeTab === 'live');
+  const storefrontShop: ShopStorefrontInfo | null = selectedSellerId
+    ? livestream.selectedShop
+      ? { ...livestream.selectedShop, isLive: isShopLive, activeStream: livestream.activeStream }
+      : {
+        id: selectedSellerId,
+        name: currentShopName,
+        productCount: 0,
+        isLive: isShopLive,
+        activeStream: livestream.activeStream,
+        kbHighlights: [],
+      }
+    : null;
 
   return (
     <Container
       maxWidth="xl"
       disableGutters
       sx={
-        selectedSellerId
+        isLiveRoomLayout
           ? {
-              flex: 1,
-              minHeight: { xs: 'calc(100dvh - 56px)', md: 0 },
-              height: { xs: 'auto', md: 'calc(100dvh - 64px)' },
-              px: { xs: 0, md: 3 },
-              py: { xs: 0, md: 2.5 },
-              display: 'flex',
-              flexDirection: 'column',
-            }
+            flex: 1,
+            minHeight: { xs: 'calc(100dvh - 56px)', md: 0 },
+            height: { xs: 'auto', md: 'calc(100dvh - 64px)' },
+            px: { xs: 0, md: 3 },
+            py: { xs: 0, md: 2.5 },
+            display: 'flex',
+            flexDirection: 'column',
+          }
           : {
-              flex: 1,
-              px: { xs: 2, md: 3 },
-              py: { xs: 2.5, md: 3 },
-              display: 'flex',
-              flexDirection: 'column',
-            }
+            flex: 1,
+            px: { xs: 2, md: 3 },
+            py: { xs: 2, md: 2.5 },
+            display: 'flex',
+            flexDirection: 'column',
+          }
       }
     >
       {!selectedSellerId ? (
@@ -113,7 +161,8 @@ export const ViewerPage: React.FC = () => {
           loading={livestream.loading}
           error={livestream.error}
           onRefresh={livestream.loadActiveStream}
-          onSelectShop={(id) => setSearchParams({ sellerId: id })}
+          onSelectShop={(id) => setSearchParams({ sellerId: id, tab: 'live' })}
+          onOpenStore={(id) => setSearchParams({ sellerId: id, tab: 'store' })}
           onOpenConsult={(id) => setSearchParams({ sellerId: id, chat: 'open' })}
         />
       ) : (
@@ -127,26 +176,23 @@ export const ViewerPage: React.FC = () => {
               alignItems: 'center',
               justifyContent: 'space-between',
               flexWrap: 'wrap',
-              px: { xs: 1.5, md: 0 },
-              py: { xs: 1, md: 0 },
-              mb: { xs: 0, md: 1.5 },
-              bgcolor: { xs: 'background.paper', md: 'transparent' },
-              borderBottom: { xs: '1px solid', md: 'none' },
+              px: isLiveRoomLayout ? { xs: 1.5, md: 0 } : 0,
+              py: isLiveRoomLayout ? { xs: 1, md: 0 } : 0,
+              mb: isLiveRoomLayout ? { xs: 0, md: 1.5 } : 2,
+              bgcolor: isLiveRoomLayout ? { xs: 'background.paper', md: 'transparent' } : 'transparent',
+              borderBottom: isLiveRoomLayout ? { xs: '1px solid', md: 'none' } : 'none',
               borderColor: 'divider',
               flexShrink: 0,
             }}
           >
-            <Stack
-              direction="row"
-              spacing={1.25}
-              sx={{ alignItems: 'center', minWidth: 0, flex: 1 }}
-            >
+            <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', minWidth: 0, flex: 1 }}>
               <Button
                 variant="outlined"
                 size="small"
+                startIcon={<ArrowBackRoundedIcon fontSize="small" />}
                 onClick={() => setSearchParams({})}
                 sx={{
-                  minHeight: 40,
+                  minHeight: { xs: 44, md: 40 },
                   borderRadius: 2,
                   borderColor: 'divider',
                   color: 'text.primary',
@@ -154,7 +200,7 @@ export const ViewerPage: React.FC = () => {
                   flexShrink: 0,
                 }}
               >
-                ← Danh sách Shop
+                Danh sách Shop
               </Button>
               <Typography
                 variant="subtitle1"
@@ -172,95 +218,140 @@ export const ViewerPage: React.FC = () => {
                   fontWeight: 700,
                   fontSize: '0.72rem',
                   flexShrink: 0,
-                  bgcolor: isShopLive
-                    ? surfaceTokens.liveRed
-                    : surfaceTokens.mutedBg,
+                  bgcolor: isShopLive ? surfaceTokens.liveRed : surfaceTokens.mutedBg,
                   color: isShopLive ? '#FFFFFF' : 'text.secondary',
                 }}
               />
             </Stack>
 
-            {otherLiveCount > 0 && (
+            <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap', alignItems: 'center', flexShrink: 0 }}>
               <Button
-                variant="outlined"
+                variant={activeTab === 'live' ? 'contained' : 'outlined'}
+                color={isShopLive ? 'error' : 'primary'}
                 size="small"
-                startIcon={<SwapHorizRoundedIcon fontSize="small" />}
-                onClick={() => setSearchParams({})}
-                sx={{
-                  minHeight: { xs: 44, md: 36 },
-                  borderRadius: 2,
-                  bgcolor: surfaceTokens.primarySoft,
-                  color: surfaceTokens.primaryMain,
-                  borderColor: surfaceTokens.primaryBorder,
-                  fontWeight: 600,
-                  flexShrink: 0,
-                }}
+                startIcon={<LiveTvRoundedIcon fontSize="small" />}
+                onClick={() => setSearchParams({ sellerId: selectedSellerId, tab: 'live' })}
+                sx={TOP_BAR_BTN_SX}
               >
-                Đổi phòng ({liveShopsCount} đang live)
+                Phòng Live
               </Button>
-            )}
+              <Button
+                variant={activeTab === 'store' ? 'contained' : 'outlined'}
+                color="primary"
+                size="small"
+                startIcon={<StorefrontOutlinedIcon fontSize="small" />}
+                onClick={() => setSearchParams({ sellerId: selectedSellerId, tab: 'store' })}
+                sx={TOP_BAR_BTN_SX}
+              >
+                Cửa hàng ({productCount})
+              </Button>
+              {otherLiveCount > 0 && (
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<SwapHorizRoundedIcon fontSize="small" />}
+                  onClick={() => setSearchParams({})}
+                  sx={{
+                    ...TOP_BAR_BTN_SX,
+                    bgcolor: surfaceTokens.primarySoft,
+                    color: surfaceTokens.primaryMain,
+                    borderColor: surfaceTokens.primaryBorder,
+                  }}
+                >
+                  Đổi phòng ({liveShopsCount} đang live)
+                </Button>
+              )}
+            </Stack>
           </Stack>
 
-          <Box
-            sx={{
-              flex: 1,
-              minHeight: 0,
-              display: 'flex',
-              flexDirection: { xs: 'column', md: 'row' },
-              gap: { xs: 0, md: 2.5 },
-            }}
-          >
-            <LiveVideoPlayer
-              isLive={Boolean(livestream.activeStream)}
-              title={livestream.activeStream?.title}
-              videoRef={livekit.videoRef}
-              audioRef={livekit.audioRef}
-              videoStatus={livekit.videoStatus}
-              hasVideo={livekit.hasVideo}
-              videoMutedBySeller={livekit.videoMutedBySeller}
-              muted={livekit.muted}
-              videoError={livekit.videoError}
-              onToggleMute={() => {
-                void livekit.toggleMute();
+          {activeTab === 'live' ? (
+            <Box
+              sx={{
+                flex: 1,
+                minHeight: 0,
+                display: 'flex',
+                flexDirection: { xs: 'column', md: 'row' },
+                gap: { xs: 0, md: 2.5 },
               }}
-              onRetry={livekit.retry}
-            />
+            >
+              <LiveVideoPlayer
+                isLive={isShopLive}
+                title={livestream.activeStream?.title}
+                viewerCount={livestream.viewerCount}
+                videoRef={livekit.videoRef}
+                audioRef={livekit.audioRef}
+                videoStatus={livekit.videoStatus}
+                hasVideo={livekit.hasVideo}
+                videoMutedBySeller={livekit.videoMutedBySeller}
+                muted={livekit.muted}
+                videoError={livekit.videoError}
+                onToggleMute={() => { void livekit.toggleMute(); }}
+                onRetry={livekit.retry}
+              />
 
-            <LiveCommentPanel
-              activeStream={livestream.activeStream}
-              shopName={
-                livestream.selectedShop?.name ||
-                livestream.activeStream?.seller.name
-              }
-              canConsult={Boolean(livestream.selectedShop || livestream.activeStream)}
-              loading={livestream.loading}
-              connected={livestream.connected}
-              error={livestream.error}
-              comments={livestream.comments}
-              currentUserId={user?.id}
-              currentUserName={user?.name}
-              inputText={inputText}
-              onInputChange={setInputText}
-              onSend={handleSendMessage}
-              onRetry={livestream.loadActiveStream}
-              onOpenConsult={() => {
-                if (selectedSellerId) setChatWidgetOpen(true);
+              <LiveCommentPanel
+                activeStream={livestream.activeStream}
+                shopName={livestream.selectedShop?.name || livestream.activeStream?.seller.name}
+                canConsult={Boolean(livestream.selectedShop || livestream.activeStream)}
+                loading={livestream.loading}
+                connected={livestream.connected}
+                error={livestream.error}
+                comments={livestream.comments}
+                currentUserId={user?.id}
+                currentUserName={user?.name}
+                inputText={inputText}
+                onInputChange={setInputText}
+                onSend={handleSendMessage}
+                onRetry={livestream.loadActiveStream}
+                onOpenConsult={() => { if (selectedSellerId) setChatWidgetOpen(true); }}
+                onOpenCatalog={() => setCatalogOpen(true)}
+                chatEndRef={chatEndRef}
+              />
+            </Box>
+          ) : !tabParam && livestream.loading && !livestream.selectedShop ? (
+            <Box
+              sx={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                py: 8,
               }}
-              onOpenCatalog={() => setCatalogOpen(true)}
-              chatEndRef={chatEndRef}
-            />
-          </Box>
+            >
+              <CircularProgress size={32} />
+            </Box>
+          ) : (
+            storefrontShop && (
+              <ShopStorefrontView
+                shop={storefrontShop}
+                onGoToLive={() => setSearchParams({ sellerId: selectedSellerId, tab: 'live' })}
+                onBuyInLive={(sku) => {
+                  setInputText(`${sku} `);
+                  setSearchParams({ sellerId: selectedSellerId, tab: 'live' });
+                }}
+                onAskAi={(prefillPrompt) => {
+                  if (prefillPrompt.trim()) setChatPrefillMessage(prefillPrompt);
+                  setChatWidgetOpen(true);
+                }}
+              />
+            )
+          )}
 
           {(livestream.selectedShop || livestream.activeStream) && (
             <LiveShopChatWidget
               sellerId={selectedSellerId}
               shopName={currentShopName}
               open={chatWidgetOpen}
+              prefillMessage={chatPrefillMessage}
+              onConsumePrefill={handleConsumePrefill}
               onOpen={() => setChatWidgetOpen(true)}
               onClose={() => {
                 setChatWidgetOpen(false);
                 if (searchParams.get('chat')) {
-                  setSearchParams({ sellerId: selectedSellerId }, { replace: true });
+                  setSearchParams(
+                    { sellerId: selectedSellerId, ...(tabParam ? { tab: tabParam } : {}) },
+                    { replace: true },
+                  );
                 }
               }}
               onOpenFullInbox={() => navigate(`/inbox?sellerId=${selectedSellerId}`)}
@@ -271,7 +362,7 @@ export const ViewerPage: React.FC = () => {
             open={Boolean(livestream.draftOrder)}
             data={livestream.draftOrder}
             onClose={() => livestream.setDraftOrder(null)}
-            onSuccess={() => {}}
+            onSuccess={() => { }}
           />
 
           <LiveProductsCatalogModal

@@ -139,4 +139,67 @@ describe('LivestreamGateway', () => {
 
     expect(processComment).not.toHaveBeenCalled();
   });
+
+  it('đếm mắt xem BUYER duy nhất và phát viewer_count khi vào/rời/ngắt kết nối phòng', async () => {
+    const roomEmit = jest.fn();
+    gateway.server = {
+      to: jest.fn(() => ({ emit: roomEmit })),
+    } as unknown as Server;
+
+    const makeClient = (id: string, userId: string, role: Role) =>
+      ({
+        id,
+        data: { user: { userId, role } },
+        join: jest.fn().mockResolvedValue(undefined),
+        leave: jest.fn().mockResolvedValue(undefined),
+        emit: jest.fn(),
+      }) as unknown as Socket;
+
+    const seller = makeClient('sock-seller', 'seller-1', Role.SELLER);
+    const buyer1TabA = makeClient('sock-b1-a', 'buyer-1', Role.BUYER);
+    const buyer1TabB = makeClient('sock-b1-b', 'buyer-1', Role.BUYER);
+    const buyer2 = makeClient('sock-b2', 'buyer-2', Role.BUYER);
+
+    await gateway.handleJoinRoom(seller, { livestreamId: 'stream-1' });
+    expect(roomEmit).toHaveBeenLastCalledWith('viewer_count', {
+      livestreamId: 'stream-1',
+      viewerCount: 0,
+    });
+
+    await gateway.handleJoinRoom(buyer1TabA, { livestreamId: 'stream-1' });
+    expect(roomEmit).toHaveBeenLastCalledWith('viewer_count', {
+      livestreamId: 'stream-1',
+      viewerCount: 1,
+    });
+
+    await gateway.handleJoinRoom(buyer1TabB, { livestreamId: 'stream-1' });
+    expect(roomEmit).toHaveBeenLastCalledWith('viewer_count', {
+      livestreamId: 'stream-1',
+      viewerCount: 1,
+    });
+
+    await gateway.handleJoinRoom(buyer2, { livestreamId: 'stream-1' });
+    expect(roomEmit).toHaveBeenLastCalledWith('viewer_count', {
+      livestreamId: 'stream-1',
+      viewerCount: 2,
+    });
+
+    gateway.handleDisconnect(buyer2);
+    expect(roomEmit).toHaveBeenLastCalledWith('viewer_count', {
+      livestreamId: 'stream-1',
+      viewerCount: 1,
+    });
+
+    await gateway.handleLeaveRoom(buyer1TabA, { livestreamId: 'stream-1' });
+    expect(roomEmit).toHaveBeenLastCalledWith('viewer_count', {
+      livestreamId: 'stream-1',
+      viewerCount: 1,
+    });
+
+    gateway.handleDisconnect(buyer1TabB);
+    expect(roomEmit).toHaveBeenLastCalledWith('viewer_count', {
+      livestreamId: 'stream-1',
+      viewerCount: 0,
+    });
+  });
 });

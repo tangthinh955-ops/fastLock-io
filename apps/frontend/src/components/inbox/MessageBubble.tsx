@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Box, Paper, Stack, Typography } from '@mui/material';
+import { Box, Button, Paper, Stack, Typography } from '@mui/material';
 import CheckCircleOutlineRoundedIcon from '@mui/icons-material/CheckCircleOutlineRounded';
+import OpenInNewRoundedIcon from '@mui/icons-material/OpenInNewRounded';
 import PersonOutlinedIcon from '@mui/icons-material/PersonOutlined';
 import QrCode2OutlinedIcon from '@mui/icons-material/QrCode2Outlined';
 import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined';
@@ -79,6 +80,8 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   compact = false,
 }) => {
   const [qrLoadFailed, setQrLoadFailed] = useState(false);
+  const payosUrlMatch = message.content.match(/https:\/\/pay\.payos\.vn\/[^\s]+/i);
+  const payosCheckoutUrl = payosUrlMatch?.[0] ?? null;
   const isOwnMessage = message.senderId === currentUserId;
   const alignRight =
     view === 'buyer'
@@ -217,6 +220,21 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                   Không tải được ảnh VietQR trên mạng hiện tại. Vui lòng xem
                   thông tin đơn hàng ở nội dung tin nhắn phía trên.
                 </Typography>
+              )}
+              {payosCheckoutUrl && (
+                <Button
+                  component="a"
+                  href={payosCheckoutUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  variant="contained"
+                  color="primary"
+                  size="small"
+                  endIcon={<OpenInNewRoundedIcon fontSize="small" />}
+                  sx={{ mt: 1.25, minHeight: 40, fontWeight: 700 }}
+                >
+                  Mở trang thanh toán payOS
+                </Button>
               )}
             </Box>
           ))}

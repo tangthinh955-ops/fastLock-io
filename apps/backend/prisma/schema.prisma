@@ -131,6 +131,12 @@ model Order {
   shippingAddress String?
   shippingNote    String?
   expiresAt       DateTime?
+  payosOrderCode  String?     @unique
+  paymentLinkId   String?
+  checkoutUrl     String?
+  qrCode          String?     @db.Text
+  paidAt          DateTime?
+  paymentRef      String?     @unique
   createdAt       DateTime    @default(now())
 
   buyer      User        @relation("BuyerOrders", fields: [buyerId], references: [id])

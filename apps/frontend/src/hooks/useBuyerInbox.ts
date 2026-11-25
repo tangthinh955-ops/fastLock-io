@@ -236,9 +236,10 @@ export const useBuyerInbox = ({
     },
   );
 
-  const handleSendMessage = async () => {
+  const handleSendMessage = async (overrideText?: string) => {
     const targetShopId = selectedShopId;
-    const message = inputText.trim();
+    const isOverride = typeof overrideText === 'string';
+    const message = (isOverride ? overrideText : inputText).trim();
     if (!targetShopId || !message || sending) return;
 
     const requestId = ++sendRequestIdRef.current;
@@ -267,7 +268,9 @@ export const useBuyerInbox = ({
         aiMessage ?? buyerMessage,
       );
       setShops((current) => orderInboxContacts(current, activityRef.current));
-      setInputText('');
+      if (!isOverride) {
+        setInputText('');
+      }
       await conversationMode.refresh();
     } catch (requestError) {
       if (

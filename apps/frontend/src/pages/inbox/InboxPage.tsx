@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Button, useMediaQuery, useTheme } from '@mui/material';
 import LiveTvOutlinedIcon from '@mui/icons-material/LiveTvOutlined';
+import SupportAgentRoundedIcon from '@mui/icons-material/SupportAgentRounded';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import apiClient from '../../api/client';
 import { ChatHeader } from '../../components/inbox/ChatHeader';
 import { ChatInputBar } from '../../components/inbox/ChatInputBar';
 import {
@@ -27,6 +29,33 @@ export const InboxPage: React.FC = () => {
     isChatVisible: isDesktop || mobilePane === 'chat',
   });
   const { conversation } = inbox;
+  const orderIdParam = searchParams.get('orderId');
+  const sellerIdParam = searchParams.get('sellerId');
+  const syncedOrderIdRef = useRef<string | null>(null);
+  const refreshLatestRef = useRef(conversation.refreshLatest);
+  refreshLatestRef.current = conversation.refreshLatest;
+
+  useEffect(() => {
+    if (!orderIdParam || syncedOrderIdRef.current === orderIdParam) return;
+    syncedOrderIdRef.current = orderIdParam;
+
+    void apiClient
+      .post<{ status?: string; synced?: boolean }>(
+        `/payments/orders/${encodeURIComponent(orderIdParam)}/sync`,
+      )
+      .then((res) => {
+        if (res.data?.synced) {
+          void refreshLatestRef.current();
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        setSearchParams(
+          sellerIdParam ? { sellerId: sellerIdParam } : {},
+          { replace: true },
+        );
+      });
+  }, [orderIdParam, sellerIdParam, setSearchParams]);
   const { status, loading: loadingMode } = inbox.conversationMode;
   const { isAiMode, modeLabel } = getConversationModeDisplay(status, loadingMode);
   const isEmptyShops = !inbox.loadingShops && !inbox.error && inbox.shops.length === 0;
@@ -95,6 +124,25 @@ export const InboxPage: React.FC = () => {
               isAiMode={isAiMode}
               badgeLabel="Kênh chính thức"
               onBack={handleBackToList}
+              actions={
+                isAiMode && !loadingMode ? (
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    color="primary"
+                    startIcon={<SupportAgentRoundedIcon />}
+                    disabled={inbox.sending}
+                    onClick={() =>
+                      void inbox.handleSendMessage(
+                        'Mình muốn gặp trực tiếp chủ Shop để được hỗ trợ',
+                      )
+                    }
+                    sx={{ minHeight: { xs: 44, md: 36 }, fontWeight: 600 }}
+                  >
+                    Gặp chủ Shop
+                  </Button>
+                ) : undefined
+              }
             />
             <MessageList
               messages={conversation.messages}

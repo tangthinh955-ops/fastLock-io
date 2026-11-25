@@ -1,12 +1,14 @@
 import React from 'react';
-import { Paper, Typography, Stack, IconButton, Tooltip } from '@mui/material';
-import { Videocam, VideocamOff, Mic, MicOff } from '@mui/icons-material';
+import { Box, Paper, Typography, Stack, IconButton, Tooltip } from '@mui/material';
+import { Videocam, VideocamOff, Mic, MicOff, VisibilityOutlined } from '@mui/icons-material';
 import { surfaceTokens } from '../../theme';
 
 interface WebCamPlayerProps {
     videoRef: React.RefObject<HTMLVideoElement | null>;
     camEnabled: boolean;
     micEnabled: boolean;
+    isStreaming?: boolean;
+    viewerCount?: number;
     onToggleCam: () => void;
     onToggleMic: () => void;
 }
@@ -15,6 +17,8 @@ export const WebCamPlayer: React.FC<WebCamPlayerProps> = ({
     videoRef,
     camEnabled,
     micEnabled,
+    isStreaming = false,
+    viewerCount = 0,
     onToggleCam,
     onToggleMic,
 }) => {
@@ -47,6 +51,65 @@ export const WebCamPlayer: React.FC<WebCamPlayerProps> = ({
                     filter: camEnabled ? 'none' : 'brightness(0.2)',
                 }}
             />
+
+            {isStreaming && (
+                <Stack
+                    direction="row"
+                    spacing={1}
+                    sx={{
+                        position: 'absolute',
+                        top: 14,
+                        left: 14,
+                        zIndex: 10,
+                        pointerEvents: 'none',
+                    }}
+                >
+                    <Box
+                        sx={{
+                            bgcolor: surfaceTokens.liveRed,
+                            color: '#FFFFFF',
+                            px: 1.25,
+                            py: 0.4,
+                            borderRadius: 1.5,
+                            fontWeight: 700,
+                            fontSize: '0.75rem',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 0.75,
+                        }}
+                    >
+                        <Box
+                            component="span"
+                            sx={{
+                                width: 7,
+                                height: 7,
+                                borderRadius: '50%',
+                                bgcolor: '#FFFFFF',
+                            }}
+                        />
+                        LIVE
+                    </Box>
+                    <Box
+                        aria-label={`${viewerCount} người đang xem`}
+                        sx={{
+                            bgcolor: 'rgba(15, 23, 42, 0.84)',
+                            color: '#FFFFFF',
+                            px: 1.25,
+                            py: 0.4,
+                            borderRadius: 1.5,
+                            fontWeight: 700,
+                            fontSize: '0.75rem',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 0.65,
+                            fontVariantNumeric: 'tabular-nums',
+                        }}
+                    >
+                        <VisibilityOutlined sx={{ fontSize: 15 }} />
+                        {viewerCount.toLocaleString('vi-VN')} mắt xem
+                    </Box>
+                </Stack>
+            )}
 
             {!camEnabled && (
                 <Stack

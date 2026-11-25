@@ -7,7 +7,10 @@ import { ChatMode, MessageSource, Role } from '@prisma/client';
 import { validateSync } from 'class-validator';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { AiService } from '../ai/ai.service';
-import { DirectMessageService } from './direct-message.service';
+import {
+  DirectMessageService,
+  isHumanHandoffRequest,
+} from './direct-message.service';
 import { DirectMessageController } from './direct-message.controller';
 import { UpdateConversationModeDto } from './dto/update-conversation-mode.dto';
 import { DirectMessageEvents } from './direct-message.events';
@@ -24,6 +27,7 @@ describe('DirectMessageService AI history', () => {
     conversation: {
       findUnique: jest.fn(),
       upsert: jest.fn(),
+      update: jest.fn(),
       updateMany: jest.fn(),
     },
     $transaction: jest.fn(),
@@ -644,5 +648,36 @@ describe('DirectMessageService AI history', () => {
     expect(
       prisma.user.findMany.mock.calls[0][0].select.messagesRecv.where,
     ).toEqual({ senderId: 'shop-a' });
+  });
+
+  it('hands off conversation from AI to HUMAN without calling Groq when buyer requests human staff', async () => {
+    expect(isHumanHandoffRequest('Cho mình gặp chủ shop nhé')).toBe(true);
+    expect(isHumanHandoffRequest('Áo này còn size L không shop?')).toBe(false);
+
+    prisma.conversation.update.mockResolvedValue({
+      mode: ChatMode.HUMAN,
+      version: 2,
+    });
+
+    const result = await service.sendChatMessage(
+      'buyer-a',
+      'shop-a',
+      'Mình muốn gặp trực tiếp chủ Shop để được hỗ trợ',
+    );
+
+    expect(ai.generateReply).not.toHaveBeenCalled();
+    expect(prisma.conversation.update).toHaveBeenCalledWith({
+      where: { id: 'conversation-a' },
+      data: { mode: ChatMode.HUMAN, version: { increment: 1 } },
+      select: { mode: true, version: true },
+    });
+    expect(events.publishConversationMode).toHaveBeenCalledWith({
+      buyerId: 'buyer-a',
+      sellerId: 'shop-a',
+      mode: ChatMode.HUMAN,
+      version: 2,
+    });
+    expect(result.aiMessage?.source).toBe(MessageSource.SYSTEM);
+    expect(result.aiMessage?.content).toContain('chủ Shop');
   });
 });

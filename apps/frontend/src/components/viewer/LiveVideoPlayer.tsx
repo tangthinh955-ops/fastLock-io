@@ -8,6 +8,7 @@ import {
 import LiveTvRoundedIcon from '@mui/icons-material/LiveTvRounded';
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
 import VideocamOffRoundedIcon from '@mui/icons-material/VideocamOffRounded';
+import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import VolumeOffRoundedIcon from '@mui/icons-material/VolumeOffRounded';
 import VolumeUpRoundedIcon from '@mui/icons-material/VolumeUpRounded';
 import type { ViewerVideoStatus } from '../../hooks/useLiveKitViewer';
@@ -16,6 +17,7 @@ import { surfaceTokens } from '../../theme';
 interface LiveVideoPlayerProps {
   isLive: boolean;
   title?: string;
+  viewerCount?: number;
   videoRef: RefObject<HTMLVideoElement | null>;
   audioRef: RefObject<HTMLAudioElement | null>;
   videoStatus: ViewerVideoStatus;
@@ -30,6 +32,7 @@ interface LiveVideoPlayerProps {
 export const LiveVideoPlayer: React.FC<LiveVideoPlayerProps> = ({
   isLive,
   title,
+  viewerCount = 0,
   videoRef,
   audioRef,
   videoStatus,
@@ -115,6 +118,28 @@ export const LiveVideoPlayer: React.FC<LiveVideoPlayerProps> = ({
           />
           {isLive ? 'LIVE' : 'OFFLINE'}
         </Box>
+        {isLive && (
+          <Box
+            aria-label={`${viewerCount} người đang xem`}
+            sx={{
+              bgcolor: 'rgba(15, 23, 42, 0.8)',
+              color: '#FFFFFF',
+              px: 1.15,
+              py: 0.4,
+              borderRadius: 1.5,
+              fontWeight: 700,
+              fontSize: '0.75rem',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 0.6,
+              flexShrink: 0,
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            <VisibilityOutlinedIcon sx={{ fontSize: 15 }} />
+            {viewerCount.toLocaleString('vi-VN')}
+          </Box>
+        )}
         {title && (
           <Box
             sx={{

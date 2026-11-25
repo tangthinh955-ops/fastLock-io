@@ -11,6 +11,7 @@ import { AiModule } from './modules/ai/ai.module';
 import { ParserModule } from './modules/parser/parser.module';
 import { OrderModule } from './modules/order/order.module';
 import { LivestreamModule } from './modules/livestream/livestream.module';
+import { PaymentModule } from './modules/payment/payment.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { LivestreamModule } from './modules/livestream/livestream.module';
     ParserModule,
     OrderModule,
     LivestreamModule,
+    PaymentModule,
   ],
   controllers: [],
   providers: [

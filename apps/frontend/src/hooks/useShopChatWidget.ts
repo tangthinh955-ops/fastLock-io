@@ -175,9 +175,10 @@ export const useShopChatWidget = ({
     handleModeChanged,
   );
 
-  const handleSendMessage = async () => {
+  const handleSendMessage = async (overrideText?: string) => {
     const targetSellerId = sellerId;
-    const message = inputText.trim();
+    const isOverride = typeof overrideText === 'string';
+    const message = (isOverride ? overrideText : inputText).trim();
     if (!targetSellerId || !message || sending) return;
 
     const requestId = ++sendRequestIdRef.current;
@@ -200,7 +201,9 @@ export const useShopChatWidget = ({
         buyerMessage,
         ...(aiMessage ? [aiMessage] : []),
       );
-      setInputText('');
+      if (!isOverride) {
+        setInputText('');
+      }
       await conversationMode.refresh();
     } catch (requestError) {
       if (
