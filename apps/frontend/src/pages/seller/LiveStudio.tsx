@@ -37,6 +37,7 @@ export const LiveStudio: React.FC = () => {
     const [comments, setComments] = useState<CommentItem[]>([]);
     const [recentOrders, setRecentOrders] = useState<OrderNotification[]>([]);
     const [latestOrder, setLatestOrder] = useState<OrderNotification | null>(null);
+    const [viewerCount, setViewerCount] = useState<number>(0);
     const socketRef = useRef<Socket | null>(null);
     const latestOrderTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -55,6 +56,30 @@ export const LiveStudio: React.FC = () => {
             socket.on('connect', () => {
                 socket.emit('join_room', { livestreamId: streamId });
             });
+
+            socket.on(
+                'room_joined',
+                (data: { livestreamId?: string; viewerCount?: number }) => {
+                    if (
+                        data.livestreamId === streamId &&
+                        typeof data.viewerCount === 'number'
+                    ) {
+                        setViewerCount(data.viewerCount);
+                    }
+                },
+            );
+
+            socket.on(
+                'viewer_count',
+                (data: { livestreamId?: string; viewerCount?: number }) => {
+                    if (
+                        data.livestreamId === streamId &&
+                        typeof data.viewerCount === 'number'
+                    ) {
+                        setViewerCount(data.viewerCount);
+                    }
+                },
+            );
 
             socket.on('comment_received', (comment: CommentItem) => {
                 setComments((prev) => [comment, ...prev]);
@@ -178,6 +203,7 @@ export const LiveStudio: React.FC = () => {
             setComments([]);
             setRecentOrders([]);
             setLatestOrder(null);
+            setViewerCount(0);
 
             activeStreamIdRef.current = streamData.id;
             sessionStorage.setItem('active_seller_stream_id', streamData.id);
@@ -214,6 +240,7 @@ export const LiveStudio: React.FC = () => {
         if (studioMountedRef.current) {
             setIsStreaming(false);
             setCurrentStreamId(null);
+            setViewerCount(0);
         }
     };
 
@@ -264,6 +291,8 @@ export const LiveStudio: React.FC = () => {
                             videoRef={videoRef}
                             camEnabled={camEnabled}
                             micEnabled={micEnabled}
+                            isStreaming={isStreaming}
+                            viewerCount={viewerCount}
                             onToggleCam={() => { void toggleCamera(); }}
                             onToggleMic={() => { void toggleMic(); }}
                         />

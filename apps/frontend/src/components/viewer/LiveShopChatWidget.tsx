@@ -13,6 +13,7 @@ import {
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import OpenInFullRoundedIcon from '@mui/icons-material/OpenInFullRounded';
 import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined';
+import SupportAgentRoundedIcon from '@mui/icons-material/SupportAgentRounded';
 import { useAuth } from '../../context/AuthContext';
 import { useShopChatWidget } from '../../hooks/useShopChatWidget';
 import { surfaceTokens } from '../../theme';
@@ -227,9 +228,34 @@ export const LiveShopChatWidget: React.FC<LiveShopChatWidgetProps> = ({
 
         <Stack
           direction="row"
-          spacing={1}
+          spacing={0.5}
           sx={{ alignItems: 'center', flexShrink: 0 }}
         >
+          {isAiMode && !conversationMode.loading && (
+            <Tooltip title="Gặp chủ Shop (người thật)">
+              <span>
+                <IconButton
+                  aria-label="Gặp chủ Shop"
+                  disabled={sending}
+                  onClick={() =>
+                    void handleSendMessage(
+                      'Mình muốn gặp trực tiếp chủ Shop để được hỗ trợ',
+                    )
+                  }
+                  sx={{
+                    minWidth: 44,
+                    minHeight: 44,
+                    color: 'primary.main',
+                    '&:hover': {
+                      bgcolor: surfaceTokens.primarySoft,
+                    },
+                  }}
+                >
+                  <SupportAgentRoundedIcon fontSize="small" />
+                </IconButton>
+              </span>
+            </Tooltip>
+          )}
           <Tooltip title="Mở Hộp thư đầy đủ">
             <IconButton
               aria-label="Mở Hộp thư đầy đủ"

@@ -28,6 +28,7 @@ import {
   CheckCircleOutlined as CheckCircleIcon,
   CancelOutlined as CancelIcon,
   ShoppingBagOutlined as ShoppingBagIcon,
+  Sync as SyncIcon,
 } from '@mui/icons-material';
 
 export interface OrderItem {
@@ -49,6 +50,8 @@ export interface Order {
   status: 'PENDING' | 'PAID' | 'CANCELLED';
   buyerId: string;
   livestreamId: string;
+  payosOrderCode?: string | null;
+  expiresAt?: string | null;
   createdAt: string;
   buyer?: {
     id: string;
@@ -70,6 +73,7 @@ interface SellerOrderTableProps {
   statusFilter: string;
   onStatusFilterChange: (status: string) => void;
   onUpdateStatus: (orderId: string, newStatus: 'PAID' | 'CANCELLED') => void;
+  onSyncPayos?: (orderId: string) => void;
   onRefresh: () => void;
   page: number;
   totalPages: number;
@@ -104,6 +108,7 @@ interface OrderActionButtonsProps {
   compact?: boolean;
   disabled?: boolean;
   onUpdateStatus: (orderId: string, newStatus: 'PAID' | 'CANCELLED') => void;
+  onSyncPayos?: (orderId: string) => void;
 }
 
 const OrderActionButtons: React.FC<OrderActionButtonsProps> = ({
@@ -111,6 +116,7 @@ const OrderActionButtons: React.FC<OrderActionButtonsProps> = ({
   compact = false,
   disabled = false,
   onUpdateStatus,
+  onSyncPayos,
 }) => {
   if (order.status !== 'PENDING') {
     return compact ? null : (
@@ -122,6 +128,19 @@ const OrderActionButtons: React.FC<OrderActionButtonsProps> = ({
 
   const actions = (
     <>
+      {order.payosOrderCode && onSyncPayos && (
+        <Button
+          fullWidth={compact}
+          variant="outlined"
+          color="primary"
+          disabled={disabled}
+          startIcon={<SyncIcon />}
+          onClick={() => onSyncPayos(order.id)}
+          sx={compact ? { minHeight: 44, borderRadius: 2, fontSize: '0.8125rem' } : undefined}
+        >
+          {compact ? 'payOS' : 'Kiểm tra payOS'}
+        </Button>
+      )}
       <Button
         fullWidth={compact}
         variant="outlined"
@@ -172,6 +191,7 @@ export const SellerOrderTable: React.FC<SellerOrderTableProps> = ({
   statusFilter,
   onStatusFilterChange,
   onUpdateStatus,
+  onSyncPayos,
   onRefresh,
   page,
   totalPages,
@@ -345,6 +365,7 @@ export const SellerOrderTable: React.FC<SellerOrderTableProps> = ({
                         order={order}
                         disabled={updatingOrderId === order.id}
                         onUpdateStatus={onUpdateStatus}
+                        onSyncPayos={onSyncPayos}
                       />
                     </TableCell>
                   </TableRow>
@@ -406,6 +427,7 @@ export const SellerOrderTable: React.FC<SellerOrderTableProps> = ({
                 compact
                 disabled={updatingOrderId === order.id}
                 onUpdateStatus={onUpdateStatus}
+                onSyncPayos={onSyncPayos}
               />
             </Paper>
           ))

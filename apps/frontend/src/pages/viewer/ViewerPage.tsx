@@ -122,13 +122,13 @@ export const ViewerPage: React.FC = () => {
     ? livestream.selectedShop
       ? { ...livestream.selectedShop, isLive: isShopLive, activeStream: livestream.activeStream }
       : {
-          id: selectedSellerId,
-          name: currentShopName,
-          productCount: 0,
-          isLive: isShopLive,
-          activeStream: livestream.activeStream,
-          kbHighlights: [],
-        }
+        id: selectedSellerId,
+        name: currentShopName,
+        productCount: 0,
+        isLive: isShopLive,
+        activeStream: livestream.activeStream,
+        kbHighlights: [],
+      }
     : null;
 
   return (
@@ -138,21 +138,21 @@ export const ViewerPage: React.FC = () => {
       sx={
         isLiveRoomLayout
           ? {
-              flex: 1,
-              minHeight: { xs: 'calc(100dvh - 56px)', md: 0 },
-              height: { xs: 'auto', md: 'calc(100dvh - 64px)' },
-              px: { xs: 0, md: 3 },
-              py: { xs: 0, md: 2.5 },
-              display: 'flex',
-              flexDirection: 'column',
-            }
+            flex: 1,
+            minHeight: { xs: 'calc(100dvh - 56px)', md: 0 },
+            height: { xs: 'auto', md: 'calc(100dvh - 64px)' },
+            px: { xs: 0, md: 3 },
+            py: { xs: 0, md: 2.5 },
+            display: 'flex',
+            flexDirection: 'column',
+          }
           : {
-              flex: 1,
-              px: { xs: 2, md: 3 },
-              py: { xs: 2, md: 2.5 },
-              display: 'flex',
-              flexDirection: 'column',
-            }
+            flex: 1,
+            px: { xs: 2, md: 3 },
+            py: { xs: 2, md: 2.5 },
+            display: 'flex',
+            flexDirection: 'column',
+          }
       }
     >
       {!selectedSellerId ? (
@@ -277,6 +277,7 @@ export const ViewerPage: React.FC = () => {
               <LiveVideoPlayer
                 isLive={isShopLive}
                 title={livestream.activeStream?.title}
+                viewerCount={livestream.viewerCount}
                 videoRef={livekit.videoRef}
                 audioRef={livekit.audioRef}
                 videoStatus={livekit.videoStatus}
@@ -361,7 +362,7 @@ export const ViewerPage: React.FC = () => {
             open={Boolean(livestream.draftOrder)}
             data={livestream.draftOrder}
             onClose={() => livestream.setDraftOrder(null)}
-            onSuccess={() => {}}
+            onSuccess={() => { }}
           />
 
           <LiveProductsCatalogModal

@@ -170,6 +170,38 @@ export const SellerDashboard: React.FC = () => {
     }
   };
 
+  const handleSyncPayos = async (orderId: string) => {
+    if (updatingOrderId === orderId) return;
+    setUpdatingOrderId(orderId);
+    try {
+      const res = await apiClient.post<{ status?: string; synced?: boolean; payosStatus?: string }>(
+        `/payments/orders/${orderId}/sync`,
+      );
+      if (res.data?.status === 'PAID') {
+        setToast({
+          open: true,
+          message: res.data.synced
+            ? 'Đã xác nhận thanh toán từ payOS và gửi thông báo vào Inbox khách!'
+            : 'Đơn hàng đã ở trạng thái Đã thanh toán.',
+          severity: 'success',
+        });
+      } else {
+        setToast({
+          open: true,
+          message: `payOS báo đơn chưa thanh toán (${res.data?.payosStatus || 'PENDING'}).`,
+          severity: 'error',
+        });
+      }
+      fetchOrders();
+      fetchProducts();
+    } catch (err: any) {
+      const msg = err.response?.data?.message || 'Không thể đối soát trạng thái payOS!';
+      setToast({ open: true, message: msg, severity: 'error' });
+    } finally {
+      setUpdatingOrderId(null);
+    }
+  };
+
   const handleUpdateOrderStatus = async (orderId: string, newStatus: 'PAID' | 'CANCELLED') => {
     if (updatingOrderId === orderId) return;
     setUpdatingOrderId(orderId);
@@ -259,6 +291,7 @@ export const SellerDashboard: React.FC = () => {
             setOrderPage(1);
           }}
           onUpdateStatus={handleUpdateOrderStatus}
+          onSyncPayos={handleSyncPayos}
           onRefresh={fetchOrders}
           page={orderPage}
           totalPages={orderTotalPages}

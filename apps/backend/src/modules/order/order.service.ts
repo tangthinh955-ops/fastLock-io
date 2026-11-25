@@ -5,6 +5,15 @@ import { ConfirmOrderDto } from './dto/confirm-order.dto';
 import { LiveStatus, OrderStatus } from '@prisma/client';
 import { GetOrdersQueryDto } from './dto/get-orders-query.dto';
 
+const DEFAULT_ORDER_PAYMENT_TTL_MINUTES = 2;
+
+function getOrderPaymentTtlMs(): number {
+    const raw = Number(process.env.ORDER_PAYMENT_TTL_MINUTES);
+    const minutes =
+        Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_ORDER_PAYMENT_TTL_MINUTES;
+    return minutes * 60 * 1000;
+}
+
 @Injectable()
 export class OrderService {
     constructor(private readonly prisma: PrismaService) { }
@@ -219,7 +228,7 @@ export class OrderService {
                     shippingPhone: dto.shippingPhone,
                     shippingAddress: dto.shippingAddress,
                     shippingNote: dto.shippingNote,
-                    expiresAt: new Date(Date.now() + 15 * 60 * 1000), // TTL 15 phút
+                    expiresAt: new Date(Date.now() + getOrderPaymentTtlMs()), // Mặc định 2 phút giữ hàng thanh toán
                     items: {
                         create: [
                             {
@@ -463,7 +472,10 @@ export class OrderService {
                     id,
                     status: { in: allowedStatuses },
                 },
-                data: { status: newStatus },
+                data: {
+                    status: newStatus,
+                    ...(newStatus === OrderStatus.PAID ? { paidAt: new Date() } : {}),
+                },
             });
 
             if (claimed.count === 0) {

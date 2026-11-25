@@ -24,12 +24,39 @@ export class LivestreamGateway implements OnGatewayConnection, OnGatewayDisconne
     server: Server;
 
     private readonly logger = new Logger(LivestreamGateway.name);
+    // Map livestreamId -> (socketId -> buyerUserId) để đếm chính xác số người xem (BUYER) duy nhất
+    private readonly roomViewers = new Map<string, Map<string, string>>();
 
     constructor(
         private readonly commentProcessor: LivestreamCommentProcessor,
         private readonly jwtService: JwtService,
         private readonly prisma: PrismaService,
     ) { }
+
+    private getUniqueViewerCount(livestreamId: string): number {
+        const viewers = this.roomViewers.get(livestreamId);
+        if (!viewers || viewers.size === 0) return 0;
+        return new Set(viewers.values()).size;
+    }
+
+    private emitViewerCount(livestreamId: string) {
+        const viewerCount = this.getUniqueViewerCount(livestreamId);
+        this.server
+            ?.to?.(livestreamId)
+            ?.emit('viewer_count', { livestreamId, viewerCount });
+    }
+
+    private removeClientFromRoomTracking(client: Socket, livestreamId: string) {
+        const viewers = this.roomViewers.get(livestreamId);
+        if (viewers) {
+            viewers.delete(client.id);
+            if (viewers.size === 0) {
+                this.roomViewers.delete(livestreamId);
+            }
+        }
+        const joinedRooms = client.data?.joinedRooms as Set<string> | undefined;
+        joinedRooms?.delete(livestreamId);
+    }
 
     async handleConnection(client: Socket) {
         try {
@@ -66,10 +93,18 @@ export class LivestreamGateway implements OnGatewayConnection, OnGatewayDisconne
     }
 
     handleDisconnect(client: Socket) {
+        const joinedRooms = client.data?.joinedRooms as Set<string> | undefined;
+        if (joinedRooms && joinedRooms.size > 0) {
+            for (const livestreamId of Array.from(joinedRooms)) {
+                this.removeClientFromRoomTracking(client, livestreamId);
+                this.emitViewerCount(livestreamId);
+            }
+        }
         this.logger.log(`Client ngắt kết nối Socket: ${client.id}`);
     }
 
     notifyStreamEnded(livestreamId: string) {
+        this.roomViewers.delete(livestreamId);
         this.server.emit('stream_ended', { livestreamId });
     }
 
@@ -100,9 +135,40 @@ export class LivestreamGateway implements OnGatewayConnection, OnGatewayDisconne
         @MessageBody() data: { livestreamId: string },
     ) {
         if (!data?.livestreamId || typeof data.livestreamId !== 'string') return;
-        await client.join(data.livestreamId);
-        this.logger.log(`Client ${client.id} đã tham gia phòng: ${data.livestreamId}`);
-        client.emit('room_joined', { livestreamId: data.livestreamId, status: 'SUCCESS' });
+        const livestreamId = data.livestreamId.trim();
+        if (!livestreamId) return;
+
+        await client.join(livestreamId);
+        if (!client.data) {
+            client.data = {};
+        }
+        if (!(client.data.joinedRooms instanceof Set)) {
+            client.data.joinedRooms = new Set<string>();
+        }
+        (client.data.joinedRooms as Set<string>).add(livestreamId);
+
+        const authUser = client.data?.user as
+            | { userId?: string; role?: string }
+            | undefined;
+        if (authUser?.role === 'BUYER' && authUser.userId) {
+            let viewers = this.roomViewers.get(livestreamId);
+            if (!viewers) {
+                viewers = new Map<string, string>();
+                this.roomViewers.set(livestreamId, viewers);
+            }
+            viewers.set(client.id, authUser.userId);
+        }
+
+        const viewerCount = this.getUniqueViewerCount(livestreamId);
+        this.logger.log(
+            `Client ${client.id} đã tham gia phòng: ${livestreamId} (${viewerCount} mắt xem)`,
+        );
+        client.emit('room_joined', {
+            livestreamId,
+            status: 'SUCCESS',
+            viewerCount,
+        });
+        this.emitViewerCount(livestreamId);
     }
 
     @SubscribeMessage('leave_room')
@@ -111,8 +177,13 @@ export class LivestreamGateway implements OnGatewayConnection, OnGatewayDisconne
         @MessageBody() data: { livestreamId: string },
     ) {
         if (!data?.livestreamId || typeof data.livestreamId !== 'string') return;
-        await client.leave(data.livestreamId);
-        this.logger.log(`Client ${client.id} đã rời phòng: ${data.livestreamId}`);
+        const livestreamId = data.livestreamId.trim();
+        if (!livestreamId) return;
+
+        await client.leave(livestreamId);
+        this.removeClientFromRoomTracking(client, livestreamId);
+        this.emitViewerCount(livestreamId);
+        this.logger.log(`Client ${client.id} đã rời phòng: ${livestreamId}`);
     }
 
     @SubscribeMessage('send_comment')

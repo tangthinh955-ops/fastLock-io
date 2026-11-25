@@ -232,7 +232,7 @@ describe('OrderService (S08 Lifecycle & Atomic Stock)', () => {
             expect(result.status).toBe('PAID');
             expect(mockPrisma.order.updateMany).toHaveBeenCalledWith({
                 where: { id: 'order-1', status: { in: [OrderStatus.PENDING] } },
-                data: { status: OrderStatus.PAID },
+                data: { status: OrderStatus.PAID, paidAt: expect.any(Date) },
             });
             expect(mockPrisma.product.update).not.toHaveBeenCalled();
         });

@@ -1,5 +1,36 @@
 # TIẾN ĐỘ DỰ ÁN: LIVEORDER CHỐT ĐƠN ENGINE
 
+## Cập nhật 25/11/2026 (tiếp) — Tích hợp Thanh toán Chuyển khoản Thật & Webhook Tự động payOS (`@payos/node` — `feat/payos-payment-webhook`)
+
+- ✅ **Hoàn thành** xây dựng module thanh toán thật **payOS** (`@payos/node@2.0.6`), VietQR thật gắn tài khoản ngân hàng đã liên kết và Webhook tự động xác nhận `PENDING → PAID`:
+  - **Schema & Migration:**
+    - [schema.prisma](apps/backend/prisma/schema.prisma) & [migration.sql](apps/backend/prisma/migrations/20261125000000_add_payos_payment_fields/migration.sql): bổ sung 6 cột nullable trên `Order` (`payosOrderCode @unique`, `paymentLinkId`, `checkoutUrl`, `qrCode`, `paidAt`, `paymentRef @unique`) — an toàn 100%, không mất dữ liệu cũ.
+  - **Backend (`PaymentModule`, `OrderController`, `DirectMessageService`):**
+    - [payment.service.ts](apps/backend/src/modules/payment/payment.service.ts), [payment.controller.ts](apps/backend/src/modules/payment/payment.controller.ts), [payment.module.ts](apps/backend/src/modules/payment/payment.module.ts) & [payment.service.spec.ts](apps/backend/src/modules/payment/payment.service.spec.ts):
+      - `createPaymentLinkForOrder()`: tạo link thanh toán payOS (`orderCode` nguyên dương an toàn, mô tả `DH <8 ký tự>`, trả `checkoutUrl` + `qrUrl` VietQR từ đúng `bin`/`accountNumber` của payOS).
+      - `POST /payments/payos/webhook` (`@SkipThrottle()`, đọc `req.body` tránh `ValidationPipe` strip trường mở rộng): xác thực chữ ký HMAC qua `payos.webhooks.verify()` (`PAYOS_CHECKSUM_KEY`), chấp nhận test ping xác minh URL (`200 OK`), kiểm tra đủ tiền (`amount >= totalAmount`), khóa transaction atomic `updateMany(where: { id, status: PENDING })` chống lặp/đơn đã hủy, và tự gửi tin `SYSTEM` xác nhận thanh toán vào Inbox Buyer.
+      - `POST /payments/orders/:orderId/sync` (`JwtAuthGuard`): đối soát chủ động trạng thái thanh toán với API payOS (dự phòng khi webhook trễ).
+      - `cancelPaymentLinkSafely()`: hủy link payOS an toàn khi Seller hủy đơn `PENDING`.
+    - [order.controller.ts](apps/backend/src/modules/order/order.controller.ts), [order.module.ts](apps/backend/src/modules/order/order.module.ts), [direct-message.service.ts](apps/backend/src/modules/direct-message/direct-message.service.ts), [app.module.ts](apps/backend/src/app.module.ts) & [.env.example](apps/backend/.env.example): nối `PaymentService` vào `POST /orders/confirm` (bọc `try/catch` tách khỏi commit đơn), gửi VietQR thật + `checkoutUrl` vào Inbox và bổ sung `sendPaymentConfirmedMessage()`.
+  - **Frontend (`OrderConfirmModal` & `MessageBubble`):**
+    - [OrderConfirmModal.tsx](apps/frontend/src/components/viewer/OrderConfirmModal.tsx): hiển thị ảnh VietQR thật, cảnh báo giữ hàng **2 phút** và nút **"Thanh toán ngay qua payOS"** ngay sau khi chốt đơn thành công.
+    - [MessageBubble.tsx](apps/frontend/src/components/inbox/MessageBubble.tsx): tự nhận diện link `https://pay.payos.vn/...` để hiển thị nút **"Mở trang thanh toán payOS"** ngay trong thẻ thanh toán của Inbox (kể cả khi ảnh QR lỗi mạng).
+    - [InboxPage.tsx](apps/frontend/src/pages/inbox/InboxPage.tsx), [SellerOrderTable.tsx](apps/frontend/src/components/order/SellerOrderTable.tsx) & [SellerDashboard.tsx](apps/frontend/src/pages/seller/SellerDashboard.tsx): tự gọi `POST /payments/orders/:orderId/sync` khi payOS redirect về `/inbox?sellerId=...&orderId=...` để bắn ngay thông báo thanh toán thành công trên cả `localhost`; bổ sung nút **"Kiểm tra payOS"** cho Seller đối soát nhanh đơn `PENDING`.
+  - **Tự động hủy đơn quá hạn 2 phút & Hoàn kho Atomic:**
+    - [order-expiration.service.ts](apps/backend/src/modules/order/order-expiration.service.ts), [order-expiration.service.spec.ts](apps/backend/src/modules/order/order-expiration.service.spec.ts), [order.service.ts](apps/backend/src/modules/order/order.service.ts) & [order.controller.ts](apps/backend/src/modules/order/order.controller.ts): đặt `expiresAt` mặc định **2 phút** (`ORDER_PAYMENT_TTL_MINUTES`), quét mỗi **15 giây** đối soát payOS trước khi hủy, khóa atomic `PENDING → CANCELLED` + hoàn kho, hủy link payOS và gửi tin `SYSTEM` báo hết hạn vào Inbox; bổ sung gửi tin `SYSTEM` báo thanh toán thành công khi Seller xác nhận thủ công `PAID`.
+  - **Chuyển tiếp AI sang Chủ Shop (AI-to-Human Handoff) & Mắt xem Livestream realtime (`viewer_count`):**
+    - [direct-message.service.ts](apps/backend/src/modules/direct-message/direct-message.service.ts), [direct-message.service.spec.ts](apps/backend/src/modules/direct-message/direct-message.service.spec.ts), [useBuyerInbox.ts](apps/frontend/src/hooks/useBuyerInbox.ts), [useShopChatWidget.ts](apps/frontend/src/hooks/useShopChatWidget.ts), [InboxPage.tsx](apps/frontend/src/pages/inbox/InboxPage.tsx) & [LiveShopChatWidget.tsx](apps/frontend/src/components/viewer/LiveShopChatWidget.tsx): nhận diện câu yêu cầu gặp chủ shop/nhân viên (hoặc bấm nút 1 chạm **"Gặp chủ Shop"**), tự chuyển `Conversation.mode` sang `HUMAN` + phát Socket `conversation_mode_changed` + gửi tin `SYSTEM` xác nhận mà không gọi Groq.
+    - [livestream.gateway.ts](apps/backend/src/modules/livestream/livestream.gateway.ts), [livestream.gateway.spec.ts](apps/backend/src/modules/livestream/livestream.gateway.spec.ts), [useViewerLivestream.ts](apps/frontend/src/hooks/useViewerLivestream.ts), [LiveVideoPlayer.tsx](apps/frontend/src/components/viewer/LiveVideoPlayer.tsx), [ViewerPage.tsx](apps/frontend/src/pages/viewer/ViewerPage.tsx), [WebCamPlayer.tsx](apps/frontend/src/components/stream/WebCamPlayer.tsx) & [LiveStudio.tsx](apps/frontend/src/pages/seller/LiveStudio.tsx): đếm chính xác số `BUYER` duy nhất trong phòng (không cộng trùng nhiều tab hay tính Seller), phát `viewer_count` realtime và hiển thị biểu tượng mắt xem trên cả màn hình Người xem lẫn Streamer.
+- ✅ **Kiểm chứng tổng thể (`feat/payos-payment-webhook`):**
+  - `npm test -w apps/backend -- --runInBand`: **15/15 suites PASS, 158/158 tests PASS** (`payment.service.spec.ts` 7/7, `order-expiration.service.spec.ts` 3/3, `livestream.gateway.spec.ts` 5/5, `direct-message.service.spec.ts` PASS, `exit 0`).
+  - `npm run build:backend` (`nest build`): **PASS** (`exit 0`).
+  - `npm run lint -w apps/frontend` (`oxlint`): **0 errors** trên 67 files (`exit 0`).
+  - `npm run build:frontend` (`tsc -b && vite build`, `8.75s`): **PASS** (`exit 0`).
+  - `git diff --check`: **PASS** (`exit 0`).
+  - **Bước triển khai môi trường tiếp theo (người dùng tự điền secret):** tắt server dev backend local rồi chạy `npx prisma generate && npx prisma db push` (local) / `npx prisma migrate deploy` (Neon Direct URL); thêm `PAYOS_CLIENT_ID`, `PAYOS_API_KEY`, `PAYOS_CHECKSUM_KEY`, `PAYOS_RETURN_URL`, `PAYOS_CANCEL_URL` vào `.env` & Render; sau khi deploy Render dán `https://liveorder-api.onrender.com/payments/payos/webhook` vào Kênh thanh toán trên `my.payos.vn`.
+
+---
+
 ## Cập nhật 25/11/2026 — Trang Cá nhân Cửa hàng & Kệ hàng Live/AI (`ShopStorefrontView` — `feat/shop-storefront-profile`)
 
 - ✅ **Hoàn thành** triển khai Trang Cá nhân Cửa hàng (Phương án A — Zero-DB-Migration) tích hợp trực tiếp vào luồng Buyer (`/viewer?sellerId=...&tab=store|live`):

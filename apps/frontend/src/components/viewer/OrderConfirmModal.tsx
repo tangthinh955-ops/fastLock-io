@@ -18,6 +18,7 @@ import {
 } from '@mui/material';
 import ShoppingBagOutlinedIcon from '@mui/icons-material/ShoppingBagOutlined';
 import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
+import OpenInNewRoundedIcon from '@mui/icons-material/OpenInNewRounded';
 import apiClient from '../../api/client';
 
 export interface DraftOrderProduct {
@@ -141,14 +142,48 @@ export const OrderConfirmModal: React.FC<OrderConfirmModalProps> = ({
 
             <DialogContent dividers sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 {successOrder ? (
-                    <Box sx={{ py: 3, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5 }}>
-                        <CheckCircleOutlinedIcon color="success" sx={{ fontSize: 60 }} />
+                    <Box sx={{ py: 2, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5 }}>
+                        <CheckCircleOutlinedIcon color="success" sx={{ fontSize: 56 }} />
                         <Typography component="div" variant="h6" sx={{ fontWeight: 800, color: 'success.main' }}>
                             Chốt Đơn Thành Công!
                         </Typography>
                         <Typography component="div" variant="body2" color="text.secondary">
                             Đơn hàng <strong>#{successOrder.id.slice(0, 8)}</strong> đã được tạo. Mã thanh toán VietQR đã được gửi tự động vào Hộp thư của bạn!
                         </Typography>
+                        <Alert severity="warning" sx={{ width: '100%', textAlign: 'left', borderRadius: 2 }}>
+                            Giữ hàng trong <strong>2 phút</strong> — quá hạn chưa thanh toán, đơn hàng sẽ tự động hủy và hoàn lại kho.
+                        </Alert>
+                        {successOrder.payment?.qrUrl && (
+                            <Box
+                                component="img"
+                                src={successOrder.payment.qrUrl}
+                                alt="Mã thanh toán VietQR payOS"
+                                sx={{
+                                    width: '100%',
+                                    maxWidth: 210,
+                                    height: 'auto',
+                                    borderRadius: 2,
+                                    border: '1px solid',
+                                    borderColor: 'divider',
+                                    p: 1,
+                                    bgcolor: '#FFFFFF',
+                                }}
+                            />
+                        )}
+                        {successOrder.payment?.checkoutUrl && (
+                            <Button
+                                component="a"
+                                href={successOrder.payment.checkoutUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                variant="contained"
+                                color="error"
+                                endIcon={<OpenInNewRoundedIcon fontSize="small" />}
+                                sx={{ fontWeight: 700, minHeight: 44, px: 3 }}
+                            >
+                                Thanh toán ngay qua payOS
+                            </Button>
+                        )}
                     </Box>
                 ) : (
                     <>

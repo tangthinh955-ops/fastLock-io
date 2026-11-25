@@ -13,6 +13,26 @@ import {
 } from '../ai/ai.service';
 import { DirectMessageEvents } from './direct-message.events';
 
+const HUMAN_HANDOFF_PATTERNS = [
+  /(gap|noi chuyen|chat|ket noi|chuyen|tu van|ho tro)\s+(truc tiep\s+)?(voi\s+|sang\s+|den\s+)?(chu shop|nhan vien|nguoi that|tu van vien|cskh|seller)/i,
+  /\b(yeu cau|muon|can|cho minh|cho em|cho toi)\s+(gap\s+|noi chuyen\s+voi\s+)?(chu shop|nhan vien|nguoi that|ho tro truc tiep)\b/i,
+  /\b(human agent|real person|talk to (a )?human|live agent|support agent)\b/i,
+];
+
+export function isHumanHandoffRequest(text: string): boolean {
+  const normalized = text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'd')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+
+  if (!normalized) return false;
+  return HUMAN_HANDOFF_PATTERNS.some((pattern) => pattern.test(normalized));
+}
+
 @Injectable()
 export class DirectMessageService {
   constructor(
@@ -431,6 +451,37 @@ export class DirectMessageService {
       return { buyerMessage, aiMessage: null };
     }
 
+    if (isHumanHandoffRequest(message)) {
+      const updatedConversation = await this.prisma.conversation.update({
+        where: { id: conversation.id },
+        data: { mode: ChatMode.HUMAN, version: { increment: 1 } },
+        select: { mode: true, version: true },
+      });
+      this.events.publishConversationMode({
+        buyerId,
+        sellerId,
+        ...updatedConversation,
+      });
+
+      const handoffMessage = await this.prisma.directMessage.create({
+        data: {
+          senderId: sellerId,
+          receiverId: buyerId,
+          content:
+            'Đã chuyển yêu cầu của bạn đến chủ Shop. Trợ lý AI tạm dừng để chủ Shop hoặc nhân viên trực tiếp hỗ trợ bạn ngay!',
+          source: MessageSource.SYSTEM,
+          isRead: true,
+        },
+        include: {
+          sender: {
+            select: { id: true, name: true, role: true },
+          },
+        },
+      });
+      this.events.publishMessage(handoffMessage);
+      return { buyerMessage, aiMessage: handoffMessage };
+    }
+
     const reply = await this.aiService.generateReply(
       sellerId,
       message,
@@ -515,7 +566,7 @@ export class DirectMessageService {
     return this.sendOrderMessage(senderId, receiverId, amount, orderId);
   }
 
-  // 1. Tạo tin nhắn chứa mã VietQR
+  // 1. Tạo tin nhắn chứa mã VietQR (ưu tiên dữ liệu payOS thật nếu có)
   async sendOrderMessage(
     senderId: string,
     receiverId: string,
@@ -523,6 +574,12 @@ export class DirectMessageService {
     orderId: string,
     productName?: string,
     productSku?: string,
+    paymentInfo?: {
+      qrUrl?: string;
+      checkoutUrl?: string;
+      orderCode?: number;
+      expiresAt?: Date | null;
+    },
   ) {
     const buyer = await this.prisma.user.findFirst({
       where: { id: receiverId, role: Role.BUYER },
@@ -533,20 +590,27 @@ export class DirectMessageService {
       throw new NotFoundException('Khách hàng nhận VietQR không tồn tại.');
     }
 
-    // Ngân hàng giả lập: Vietcombank, STK: 123456789
+    // Fallback VietQR mặc định khi máy chủ chưa cấu hình payOS
     const bank = 'BIDV';
     const account = '0334897940';
-    const template = 'compact'; // Mẫu QR nhỏ gọn
+    const template = 'compact';
     const description = `Thanh toan don hang ${orderId}`;
 
-    // Tạo link ảnh VietQR (URL-encode đầy đủ các tham số truy vấn)
-    const qrUrl = `https://img.vietqr.io/image/${bank}-${account}-${template}.png?amount=${amount}&addInfo=${encodeURIComponent(description)}&accountName=${encodeURIComponent('SHOP LIVEORDER')}`;
+    const qrUrl =
+      paymentInfo?.qrUrl ||
+      `https://img.vietqr.io/image/${bank}-${account}-${template}.png?amount=${amount}&addInfo=${encodeURIComponent(description)}&accountName=${encodeURIComponent('SHOP LIVEORDER')}`;
     const orderCode = orderId.slice(0, 8).toUpperCase();
     const formattedAmount = amount.toLocaleString('vi-VN');
     const productDetail = productName
       ? `sản phẩm ${productName}${productSku ? ` (SKU: ${productSku})` : ''}`
       : 'đơn hàng';
-    const content = `🎉 Bạn đã chốt thành công ${productDetail}. Tổng thanh toán: ${formattedAmount}đ. Mã đơn: ${orderCode}. Vui lòng quét mã QR bên dưới để thanh toán nhé!`;
+    const deadlineText = paymentInfo?.expiresAt
+      ? ` Vui lòng thanh toán trước ${paymentInfo.expiresAt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })} (quá hạn đơn sẽ tự hủy và hoàn lại kho).`
+      : '';
+    const checkoutLine = paymentInfo?.checkoutUrl
+      ? `\nLink thanh toán payOS: ${paymentInfo.checkoutUrl}`
+      : '';
+    const content = `🎉 Bạn đã chốt thành công ${productDetail}. Tổng thanh toán: ${formattedAmount}đ. Mã đơn: ${orderCode}.${deadlineText} Vui lòng quét mã QR bên dưới để thanh toán nhé!${checkoutLine}`;
 
     // Lưu vào Database
     const systemMessage = await this.prisma.directMessage.create({
@@ -563,6 +627,92 @@ export class DirectMessageService {
     });
     this.events.publishMessage(systemMessage);
     // Giữ response VietQR như cũ; thông tin sender chỉ cần cho sự kiện Inbox.
+    const { sender, ...response } = systemMessage;
+    void sender;
+    return response;
+  }
+
+  // 2. Gửi thông báo SYSTEM xác nhận thanh toán thành công (sau khi Webhook/Sync payOS xác thực)
+  async sendPaymentConfirmedMessage(
+    senderId: string,
+    receiverId: string,
+    amount: number,
+    orderId: string,
+    paymentRef?: string,
+    productName?: string,
+    productSku?: string,
+  ) {
+    const buyer = await this.prisma.user.findFirst({
+      where: { id: receiverId, role: Role.BUYER },
+      select: { id: true },
+    });
+
+    if (!buyer) {
+      throw new NotFoundException('Khách hàng nhận thông báo thanh toán không tồn tại.');
+    }
+
+    const orderCode = orderId.slice(0, 8).toUpperCase();
+    const formattedAmount = amount.toLocaleString('vi-VN');
+    const productDetail = productName
+      ? ` (${productName}${productSku ? ` - ${productSku}` : ''})`
+      : '';
+    const refText = paymentRef ? ` Mã giao dịch: ${paymentRef}.` : '';
+    const content = `Đã xác nhận thanh toán thành công ${formattedAmount}đ cho đơn hàng #${orderCode}${productDetail}.${refText} Shop sẽ chuẩn bị giao hàng sớm nhất!`;
+
+    const systemMessage = await this.prisma.directMessage.create({
+      data: {
+        senderId,
+        receiverId,
+        content,
+        qrUrl: null,
+        source: MessageSource.SYSTEM,
+      },
+      include: {
+        sender: { select: { id: true, name: true, role: true } },
+      },
+    });
+    this.events.publishMessage(systemMessage);
+    const { sender, ...response } = systemMessage;
+    void sender;
+    return response;
+  }
+
+  // 3. Gửi thông báo SYSTEM khi đơn hàng hết hạn thanh toán và đã tự động hoàn kho
+  async sendOrderExpiredMessage(
+    senderId: string,
+    receiverId: string,
+    orderId: string,
+    productName?: string,
+    productSku?: string,
+  ) {
+    const buyer = await this.prisma.user.findFirst({
+      where: { id: receiverId, role: Role.BUYER },
+      select: { id: true },
+    });
+
+    if (!buyer) {
+      return null;
+    }
+
+    const orderCode = orderId.slice(0, 8).toUpperCase();
+    const productDetail = productName
+      ? ` (${productName}${productSku ? ` - ${productSku}` : ''})`
+      : '';
+    const content = `Đơn hàng #${orderCode}${productDetail} đã tự động hủy do quá thời hạn thanh toán. Sản phẩm đã được hoàn lại kho, bạn có thể đặt lại trên phiên Live nếu vẫn còn hàng.`;
+
+    const systemMessage = await this.prisma.directMessage.create({
+      data: {
+        senderId,
+        receiverId,
+        content,
+        qrUrl: null,
+        source: MessageSource.SYSTEM,
+      },
+      include: {
+        sender: { select: { id: true, name: true, role: true } },
+      },
+    });
+    this.events.publishMessage(systemMessage);
     const { sender, ...response } = systemMessage;
     void sender;
     return response;
