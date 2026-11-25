@@ -9,6 +9,7 @@ const COMMENT_HISTORY_LIMIT = 10;
 export interface ActiveLivestream {
   id: string;
   title: string;
+  description?: string | null;
   sellerId: string;
   startedAt?: string;
   seller: {
@@ -24,6 +25,7 @@ export interface ShopLiveItem {
   productCount: number;
   isLive: boolean;
   activeStream: ActiveLivestream | null;
+  kbHighlights?: Array<{ id: string; keyword: string; answer: string }>;
 }
 
 export interface LivestreamComment {
@@ -246,6 +248,7 @@ export const useViewerLivestream = ({
                 productCount: 0,
                 isLive: true,
                 activeStream: streamWithTimestamp,
+                kbHighlights: [],
               },
             ];
         return sortShops(nextShops);

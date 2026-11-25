@@ -163,6 +163,15 @@ export class LivestreamService {
                 name: true,
                 email: true,
                 _count: { select: { products: true } },
+                kbEntries: {
+                    take: 3,
+                    orderBy: { id: 'asc' },
+                    select: {
+                        id: true,
+                        keyword: true,
+                        answer: true,
+                    },
+                },
                 livestreams: {
                     where: { status: 'LIVE' },
                     orderBy: { startedAt: 'desc' },
@@ -170,6 +179,7 @@ export class LivestreamService {
                     select: {
                         id: true,
                         title: true,
+                        description: true,
                         status: true,
                         sellerId: true,
                         startedAt: true,
@@ -186,10 +196,16 @@ export class LivestreamService {
                 email: seller.email,
                 productCount: seller._count.products,
                 isLive: Boolean(live),
+                kbHighlights: (seller.kbEntries ?? []).map((kb) => ({
+                    id: kb.id,
+                    keyword: kb.keyword,
+                    answer: kb.answer,
+                })),
                 activeStream: live
                     ? {
                           id: live.id,
                           title: live.title,
+                          description: live.description ?? null,
                           sellerId: seller.id,
                           startedAt: live.startedAt,
                           seller: {

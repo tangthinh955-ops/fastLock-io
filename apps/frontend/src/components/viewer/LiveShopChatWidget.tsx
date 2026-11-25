@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   Avatar,
   Badge,
@@ -24,6 +24,8 @@ interface LiveShopChatWidgetProps {
   sellerId: string;
   shopName: string;
   open: boolean;
+  prefillMessage?: string | null;
+  onConsumePrefill?: () => void;
   onOpen: () => void;
   onClose: () => void;
   onOpenFullInbox: () => void;
@@ -33,6 +35,8 @@ export const LiveShopChatWidget: React.FC<LiveShopChatWidgetProps> = ({
   sellerId,
   shopName,
   open,
+  prefillMessage,
+  onConsumePrefill,
   onOpen,
   onClose,
   onOpenFullInbox,
@@ -51,6 +55,13 @@ export const LiveShopChatWidget: React.FC<LiveShopChatWidgetProps> = ({
     sellerId,
     isOpen: open,
   });
+
+  useEffect(() => {
+    if (open && prefillMessage) {
+      setInputText(prefillMessage);
+      onConsumePrefill?.();
+    }
+  }, [open, prefillMessage, setInputText, onConsumePrefill]);
 
   const { isAiMode, modeLabel } = getConversationModeDisplay(
     conversationMode.status,

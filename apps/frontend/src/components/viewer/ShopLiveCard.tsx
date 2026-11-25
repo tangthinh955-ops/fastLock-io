@@ -15,17 +15,21 @@ import StorefrontOutlinedIcon from '@mui/icons-material/StorefrontOutlined';
 import type { ShopLiveItem } from '../../hooks/useViewerLivestream';
 import { surfaceTokens } from '../../theme';
 
-interface ShopLiveCardProps {
+export interface ShopLiveCardProps {
   shop: ShopLiveItem;
   onSelectShop: (sellerId: string) => void;
+  onOpenStore: (sellerId: string) => void;
   onOpenConsult: (sellerId: string) => void;
 }
 
 export const ShopLiveCard: React.FC<ShopLiveCardProps> = ({
   shop,
   onSelectShop,
+  onOpenStore,
   onOpenConsult,
 }) => {
+  const streamDescription = shop.activeStream?.description?.trim() ?? '';
+
   return (
     <Paper
       variant="outlined"
@@ -145,19 +149,36 @@ export const ShopLiveCard: React.FC<ShopLiveCardProps> = ({
                 flexShrink: 0,
               }}
             />
-            <Typography
-              variant="body2"
-              sx={{
-                fontWeight: 600,
-                color: surfaceTokens.liveRedText,
-                display: '-webkit-box',
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: 'vertical',
-                overflow: 'hidden',
-              }}
-            >
-              {shop.activeStream?.title || 'Phiên livestream đang phát'}
-            </Typography>
+            <Box sx={{ minWidth: 0, flex: 1 }}>
+              <Typography
+                variant="body2"
+                sx={{
+                  fontWeight: 600,
+                  color: surfaceTokens.liveRedText,
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden',
+                }}
+              >
+                {shop.activeStream?.title || 'Phiên livestream đang phát'}
+              </Typography>
+              {streamDescription && (
+                <Typography
+                  variant="caption"
+                  sx={{
+                    mt: 0.35,
+                    color: 'text.secondary',
+                    display: '-webkit-box',
+                    WebkitLineClamp: 1,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                  }}
+                >
+                  {streamDescription}
+                </Typography>
+              )}
+            </Box>
           </Box>
         ) : (
           <Box
@@ -170,53 +191,97 @@ export const ShopLiveCard: React.FC<ShopLiveCardProps> = ({
               borderColor: 'divider',
             }}
           >
-            <Typography variant="body2" color="text.secondary">
-              Shop hiện chưa bật phiên livestream
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{
+                display: '-webkit-box',
+                WebkitLineClamp: 1,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+              }}
+            >
+              Xem trước danh mục sản phẩm và lịch mở bán của cửa hàng
             </Typography>
           </Box>
         )}
       </Box>
 
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} useFlexGap>
-        <Button
-          fullWidth
-          variant={shop.isLive ? 'contained' : 'outlined'}
-          color={shop.isLive ? 'error' : 'inherit'}
-          startIcon={
-            shop.isLive ? (
-              <PlayCircleOutlineRoundedIcon />
-            ) : (
-              <StorefrontOutlinedIcon />
-            )
-          }
-          onClick={() => onSelectShop(shop.id)}
-          sx={{
-            minHeight: 44,
-            borderRadius: 2,
-            ...(!shop.isLive && {
-              borderColor: 'divider',
-              color: 'text.primary',
-            }),
-          }}
-        >
-          {shop.isLive ? 'Vào xem Live' : 'Vào phòng Shop'}
-        </Button>
-        <Button
-          variant="outlined"
-          color="primary"
-          startIcon={<ForumOutlinedIcon />}
-          onClick={() => onOpenConsult(shop.id)}
-          sx={{
-            minHeight: 44,
-            borderRadius: 2,
-            width: { xs: '100%', sm: 'auto' },
-            flexShrink: 0,
-            whiteSpace: 'nowrap',
-          }}
-        >
-          Tư vấn AI
-        </Button>
-      </Stack>
+      {shop.isLive ? (
+        <Stack spacing={1}>
+          <Button
+            fullWidth
+            variant="contained"
+            color="error"
+            startIcon={<PlayCircleOutlineRoundedIcon />}
+            onClick={() => onSelectShop(shop.id)}
+            sx={{ minHeight: 44, borderRadius: 2, fontWeight: 700 }}
+          >
+            Vào xem Live
+          </Button>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} useFlexGap>
+            <Button
+              fullWidth
+              variant="outlined"
+              color="inherit"
+              startIcon={<StorefrontOutlinedIcon />}
+              onClick={() => onOpenStore(shop.id)}
+              sx={{
+                minHeight: 44,
+                borderRadius: 2,
+                borderColor: 'divider',
+                color: 'text.primary',
+                fontWeight: 600,
+              }}
+            >
+              Cửa hàng
+            </Button>
+            <Button
+              fullWidth
+              variant="outlined"
+              color="primary"
+              startIcon={<ForumOutlinedIcon />}
+              onClick={() => onOpenConsult(shop.id)}
+              sx={{
+                minHeight: 44,
+                borderRadius: 2,
+                fontWeight: 600,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Tư vấn AI
+            </Button>
+          </Stack>
+        </Stack>
+      ) : (
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} useFlexGap>
+          <Button
+            fullWidth
+            variant="contained"
+            color="primary"
+            startIcon={<StorefrontOutlinedIcon />}
+            onClick={() => onOpenStore(shop.id)}
+            sx={{ minHeight: 44, borderRadius: 2, fontWeight: 700 }}
+          >
+            Xem Cửa hàng
+          </Button>
+          <Button
+            variant="outlined"
+            color="primary"
+            startIcon={<ForumOutlinedIcon />}
+            onClick={() => onOpenConsult(shop.id)}
+            sx={{
+              minHeight: 44,
+              borderRadius: 2,
+              width: { xs: '100%', sm: 'auto' },
+              flexShrink: 0,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Tư vấn AI
+          </Button>
+        </Stack>
+      )}
     </Paper>
   );
 };

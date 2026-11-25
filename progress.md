@@ -1,5 +1,26 @@
 # TIẾN ĐỘ DỰ ÁN: LIVEORDER CHỐT ĐƠN ENGINE
 
+## Cập nhật 25/11/2026 — Trang Cá nhân Cửa hàng & Kệ hàng Live/AI (`ShopStorefrontView` — `feat/shop-storefront-profile`)
+
+- ✅ **Hoàn thành** triển khai Trang Cá nhân Cửa hàng (Phương án A — Zero-DB-Migration) tích hợp trực tiếp vào luồng Buyer (`/viewer?sellerId=...&tab=store|live`):
+  - **Backend:**
+    - [livestream.service.ts](apps/backend/src/modules/livestream/livestream.service.ts) & [livestream.controller.spec.ts](apps/backend/src/modules/livestream/livestream.controller.spec.ts): bổ sung `description` vào `activeStream` và tối đa 3 mục `kbEntries` (`kbHighlights`) vào phản hồi `GET /livestreams/shops`; cập nhật mock và thêm unit test cho `LivestreamService.getShopsWithLiveStatus()`.
+  - **Frontend (Storefront & Tích hợp):**
+    - [useShopStorefront.ts](apps/frontend/src/hooks/useShopStorefront.ts): hook tải song song `GET /products?sellerId=...` và `GET /livestreams/:id/products` (có fallback an toàn nếu chưa live), chống race condition qua `requestIdRef`, dọn state cũ khi đổi `sellerId`, lọc theo `Tất cả` / `Đang bán trên Live` / `Còn hàng` và tìm kiếm theo tên/SKU.
+    - [ShopProductCard.tsx](apps/frontend/src/components/viewer/ShopProductCard.tsx): thẻ sản phẩm responsive kèm ảnh (`loading="lazy"`, fallback gradient khi thiếu/lỗi ảnh), badge SKU & `BÁN TRÊN LIVE` không chồng lấn, giá VND, chip tồn kho và nút hành động 1 chạm (`Chốt trên Live` / `Hỏi AI mẫu này`).
+    - [ShopStorefrontView.tsx](apps/frontend/src/components/viewer/ShopStorefrontView.tsx): Hero Banner đạt chuẩn tương phản WCAG AA, phần giới thiệu gian hàng tự động tổng hợp mặt hàng tiêu biểu & khoảng giá từ sản phẩm thật (kèm mô tả buổi Live khi đang phát), dải 3 cam kết mua hàng gọn nhẹ (`Chốt đơn Livestream nhanh`, `Thanh toán VietQR tự động`, `Hỗ trợ khách hàng 24/7`, không lặp nút hỏi chính sách thừa), thanh lọc sản phẩm và khoảng đệm đáy `pb: 18` tránh FAB chat AI che nút cuối.
+    - [ViewerPage.tsx](apps/frontend/src/pages/viewer/ViewerPage.tsx), [ShopLiveCard.tsx](apps/frontend/src/components/viewer/ShopLiveCard.tsx), [ShopLiveDirectory.tsx](apps/frontend/src/components/viewer/ShopLiveDirectory.tsx), [LiveShopChatWidget.tsx](apps/frontend/src/components/viewer/LiveShopChatWidget.tsx) & [useViewerLivestream.ts](apps/frontend/src/hooks/useViewerLivestream.ts): thêm chuyển đổi tab `Phòng Live` ↔ `Cửa hàng` (mặc định mở `Cửa hàng` khi Shop đang `OFFLINE`), làm gọn thẻ Shop ở danh bạ `/viewer`, chỉ mở LiveKit khi đang ở tab `live` để tiết kiệm quota, hỗ trợ điền sẵn câu hỏi AI (`prefillMessage`) và điền sẵn SKU khi bấm `Chốt trên Live`.
+- ✅ **Kiểm chứng tổng thể & Rà soát Reviewer:**
+  - `npm test -w apps/backend -- --runInBand`: **13/13 suites PASS, 146/146 tests PASS** (`exit 0`).
+  - `npm run build:backend` (`nest build`): **PASS** (`exit 0`).
+  - `npm run lint -w apps/frontend` (`oxlint`): **0 errors** trên 67 files (`exit 0`, 0 warning mới).
+  - `npm run build:frontend` (`tsc -b && vite build`, `12.69s`): **PASS** (`exit 0`).
+  - `git diff --check`: **PASS** (`exit 0`).
+  - `[CREATE]`: `apps/frontend/src/hooks/useShopStorefront.ts`, `apps/frontend/src/components/viewer/ShopProductCard.tsx`, `apps/frontend/src/components/viewer/ShopStorefrontView.tsx`.
+  - `[MODIFY]`: `apps/backend/src/modules/livestream/livestream.service.ts`, `apps/backend/src/modules/livestream/livestream.controller.spec.ts`, `apps/frontend/src/hooks/useViewerLivestream.ts`, `apps/frontend/src/components/viewer/LiveShopChatWidget.tsx`, `apps/frontend/src/components/viewer/ShopLiveCard.tsx`, `apps/frontend/src/components/viewer/ShopLiveDirectory.tsx`, `apps/frontend/src/pages/viewer/ViewerPage.tsx`, `progress.md`.
+
+---
+
 ## Cập nhật 24/11/2026 (tiếp) — Rà soát & Gia cố Toàn diện Hệ thống trên nền `main` mới nhất (`PR #27` — `feat/system-audit-hardening`)
 
 - ✅ **Bảo mật, Cấu hình Production, Chống Race Condition & Vá lỗ hổng luồng `PR #27` (Backend):**

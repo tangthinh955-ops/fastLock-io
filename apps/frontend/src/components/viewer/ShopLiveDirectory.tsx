@@ -28,6 +28,7 @@ interface ShopLiveDirectoryProps {
   error: string;
   onRefresh: () => void;
   onSelectShop: (sellerId: string) => void;
+  onOpenStore: (sellerId: string) => void;
   onOpenConsult: (sellerId: string) => void;
 }
 
@@ -37,6 +38,7 @@ export const ShopLiveDirectory: React.FC<ShopLiveDirectoryProps> = ({
   error,
   onRefresh,
   onSelectShop,
+  onOpenStore,
   onOpenConsult,
 }) => {
   const [filterMode, setFilterMode] = useState<'ALL' | 'LIVE'>('ALL');
@@ -257,6 +259,7 @@ export const ShopLiveDirectory: React.FC<ShopLiveDirectoryProps> = ({
               <ShopLiveCard
                 shop={shop}
                 onSelectShop={onSelectShop}
+                onOpenStore={onOpenStore}
                 onOpenConsult={onOpenConsult}
               />
             </Grid>
