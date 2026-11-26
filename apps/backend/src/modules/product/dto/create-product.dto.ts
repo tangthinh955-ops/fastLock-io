@@ -6,6 +6,7 @@ import {
   IsOptional,
   Min,
   Matches,
+  MaxLength,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 
@@ -33,7 +34,14 @@ export class CreateProductDto {
   stock: number;
 
   @IsOptional()
-  @IsString()
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  @IsString({ message: 'Đường dẫn ảnh phải là chuỗi văn bản' })
+  @MaxLength(2048, { message: 'Đường dẫn ảnh không được vượt quá 2048 ký tự' })
+  @Matches(/^(|https?:\/\/\S+)$/i, {
+    message: 'Đường dẫn ảnh phải là URL http(s) hợp lệ hoặc để trống',
+  })
   imageUrl?: string;
 
   @IsOptional()

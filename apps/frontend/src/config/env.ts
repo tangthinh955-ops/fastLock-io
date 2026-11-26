@@ -3,6 +3,8 @@ const DEFAULT_BACKEND_URL = 'http://localhost:3001';
 export interface FrontendEnvInput {
   VITE_API_URL?: string;
   VITE_SOCKET_URL?: string;
+  VITE_CLOUDINARY_CLOUD_NAME?: string;
+  VITE_CLOUDINARY_UPLOAD_PRESET?: string;
 }
 
 /**
@@ -30,4 +32,14 @@ const runtimeEnv: FrontendEnvInput =
 
 export const { apiUrl: API_URL, socketUrl: SOCKET_URL } =
   resolveEnvUrls(runtimeEnv);
+
+export const CLOUDINARY_CLOUD_NAME =
+  runtimeEnv.VITE_CLOUDINARY_CLOUD_NAME?.trim() ?? '';
+
+export const CLOUDINARY_UPLOAD_PRESET =
+  runtimeEnv.VITE_CLOUDINARY_UPLOAD_PRESET?.trim() ?? '';
+
+export const isCloudinaryConfigured: boolean = Boolean(
+  CLOUDINARY_CLOUD_NAME && CLOUDINARY_UPLOAD_PRESET,
+);
 

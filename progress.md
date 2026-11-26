@@ -1,5 +1,27 @@
 # TIẾN ĐỘ DỰ ÁN: LIVEORDER CHỐT ĐƠN ENGINE
 
+## Cập nhật 27/11/2026 — Upload Ảnh Sản phẩm Trực tiếp lên Cloudinary Free (`feat/seller-product-image-upload`)
+
+- ✅ **Hoàn thành** tính năng tải ảnh sản phẩm từ máy tính/điện thoại cho Seller lên **Cloudinary CDN** (Unsigned Upload Preset), đồng bộ xóa ảnh về PostgreSQL và hiển thị thumbnail sản phẩm mà không tốn RAM/băng thông backend Render Free, không thay đổi Prisma schema và không cài thêm thư viện ngoài:
+  - **Frontend (`apps/frontend`):**
+    - [env.ts](apps/frontend/src/config/env.ts), [vite-env.d.ts](apps/frontend/src/vite-env.d.ts) & [.env.example](apps/frontend/.env.example): đọc `VITE_CLOUDINARY_CLOUD_NAME`, `VITE_CLOUDINARY_UPLOAD_PRESET` và export cờ `isCloudinaryConfigured`.
+    - [cloudinary.ts](apps/frontend/src/api/cloudinary.ts): kiểm tra định dạng (`JPEG`/`PNG`/`WEBP`/`GIF`) & dung lượng tối đa `5 MB`; gửi `FormData` trực tiếp tới `https://api.cloudinary.com/v1_1/<cloud_name>/image/upload` qua `axios.post` độc lập (không gắn JWT backend), hỗ trợ `AbortSignal`, thanh tiến độ `onProgress`, kiểm tra `secure_url` (`https://`) và chuẩn hóa thông báo lỗi tiếng Việt.
+    - [ProductImageUploader.tsx](apps/frontend/src/components/product/ProductImageUploader.tsx): giao diện chọn file / kéo-thả, preview `88×88` (chỉ nạp ảnh khi URL `http(s)://` hợp lệ kèm fallback icon), thanh tiến độ `LinearProgress`, nút **Xóa ảnh**, cảnh báo khi chưa cấu hình Cloudinary, hủy request qua `AbortController` khi unmount và ô dán URL ảnh thủ công.
+    - [ProductFormModal.tsx](apps/frontend/src/components/product/ProductFormModal.tsx): tích hợp `ProductImageUploader` thay ô URL cũ; khóa nút Lưu, nút Hủy và đóng modal khi đang tải ảnh (`uploadingImage`).
+    - [SellerDashboard.tsx](apps/frontend/src/pages/seller/SellerDashboard.tsx): gửi `imageUrl: formImageUrl.trim()` (bao gồm chuỗi rỗng `""`) khi `PATCH /products/:id` để Seller có thể xóa hẳn ảnh cũ.
+    - [ProductTableList.tsx](apps/frontend/src/components/product/ProductTableList.tsx): hiển thị thumbnail `40×40` (có fallback icon) cạnh tên sản phẩm trên cả bảng Desktop và card Mobile.
+  - **Backend (`apps/backend`):**
+    - [create-product.dto.ts](apps/backend/src/modules/product/dto/create-product.dto.ts) & [update-product.dto.ts](apps/backend/src/modules/product/dto/update-product.dto.ts): trim & validate `imageUrl` — cho phép chuỗi rỗng `""` (xóa ảnh) hoặc URL `http(s)://...` tối đa `2048` ký tự, chặn `javascript:` / `data:` / URL không hợp lệ.
+    - [product.service.ts](apps/backend/src/modules/product/product.service.ts) & [product.service.spec.ts](apps/backend/src/modules/product/product.service.spec.ts): chuẩn hóa chuỗi `imageUrl` rỗng/khoảng trắng thành `null` khi tạo & cập nhật (bỏ qua nếu `undefined`), kèm **32 unit tests** kiểm chứng cả Service lẫn DTO.
+- ✅ **Kiểm chứng tổng thể (`feat/seller-product-image-upload`):**
+  - `npm test -w apps/backend -- --runInBand`: **16/16 suites PASS, 190/190 tests PASS** (gồm `product.service.spec.ts` 32/32 PASS, `exit 0`).
+  - `npm run build:backend` (`nest build`): **PASS** (`exit 0`).
+  - `npm run lint -w apps/frontend` (`oxlint`): **0 errors** trên 69 files (0 warning mới, `exit 0`).
+  - `npm run build:frontend` (`tsc -b && vite build`, `6.33s`): **PASS** (`exit 0`).
+  - `git diff --check`: **PASS** (`exit 0`).
+
+---
+
 ## Cập nhật 25/11/2026 (tiếp) — Tích hợp Thanh toán Chuyển khoản Thật & Webhook Tự động payOS (`@payos/node` — `feat/payos-payment-webhook`)
 
 - ✅ **Hoàn thành** xây dựng module thanh toán thật **payOS** (`@payos/node@2.0.6`), VietQR thật gắn tài khoản ngân hàng đã liên kết và Webhook tự động xác nhận `PENDING → PAID`:

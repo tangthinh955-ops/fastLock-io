@@ -17,6 +17,7 @@ import {
     AddCircleOutlined as AddCircleOutlineIcon,
 } from '@mui/icons-material';
 import type { Product } from '../../pages/seller/SellerDashboard';
+import { ProductImageUploader } from './ProductImageUploader';
 
 interface ProductFormModalProps {
     open: boolean;
@@ -55,11 +56,21 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     onImageUrlChange,
     onSubmit,
 }) => {
+    const [uploadingImage, setUploadingImage] = React.useState(false);
+
+    React.useEffect(() => {
+        if (!open) {
+            setUploadingImage(false);
+        }
+    }, [open]);
+
+    const isBusy = submitting || uploadingImage;
+
     return (
         <Dialog
             open={open}
             onClose={() => {
-                if (!submitting) onClose();
+                if (!isBusy) onClose();
             }}
             maxWidth="sm"
             fullWidth
@@ -85,7 +96,15 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                     </span>
                 </Stack>
             </DialogTitle>
-            <form onSubmit={onSubmit}>
+            <form
+                onSubmit={(e) => {
+                    if (isBusy) {
+                        e.preventDefault();
+                        return;
+                    }
+                    onSubmit(e);
+                }}
+            >
                 <DialogContent sx={{ pt: 2.5, px: { xs: 2.5, sm: 3 } }}>
                     {formError && (
                         <Alert severity="error" sx={{ mb: 2.5, borderRadius: 2 }}>
@@ -142,29 +161,34 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
                             />
                         </Grid>
                         <Grid size={12}>
-                            <TextField
-                                label="Đường dẫn ảnh sản phẩm (Không bắt buộc)"
-                                fullWidth
-                                value={formImageUrl}
-                                onChange={(e) => onImageUrlChange(e.target.value)}
-                                placeholder="https://example.com/image.jpg"
+                            <ProductImageUploader
+                                imageUrl={formImageUrl}
+                                disabled={submitting}
+                                onImageUrlChange={onImageUrlChange}
+                                onUploadingChange={setUploadingImage}
                             />
                         </Grid>
                     </Grid>
                 </DialogContent>
                 <DialogActions sx={{ px: { xs: 2.5, sm: 3 }, py: 2, borderTop: 1, borderColor: 'divider', gap: 1 }}>
-                    <Button onClick={onClose} disabled={submitting} color="inherit" sx={{ minHeight: 44, px: 2 }}>
+                    <Button onClick={onClose} disabled={isBusy} color="inherit" sx={{ minHeight: 44, px: 2 }}>
                         Hủy
                     </Button>
                     <Button
                         type="submit"
                         variant="contained"
                         color="primary"
-                        disabled={submitting}
-                        startIcon={submitting ? <CircularProgress size={18} color="inherit" /> : null}
+                        disabled={isBusy}
+                        startIcon={isBusy ? <CircularProgress size={18} color="inherit" /> : null}
                         sx={{ minHeight: 44, px: 2.5, fontWeight: 700 }}
                     >
-                        {submitting ? 'Đang lưu...' : editingProduct ? 'Cập nhật' : 'Tạo sản phẩm'}
+                        {uploadingImage
+                            ? 'Đang tải ảnh...'
+                            : submitting
+                              ? 'Đang lưu...'
+                              : editingProduct
+                                ? 'Cập nhật'
+                                : 'Tạo sản phẩm'}
                     </Button>
                 </DialogActions>
             </form>

@@ -5,6 +5,7 @@ import {
   ForbiddenException,
   InternalServerErrorException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../core/prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -12,6 +13,14 @@ import { UpdateProductDto } from './dto/update-product.dto';
 @Injectable()
 export class ProductService {
   constructor(private prisma: PrismaService) {}
+
+  private normalizeImageUrl(imageUrl?: string): string | null | undefined {
+    if (imageUrl === undefined) {
+      return undefined;
+    }
+    const trimmed = imageUrl.trim();
+    return trimmed ? trimmed : null;
+  }
 
   async create(sellerId: string, dto: CreateProductDto) {
     try {
@@ -35,11 +44,17 @@ export class ProductService {
         throw new BadRequestException(`Mã SKU '${sku}' đã tồn tại!`);
       }
 
+      const { imageUrl, ...rest } = dto;
+      const normalizedImageUrl = this.normalizeImageUrl(imageUrl);
+
       return await this.prisma.product.create({
         data: {
-          ...dto,
+          ...rest,
           sku,
           sellerId,
+          ...(normalizedImageUrl !== undefined
+            ? { imageUrl: normalizedImageUrl }
+            : {}),
         },
       });
     } catch (err: any) {
@@ -99,9 +114,13 @@ export class ProductService {
       throw new ForbiddenException('Bạn không có quyền chỉnh sửa sản phẩm của Shop khác!');
     }
 
-    const data: UpdateProductDto = {
-      ...dto,
-      ...(dto.sku !== undefined ? { sku: dto.sku.trim().toUpperCase() } : {}),
+    const { sku, imageUrl, ...rest } = dto;
+    const data: Prisma.ProductUpdateInput = {
+      ...rest,
+      ...(sku !== undefined ? { sku: sku.trim().toUpperCase() } : {}),
+      ...(imageUrl !== undefined
+        ? { imageUrl: this.normalizeImageUrl(imageUrl) }
+        : {}),
     };
 
     try {

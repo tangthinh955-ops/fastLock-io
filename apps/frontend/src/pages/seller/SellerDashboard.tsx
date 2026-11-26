@@ -140,7 +140,7 @@ export const SellerDashboard: React.FC = () => {
     try {
       if (editingProduct) {
         await apiClient.patch(`/products/${editingProduct.id}`, {
-          sku: formSku.trim().toUpperCase(), name: formName.trim(), price: priceNum, stock: stockNum, imageUrl: formImageUrl.trim() || undefined,
+          sku: formSku.trim().toUpperCase(), name: formName.trim(), price: priceNum, stock: stockNum, imageUrl: formImageUrl.trim(),
         });
         setToast({ open: true, message: `Đã cập nhật sản phẩm ${formSku}!`, severity: 'success' });
       } else {
