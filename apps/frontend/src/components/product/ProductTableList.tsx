@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+    Avatar,
     Box,
     Paper,
     Stack,
@@ -50,6 +51,25 @@ const renderStockChip = (stock: number) => {
     }
     return <Chip icon={<CheckCircleIcon />} label="Còn hàng" color="success" size="small" sx={{ fontWeight: 600 }} />;
 };
+
+const renderProductThumbnail = (product: Product) => (
+    <Avatar
+        src={product.imageUrl || undefined}
+        alt={product.name}
+        variant="rounded"
+        sx={{
+            width: 40,
+            height: 40,
+            flexShrink: 0,
+            bgcolor: 'action.hover',
+            color: 'text.secondary',
+            border: 1,
+            borderColor: 'divider',
+        }}
+    >
+        <InventoryIcon fontSize="small" />
+    </Avatar>
+);
 
 export const ProductTableList: React.FC<ProductTableListProps> = ({
     products,
@@ -169,7 +189,14 @@ export const ProductTableList: React.FC<ProductTableListProps> = ({
                                                 sx={{ fontWeight: 700, borderRadius: 1.5 }}
                                             />
                                         </TableCell>
-                                        <TableCell sx={{ fontWeight: 600 }}>{product.name}</TableCell>
+                                        <TableCell sx={{ fontWeight: 600 }}>
+                                            <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
+                                                {renderProductThumbnail(product)}
+                                                <Typography variant="body2" sx={{ fontWeight: 600, minWidth: 0 }}>
+                                                    {product.name}
+                                                </Typography>
+                                            </Stack>
+                                        </TableCell>
                                         <TableCell
                                             align="right"
                                             sx={{ fontWeight: 700, color: 'text.primary', fontVariantNumeric: 'tabular-nums' }}
@@ -238,12 +265,15 @@ export const ProductTableList: React.FC<ProductTableListProps> = ({
                                 {renderStockChip(product.stock)}
                             </Stack>
 
-                            <Typography
-                                variant="subtitle1"
-                                sx={{ fontWeight: 700, color: 'text.primary', mb: 1, overflowWrap: 'anywhere' }}
-                            >
-                                {product.name}
-                            </Typography>
+                            <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', mb: 1 }}>
+                                {renderProductThumbnail(product)}
+                                <Typography
+                                    variant="subtitle1"
+                                    sx={{ fontWeight: 700, color: 'text.primary', overflowWrap: 'anywhere', minWidth: 0 }}
+                                >
+                                    {product.name}
+                                </Typography>
+                            </Stack>
 
                             <Stack
                                 direction="row"
